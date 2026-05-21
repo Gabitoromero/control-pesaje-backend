@@ -23,13 +23,11 @@ Sistema web con arquitectura cliente-servidor. El servidor actúa como **orquest
 
 ## Stack tecnológico
 
-> [POR DEFINIR] — Completar antes de iniciar Fase I
-
 | Capa | Tecnología | Notas |
 |------|-----------|-------|
-| Backend / API | — | — |
-| Base de datos | — | — |
-| Tiempo real | — | WebSockets / SSE |
+| Backend / API | Node.js con TypeScript | Patrón MVC |
+| Base de datos | PostgreSQL | Acceso a datos mediante MikroORM |
+| Tiempo real | WebSockets (Socket.io) | O SSE (a confirmar en implementación) |
 | Frontend tablet | — | — |
 | Dashboard web | — | — |
 | Raspberry Pi | — | Script de captura y envío |
@@ -53,6 +51,14 @@ El sistema requiere comunicación bidireccional en tiempo real para:
 ### Entidades principales
 
 ```
+Usuario
+  - id
+  - nombre_apellido
+  - nombre_usuario
+  - password_hash
+  - rol (operario | jefe | visualizacion | administrador)
+  - activo
+
 LineaProduccion
   - id
   - nombre
@@ -65,20 +71,25 @@ Articulo
   - descripcion
   - activo
 
+Marca
+  - id
+  - nombre
+  - activo
+
+ArticuloMarca (Intermedia N:M)
+  - id
+  - articulo_id
+  - marca_id
+
 Etapa
   - id
   - nombre
   - descripcion
   - activo
 
-RutaPasada
+RutaPasadaEtapa (Configuración Artículo-Etapa)
   - id
   - articulo_id
-  - activo
-
-RutaPasadaEtapa  (artículo-etapa con parámetros)
-  - id
-  - ruta_pasada_id
   - etapa_id
   - orden
   - peso_ideal
@@ -90,28 +101,24 @@ Pasada
   - id
   - linea_produccion_id
   - articulo_id
-  - numero (autoincremental por línea por día)
+  - marca_id (opcional)
+  - usuario_id
+  - numero (autoincremental por artículo en esa línea)
   - estado (en_curso | completa)
   - hora_inicio
   - hora_cierre
 
 Muestra
   - id
-  - pasada_id (nullable → control al azar)
+  - pasada_id (opcional - NULL en muestras al azar)
+  - usuario_id
+  - articulo_id
   - etapa_id
   - linea_produccion_id
-  - usuario_id
   - peso_neto
   - estado_validacion (ok | fuera_de_rango)
   - observacion
   - timestamp
-
-Usuario
-  - id
-  - nombre
-  - pin
-  - rol (operario | jefe | visualizacion | administrador)
-  - activo
 ```
 
 ---
