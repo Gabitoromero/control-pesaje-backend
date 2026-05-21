@@ -1,0 +1,29 @@
+import { MikroORM } from '@mikro-orm/core';
+import type { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import config from '../mikro-orm.config';
+import { initApp } from './app';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const port = process.env.PORT || 3000;
+
+const bootstrap = async () => {
+  try {
+    const orm = await MikroORM.init<PostgreSqlDriver>(config);
+    
+    // Sync schema in dev (optional, migrations are preferred for prod)
+    // await orm.getSchemaGenerator().updateSchema();
+
+    const app = await initApp(orm);
+
+    app.listen(port, () => {
+      console.log(`[server]: Server is running at http://localhost:${port}`);
+    });
+  } catch (error) {
+    console.error('[server]: Failed to start server', error);
+    process.exit(1);
+  }
+};
+
+bootstrap();
