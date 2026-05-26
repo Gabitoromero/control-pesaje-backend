@@ -1,7 +1,6 @@
-import { MikroORM } from '@mikro-orm/core';
-import type { PostgreSqlDriver } from '@mikro-orm/postgresql';
-import config from '../mikro-orm.config';
-import { initApp } from './app';
+import { MikroORM } from '@mikro-orm/postgresql';
+import config from '../mikro-orm.config.js';
+import { initApp } from './app.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -10,7 +9,7 @@ const port = process.env.PORT || 3000;
 
 const bootstrap = async () => {
   try {
-    const orm = await MikroORM.init<PostgreSqlDriver>(config);
+    const orm = await MikroORM.init(config);
     
     // Sync schema in dev (optional, migrations are preferred for prod)
     // await orm.getSchemaGenerator().updateSchema();

@@ -1,9 +1,9 @@
-import express from 'express';
+import express, { Express } from 'express';
 import cors from 'cors';
 import { MikroORM, RequestContext } from '@mikro-orm/core';
-import type { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import type { PostgreSqlDriver, SqlEntityManager } from '@mikro-orm/postgresql';
 
-export const initApp = async (orm: MikroORM<PostgreSqlDriver>) => {
+export const initApp = async (orm: MikroORM<PostgreSqlDriver>): Promise<Express> => {
   const app = express();
 
   app.use(express.json());
@@ -11,7 +11,7 @@ export const initApp = async (orm: MikroORM<PostgreSqlDriver>) => {
 
   // MikroORM RequestContext middleware
   app.use((_req, _res, next) => {
-    RequestContext.create(orm.em, next);
+    RequestContext.create(orm.em as unknown as SqlEntityManager, next);
   });
 
   // Health check endpoint

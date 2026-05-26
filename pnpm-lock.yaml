@@ -9,14 +9,17 @@ importers:
   .:
     dependencies:
       '@mikro-orm/core':
-        specifier: ^7.1.0
-        version: 7.1.0
+        specifier: ^7.1.1
+        version: 7.1.1
+      '@mikro-orm/decorators':
+        specifier: ^7.1.1
+        version: 7.1.1(@mikro-orm/core@7.1.1)(reflect-metadata@0.2.2)
       '@mikro-orm/migrations':
-        specifier: ^7.1.0
-        version: 7.1.0(@mikro-orm/core@7.1.0)
+        specifier: ^7.1.1
+        version: 7.1.1(@mikro-orm/core@7.1.1)
       '@mikro-orm/postgresql':
-        specifier: ^7.1.0
-        version: 7.1.0(@mikro-orm/core@7.1.0)
+        specifier: ^7.1.1
+        version: 7.1.1(@mikro-orm/core@7.1.1)
       cors:
         specifier: ^2.8.6
         version: 2.8.6
@@ -26,6 +29,9 @@ importers:
       express:
         specifier: ^5.2.1
         version: 5.2.1
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -142,8 +148,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@mikro-orm/core@7.1.0':
-    resolution: {integrity: sha512-qzZwEbA70kKSEKI0xnXn2CCyzDp1cC5zA5WR6P11eKi4FqvreBLh3Orb8rPGRqBkXhm5OUgKLdkgoPkePQ6Yfg==}
+  '@mikro-orm/core@7.1.1':
+    resolution: {integrity: sha512-exPiGlM83Gm+PZSn6nFz6bGiBEU9brkjJGfFPsaW6YPN5WM+Na8vmecsg2dVQPe0hj5b2p3Bnf+grm49V8sjZA==}
     engines: {node: '>= 22.17.0'}
     peerDependencies:
       dataloader: 2.2.3
@@ -151,23 +157,33 @@ packages:
       dataloader:
         optional: true
 
-  '@mikro-orm/migrations@7.1.0':
-    resolution: {integrity: sha512-AsD1uvThixoz88ZGO+mtQh44cJsrYacAYcmR0SChjtYkSr/FiCoBy92iy0Z77pqmzIqFPhkD71HesNrQDx9Eog==}
+  '@mikro-orm/decorators@7.1.1':
+    resolution: {integrity: sha512-O0Qep98tVeBRwiMiGLYKAxlr/+YuAFxYSDC6YSg9et+7gWitbWXkhfvDvFXa2zpLp/o08c2pD5iFe4nuYeqOJw==}
     engines: {node: '>= 22.17.0'}
     peerDependencies:
-      '@mikro-orm/core': 7.1.0
+      '@mikro-orm/core': 7.1.1
+      reflect-metadata: ^0.1.0 || ^0.2.0
+    peerDependenciesMeta:
+      reflect-metadata:
+        optional: true
 
-  '@mikro-orm/postgresql@7.1.0':
-    resolution: {integrity: sha512-cLJlbKPIQMxj86wgy3OIInMQyaav+MnCPMuvCcKMhZ+zDekDUTNK2OeThivvWn4WcoaxBAwgXBsQLGEn0qpEmg==}
+  '@mikro-orm/migrations@7.1.1':
+    resolution: {integrity: sha512-G5QzSbWGFDxf3mTuhImiCwmVvnW+f9cD6aUmOp7/neB4Qxz4EusDJkec827/lSgwhwPR7bwEs8/Kga2pYqR0uw==}
     engines: {node: '>= 22.17.0'}
     peerDependencies:
-      '@mikro-orm/core': 7.1.0
+      '@mikro-orm/core': 7.1.1
 
-  '@mikro-orm/sql@7.1.0':
-    resolution: {integrity: sha512-fDzM75/Auu6tLFsWvR7SNb+vMbZrrYjg43RKplKVe/2jdJLv+2IgXI9T1ebhKNDSLmolTTjPy/IrSv41QIb9lQ==}
+  '@mikro-orm/postgresql@7.1.1':
+    resolution: {integrity: sha512-vMKJE+DvnJldQwuKl6uiu5zuYx6+AJE6Z3mqaocOa7pMDxjp4Hz5Bybfwsgx1g/KA++H27NLVj3yZsNN8Xgb3g==}
     engines: {node: '>= 22.17.0'}
     peerDependencies:
-      '@mikro-orm/core': 7.1.0
+      '@mikro-orm/core': 7.1.1
+
+  '@mikro-orm/sql@7.1.1':
+    resolution: {integrity: sha512-ol7rkrhZGXu+/u0gIJDOW1nxinJtnvTtVxXHb539/rsFY+pKBPCbdqEEP0dFw2JjivdSqGyfd6MU0u6UUWnI7w==}
+    engines: {node: '>= 22.17.0'}
+    peerDependencies:
+      '@mikro-orm/core': 7.1.1
 
   '@napi-rs/wasm-runtime@1.1.4':
     resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
@@ -1132,6 +1148,9 @@ packages:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
 
+  reflect-metadata@0.2.2:
+    resolution: {integrity: sha512-urBwgfrvVP/eAyXx4hluJivBKzuEbSQs9rKWCrCkbSxNv8mxPcUZKeuoF3Uy4mJl3Lwprp6yy5/39VWigZ4K6Q==}
+
   rolldown@1.0.2:
     resolution: {integrity: sha512-oZx5zVDtVB44AW3eaifgDml1gWRDZGvjcfdxonE4swNPG98PrrXjaO/KrnUjzlMnztCCRVlUueA1kCXhARGk6g==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -1478,17 +1497,23 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@mikro-orm/core@7.1.0': {}
+  '@mikro-orm/core@7.1.1': {}
 
-  '@mikro-orm/migrations@7.1.0(@mikro-orm/core@7.1.0)':
+  '@mikro-orm/decorators@7.1.1(@mikro-orm/core@7.1.1)(reflect-metadata@0.2.2)':
     dependencies:
-      '@mikro-orm/core': 7.1.0
-      '@mikro-orm/sql': 7.1.0(@mikro-orm/core@7.1.0)
+      '@mikro-orm/core': 7.1.1
+    optionalDependencies:
+      reflect-metadata: 0.2.2
 
-  '@mikro-orm/postgresql@7.1.0(@mikro-orm/core@7.1.0)':
+  '@mikro-orm/migrations@7.1.1(@mikro-orm/core@7.1.1)':
     dependencies:
-      '@mikro-orm/core': 7.1.0
-      '@mikro-orm/sql': 7.1.0(@mikro-orm/core@7.1.0)
+      '@mikro-orm/core': 7.1.1
+      '@mikro-orm/sql': 7.1.1(@mikro-orm/core@7.1.1)
+
+  '@mikro-orm/postgresql@7.1.1(@mikro-orm/core@7.1.1)':
+    dependencies:
+      '@mikro-orm/core': 7.1.1
+      '@mikro-orm/sql': 7.1.1(@mikro-orm/core@7.1.1)
       kysely: 0.29.2
       pg: 8.21.0
       pg-cursor: 2.20.0(pg@8.21.0)
@@ -1498,9 +1523,9 @@ snapshots:
     transitivePeerDependencies:
       - pg-native
 
-  '@mikro-orm/sql@7.1.0(@mikro-orm/core@7.1.0)':
+  '@mikro-orm/sql@7.1.1(@mikro-orm/core@7.1.1)':
     dependencies:
-      '@mikro-orm/core': 7.1.0
+      '@mikro-orm/core': 7.1.1
       kysely: 0.29.2
 
   '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
@@ -2411,6 +2436,8 @@ snapshots:
       http-errors: 2.0.1
       iconv-lite: 0.7.2
       unpipe: 1.0.0
+
+  reflect-metadata@0.2.2: {}
 
   rolldown@1.0.2:
     dependencies:

@@ -1,0 +1,44 @@
+import { Entity, PrimaryKey, Property, Enum, Unique } from '@mikro-orm/decorators/legacy';
+
+export enum UsuarioRol {
+  OPERARIO = 'operario',
+  JEFE = 'jefe',
+  VISUALIZACION = 'visualizacion',
+  ADMINISTRADOR = 'administrador',
+}
+
+export interface UsuarioMetadata {
+  preferenciasInterfaz?: {
+    tema?: 'claro' | 'oscuro';
+    idioma?: 'es' | 'en';
+  };
+  configuracionBalanzaDefecto?: {
+    estabilizacionMs?: number;
+    taraDefecto?: number;
+  };
+}
+
+@Entity({ tableName: 'usuario' })
+export class Usuario {
+  @PrimaryKey({ type: 'number', autoincrement: true })
+  id!: number;
+
+  @Property({ type: 'string', length: 100 })
+  nombreApellido!: string;
+
+  @Unique()
+  @Property({ type: 'string', length: 50 })
+  nombreUsuario!: string;
+
+  @Property({ type: 'string', length: 255 })
+  contrasenaHash!: string;
+
+  @Enum({ items: () => UsuarioRol, nativeEnumName: 'usuario_rol_enum' })
+  rol!: UsuarioRol;
+
+  @Property({ type: 'boolean', default: true })
+  activo: boolean = true;
+
+  @Property({ type: 'json', columnType: 'jsonb', nullable: true })
+  datosAdicionales?: UsuarioMetadata;
+}
