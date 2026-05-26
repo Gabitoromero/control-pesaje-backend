@@ -1,7 +1,8 @@
-import { Entity, PrimaryKey, Property, ManyToOne, Unique } from '@mikro-orm/decorators/legacy';
+import { Entity, Filter, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
 import { Articulo } from './Articulo.js';
 import { Etapa } from './Etapa.js';
 
+@Filter({ name: 'activo', cond: { activo: true }, default: true })
 @Entity({ tableName: 'ruta_pasada_etapa' })
 @Unique({ properties: ['articulo', 'etapa'] })
 export class RutaPasadaEtapa {

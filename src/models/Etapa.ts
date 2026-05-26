@@ -1,5 +1,6 @@
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, Filter, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 
+@Filter({ name: 'activo', cond: { activo: true }, default: true })
 @Entity({ tableName: 'etapa' })
 export class Etapa {
   @PrimaryKey({ type: 'number', autoincrement: true })

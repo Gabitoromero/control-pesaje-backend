@@ -1,5 +1,6 @@
-import { Entity, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
+import { Entity, Filter, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
 
+@Filter({ name: 'activo', cond: { activo: true }, default: true })
 @Entity({ tableName: 'linea_produccion' })
 export class LineaProduccion {
   @PrimaryKey({ type: 'number', autoincrement: true })

@@ -1,0 +1,61 @@
+import { z } from 'zod';
+import { UsuarioRol } from '../models/Usuario.js';
+
+// ─── Usuario ─────────────────────────────────────────────────────────────────
+
+export const UsuarioCreateSchema = z.object({
+  nombreApellido: z.string().min(1),
+  nombreUsuario: z.string().min(3),
+  contrasena: z.string().min(4),
+  rol: z.enum([
+    UsuarioRol.OPERARIO,
+    UsuarioRol.JEFE,
+    UsuarioRol.VISUALIZACION,
+    UsuarioRol.ADMINISTRADOR,
+  ]),
+  datosAdicionales: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const UsuarioUpdateSchema = UsuarioCreateSchema.partial();
+
+// ─── Articulo ─────────────────────────────────────────────────────────────────
+
+export const ArticuloCreateSchema = z.object({
+  nombre: z.string().min(1),
+  descripcion: z.string().min(4).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const ArticuloUpdateSchema = ArticuloCreateSchema.partial();
+
+// ─── Etapa ────────────────────────────────────────────────────────────────────
+
+export const EtapaCreateSchema = z.object({
+  nombre: z.string().min(1),
+  descripcion: z.string().min(4).optional(),
+});
+
+export const EtapaUpdateSchema = EtapaCreateSchema.partial();
+
+// ─── LineaProduccion ──────────────────────────────────────────────────────────
+
+export const LineaProduccionCreateSchema = z.object({
+  nombre: z.string().min(1),
+  numeroBalanza: z.number().int().positive(),
+});
+
+export const LineaProduccionUpdateSchema = LineaProduccionCreateSchema.partial();
+
+// ─── RutaPasadaEtapa ──────────────────────────────────────────────────────────
+
+export const RutaPasadaEtapaCreateSchema = z.object({
+  articulo: z.number().int(),
+  etapa: z.number().int(),
+  orden: z.number().int(),
+  pesoIdeal: z.number().positive(),
+  pesoMinimo: z.number().positive(),
+  pesoMaximo: z.number().positive(),
+  cantidadMuestrasRequeridas: z.number().int().positive(),
+});
+
+export const RutaPasadaEtapaUpdateSchema = RutaPasadaEtapaCreateSchema.partial();

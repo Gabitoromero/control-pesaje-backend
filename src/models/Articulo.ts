@@ -1,5 +1,6 @@
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, Filter, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 
+@Filter({ name: 'activo', cond: { activo: true }, default: true })
 @Entity({ tableName: 'articulo' })
 export class Articulo {
   @PrimaryKey({ type: 'number', autoincrement: true })
@@ -13,4 +14,7 @@ export class Articulo {
 
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
+
+  @Property({ type: 'json', columnType: 'jsonb', nullable: true })
+  metadata?: Record<string, unknown>;
 }
