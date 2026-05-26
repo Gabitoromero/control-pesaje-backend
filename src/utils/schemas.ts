@@ -13,7 +13,16 @@ export const UsuarioCreateSchema = z.object({
     UsuarioRol.VISUALIZACION,
     UsuarioRol.ADMINISTRADOR,
   ]),
-  datosAdicionales: z.record(z.string(), z.unknown()).optional(),
+  datosAdicionales: z.object({
+    preferenciasInterfaz: z.object({
+      tema: z.enum(['claro', 'oscuro']),
+      idioma: z.enum(['es', 'en']),
+    }).partial().optional(),
+    configuracionBalanzaDefecto: z.object({
+      estabilizacionMs: z.number().optional(),
+      taraDefecto: z.number().optional(),
+    }).optional(),
+  }).partial().optional(),
 });
 
 export const UsuarioUpdateSchema = UsuarioCreateSchema.partial();
