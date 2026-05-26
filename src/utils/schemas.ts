@@ -58,8 +58,8 @@ export const LineaProduccionUpdateSchema = LineaProduccionCreateSchema.partial()
 // ─── RutaPasadaEtapa ──────────────────────────────────────────────────────────
 
 export const RutaPasadaEtapaCreateSchema = z.object({
-  articulo: z.number().int(),
-  etapa: z.number().int(),
+  articulo: z.number().int().positive(),
+  etapa: z.number().int().positive(),
   orden: z.number().int(),
   pesoIdeal: z.number().positive(),
   pesoMinimo: z.number().positive(),
