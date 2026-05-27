@@ -32,6 +32,7 @@ export class MuestraService extends BaseService<Muestra> {
 
     // 1. If pasadaId is provided, check if it's en_curso
     let pasada: Pasada | null = null;
+    let allRutas: RutaPasadaEtapa[] = [];
     if (pasadaId) {
       pasada = await em.findOne(Pasada, { id: pasadaId });
       if (!pasada) {
@@ -54,7 +55,7 @@ export class MuestraService extends BaseService<Muestra> {
     // 3. Enforce sequential stage order if in a Pasada
     if (pasada) {
       // Find all stages for this article, ordered by 'orden'
-      const allRutas = await em.find(
+      allRutas = await em.find(
         RutaPasadaEtapa,
         { articulo: articuloId },
         { orderBy: { orden: 'ASC' } }
@@ -99,12 +100,6 @@ export class MuestraService extends BaseService<Muestra> {
 
     // 6. If OK sample is registered, check if the Pasada is now complete
     if (pasada && estadoValidacion === MuestraEstadoValidacion.OK) {
-      const allRutas = await em.find(
-        RutaPasadaEtapa,
-        { articulo: articuloId },
-        { orderBy: { orden: 'ASC' } }
-      );
-
       let entirePasadaComplete = true;
       for (const r of allRutas) {
         const count = await em.count(Muestra, {

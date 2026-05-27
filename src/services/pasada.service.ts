@@ -76,13 +76,18 @@ export class PasadaService extends BaseService<Pasada> {
 
   async completarPasada(id: number): Promise<Pasada | null> {
     const em = this.getEm();
-    const pasada = await this.findById(id);
-    if (!pasada) return null;
 
-    if (pasada.estado === PasadaEstado.EN_CURSO) {
+    return em.transactional(async (txEm) => {
+      const pasada = await txEm.findOne(Pasada, { id }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+      if (!pasada) return null;
+
+      if (pasada.estado !== PasadaEstado.EN_CURSO) {
+        throw new Error(`Cannot complete pasada with ID ${id}: it is already in state '${pasada.estado}'`);
+      }
+
       pasada.estado = PasadaEstado.COMPLETA;
       pasada.horaCierre = new Date();
-      await em.flush();
+      await txEm.flush();
 
       // Clear from in-memory session if it matches
       const lineId = pasada.lineaProduccion.id;
@@ -90,9 +95,9 @@ export class PasadaService extends BaseService<Pasada> {
       if (session && session.pasadaId === pasada.id) {
         sesionService.actualizarPasada(lineId, null);
       }
-    }
 
-    return pasada;
+      return pasada;
+    });
   }
 
   async abortarPasada(id: number, motivoCierre: string): Promise<Pasada | null> {
