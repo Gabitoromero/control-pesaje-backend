@@ -5,3 +5,5 @@ export * from './Marca.js';
 export * from './ArticuloMarca.js';
 export * from './Etapa.js';
 export * from './RutaPasadaEtapa.js';
+export * from './Pasada.js';
+export * from './Muestra.js';

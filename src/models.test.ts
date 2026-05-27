@@ -11,7 +11,11 @@ import {
   ArticuloMarca,
   Etapa,
   RutaPasadaEtapa,
-  UsuarioRol
+  Pasada,
+  Muestra,
+  UsuarioRol,
+  PasadaEstado,
+  MuestraEstadoValidacion
 } from './models/index.js';
 
 describe('Domain Entities Integration Tests', () => {
@@ -31,6 +35,8 @@ describe('Domain Entities Integration Tests', () => {
         ArticuloMarca,
         Etapa,
         RutaPasadaEtapa,
+        Pasada,
+        Muestra,
       ],
       entitiesTs: [], // Disable ts scanning in test
       allowGlobalContext: true,
@@ -49,7 +55,7 @@ describe('Domain Entities Integration Tests', () => {
     }
   });
 
-  it('should discover all 7 core domain entities', () => {
+  it('should discover all 9 core domain entities', () => {
     const entities = orm.config.get('entities');
     const entityNames = entities.map(e => typeof e === 'function' ? e.name : e);
     
@@ -60,7 +66,9 @@ describe('Domain Entities Integration Tests', () => {
     expect(entityNames).toContain('ArticuloMarca');
     expect(entityNames).toContain('Etapa');
     expect(entityNames).toContain('RutaPasadaEtapa');
-    expect(entityNames.length).toBe(7);
+    expect(entityNames).toContain('Pasada');
+    expect(entityNames).toContain('Muestra');
+    expect(entityNames.length).toBe(9);
   });
 
   it('should create and retrieve a Usuario with JSONB metadata', async () => {
@@ -143,5 +151,69 @@ describe('Domain Entities Integration Tests', () => {
     expect(serialized.pesoIdeal).toBe(12.346);
     expect(serialized.pesoMinimo).toBe(10.111);
     expect(serialized.pesoMaximo).toBe(16.000);
+  });
+
+  it('should create and retrieve a Pasada and Muestra with decimal rounding on pesoNeto', async () => {
+    const em = orm.em.fork();
+
+    // Create required relations
+    const usuario = new Usuario();
+    usuario.nombreApellido = 'Test Operario';
+    usuario.nombreUsuario = 'test.operario';
+    usuario.contrasenaHash = 'hash';
+    usuario.rol = UsuarioRol.OPERARIO;
+
+    const linea = new LineaProduccion();
+    linea.nombre = 'Línea de Envasado 1';
+    linea.numeroBalanza = 42;
+
+    const articulo = new Articulo();
+    articulo.nombre = 'Alfajor Triple';
+
+    const etapa = new Etapa();
+    etapa.nombre = 'Relleno';
+
+    await em.persist([usuario, linea, articulo, etapa]).flush();
+
+    // Create Pasada
+    const pasada = new Pasada();
+    pasada.lineaProduccion = linea;
+    pasada.articulo = articulo;
+    pasada.usuario = usuario;
+    pasada.numero = 1;
+    pasada.estado = PasadaEstado.EN_CURSO;
+    pasada.horaInicio = new Date();
+
+    await em.persist(pasada).flush();
+
+    // Create Muestra
+    const muestra = new Muestra();
+    muestra.pasada = pasada;
+    muestra.usuario = usuario;
+    muestra.articulo = articulo;
+    muestra.etapa = etapa;
+    muestra.lineaProduccion = linea;
+    muestra.pesoNeto = 85.1236; // 4 decimals, should round to 85.124
+    muestra.estadoValidacion = MuestraEstadoValidacion.OK;
+    muestra.timestamp = new Date();
+
+    await em.persist(muestra).flush();
+
+    em.clear();
+
+    const retrievedPasada = await em.findOne(Pasada, pasada.id, { populate: ['lineaProduccion', 'articulo', 'usuario'] });
+    expect(retrievedPasada).not.toBeNull();
+    expect(retrievedPasada!.estado).toBe(PasadaEstado.EN_CURSO);
+    expect(retrievedPasada!.numero).toBe(1);
+    expect(retrievedPasada!.lineaProduccion.nombre).toBe('Línea de Envasado 1');
+    expect(retrievedPasada!.articulo.nombre).toBe('Alfajor Triple');
+    expect(retrievedPasada!.usuario.nombreApellido).toBe('Test Operario');
+
+    const retrievedMuestra = await em.findOne(Muestra, muestra.id, { populate: ['pasada', 'etapa'] });
+    expect(retrievedMuestra).not.toBeNull();
+    expect(retrievedMuestra!.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
+    
+    const serialized = wrap(retrievedMuestra!).toJSON();
+    expect(serialized.pesoNeto).toBe(85.124);
   });
 });

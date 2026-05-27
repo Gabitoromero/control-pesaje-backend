@@ -1,22 +1,7 @@
 import { Entity, Filter, PrimaryKey, Property, Enum, Unique } from '@mikro-orm/decorators/legacy';
+import { UsuarioRol, UsuarioMetadata } from '../shared/types.js';
 
-export enum UsuarioRol {
-  OPERARIO = 'operario',
-  JEFE = 'jefe',
-  VISUALIZACION = 'visualizacion',
-  ADMINISTRADOR = 'administrador',
-}
-
-export interface UsuarioMetadata {
-  preferenciasInterfaz?: {
-    tema?: 'claro' | 'oscuro';
-    idioma?: 'es' | 'en';
-  };
-  configuracionBalanzaDefecto?: {
-    estabilizacionMs?: number;
-    taraDefecto?: number;
-  };
-}
+export { UsuarioRol, UsuarioMetadata };
 
 @Filter({ name: 'activo', cond: { activo: true }, default: true })
 @Entity({ tableName: 'usuario' })

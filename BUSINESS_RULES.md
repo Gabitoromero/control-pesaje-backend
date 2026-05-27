@@ -34,7 +34,7 @@ Toda la lógica de negocio del sistema está definida aquí. Antes de implementa
 
 **RN-10** — El número de pasada es un contador autoincremental por línea por día. Se resetea al iniciar en la línea con un nuevo artículo.
 
-**RN-11** — Estados posibles de una pasada: `en_curso` y `completa`.
+**RN-11** — Estados posibles de una pasada: `en_curso`, `completa` y `abortada`. Una pasada puede ser abortada por un usuario con permisos, requiriendo ingresar un `motivo_cierre` obligatorio para justificar el cierre inusual.
 
 ---
 
