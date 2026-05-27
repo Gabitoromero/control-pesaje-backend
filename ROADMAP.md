@@ -2,6 +2,7 @@
 
 ## Estado actual
 `[ ] Fase I — Setup de infraestructura`
+`[ ] Fase II — API Core`
 
 ---
 
@@ -12,10 +13,10 @@
 **Estado:** ⬜ Pendiente
 
 - [ ] Servidor configurado (VPS o local)
-- [ ] Base de datos inicializada
-- [ ] Docker configurado
+- [x] Base de datos inicializada
+- [x] Docker configurado
 - [ ] Seguridad base implementada
-- [ ] Variables de entorno y configuración
+- [x] Variables de entorno y configuración
 
 ---
 

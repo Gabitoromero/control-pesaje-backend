@@ -39,11 +39,9 @@ Sistema web de control de pesaje industrial para una planta de producción. Reem
 
 ## Convenciones de código
 
-> [POR COMPLETAR] — agregar cuando se defina el stack tecnológico
-
-- Idioma del código: `[POR DEFINIR]`
-- Idioma de los nombres de dominio (entidades, variables): **español** (seguir el diccionario)
-- Estilo: `[POR DEFINIR]`
+- Idioma del código: **Inglés** para la estructura técnica (controllers, services, interfaces).
+- Idioma de los nombres de dominio (entidades, variables): **Español** (ej. `Pasada`, `Muestra`). Seguir el diccionario.
+- Estilo: Node.js con TypeScript, patrón MVC. Acceso a datos con MikroORM.
 - Tests: `[POR DEFINIR]`
 
 ---

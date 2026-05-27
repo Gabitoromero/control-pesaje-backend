@@ -1,0 +1,18 @@
+import { Router } from 'express';
+import authRoutes from './auth.routes.js';
+import usuariosRoutes from './usuarios.routes.js';
+import articulosRoutes from './articulos.routes.js';
+import etapasRoutes from './etapas.routes.js';
+import lineasProduccionRoutes from './lineas-produccion.routes.js';
+import rutasPasadasEtapasRoutes from './rutas-pasadas-etapas.routes.js';
+
+const router: Router = Router();
+
+router.use('/auth', authRoutes);
+router.use('/usuarios', usuariosRoutes);
+router.use('/articulos', articulosRoutes);
+router.use('/etapas', etapasRoutes);
+router.use('/lineas-produccion', lineasProduccionRoutes);
+router.use('/rutas-pasadas-etapas', rutasPasadasEtapasRoutes);
+
+export default router;

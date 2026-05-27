@@ -17,16 +17,17 @@ Entorno físico y logístico dedicado a la fabricación de un artículo. La plan
 ### Etapa
 Proceso de producción para llegar a un producto intermedio del producto final. En cada etapa el producto consume o incorpora algo (ej: crema, cobertura, crocante mix). Una misma etapa puede formar parte de la ruta de pasada de uno o varios artículos. En cada etapa se toman una o varias **muestras**.
 
-### Ruta de pasada
-Definición teórica y secuencial de los controles de pesaje que un artículo debe cumplir a lo largo de sus etapas de producción. Cada artículo tiene su propia ruta de pasada. Cada par `artículo-etapa` tiene parámetros de pesaje propios: peso ideal, mínimo y máximo.
+### Marca
+Identificador comercial asociado a un artículo. Un mismo artículo (producto base) puede producirse bajo distintas marcas. La relación es de muchos a muchos (N:M).
 
-### Pasada
-Ejecución física y cronológica de la ruta de pasada en la línea de producción, de inicio a fin. Una pasada puede estar **en curso** o **completa**. Pueden coexistir múltiples pasadas simultáneas en una misma línea para el mismo artículo.
+### Ruta de pasada (Configuración)
+Plantilla que define la secuencia de etapas y los parámetros de pesaje específicos para cada par `artículo-etapa` (peso ideal, mínimo, máximo y cantidad de muestras requeridas). Se gestiona a través de la entidad `RutaPasadaEtapa`.
 
-> El número de pasada es un contador autoincremental por línea por día. Se resetea al asignar un nuevo artículo a la línea.
+### Pasada (Ejecución)
+Ejecución física y cronológica de la ruta configurada en la línea de producción. Una pasada vincula un operario con un artículo y (opcionalmente) una marca en una línea específica. El número de pasada es un contador autoincremental por artículo en esa línea que se resetea al cambiar de artículo.
 
 ### Muestra
-Medición individual del peso de un artículo en una etapa determinada, dentro de una pasada determinada. Cada muestra queda vinculada a: usuario, hora exacta, etapa, balanza y número de pasada. El peso es capturado automáticamente por la balanza via Raspberry Pi.
+Medición individual del peso neto capturada automáticamente por la balanza. Las muestras pueden ser parte de una `Pasada` o ser "al azar" (sin pasada vinculada). Cada muestra queda vinculada obligatoriamente a: usuario, timestamp, artículo, etapa y línea de producción.
 
 ### Tara
 Peso del recipiente utilizado para transportar la muestra a la balanza. Se mide una vez por etapa por pasada, antes de pesar las muestras. **No se registra en el sistema.** El operario configura la tara directamente en la balanza KRETZ; el peso que llega al sistema es siempre el peso **neto**.
