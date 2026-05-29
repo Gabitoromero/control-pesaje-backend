@@ -24,7 +24,7 @@
 
 **RF-09** — Mantener y mostrar un listado de pasadas en curso por línea de producción, indicando para cada una: número de pasada, hora de inicio, última etapa registrada y último operario que registró.
 
-**RF-10** — Permitir a cualquier operario con sesión activa retomar una pasada en curso iniciada por otro operario.
+**RF-10** — Restringir el registro de muestras de una pasada activa únicamente al operario que la inició. Un operario no puede registrar muestras en una pasada en curso iniciada por otro operario.
 
 **RF-11** — Permitir que coexistan múltiples pasadas en curso simultáneamente para la misma línea y artículo.
 

@@ -54,7 +54,7 @@ Etapa previa al inicio de la producción en la que los operarios configuran las 
 
 | Rol | Descripción |
 |-----|-------------|
-| `operario` | Acceso a interfaz de planta: iniciar/retomar pasadas, registrar muestras, avanzar etapas, finalizar pasadas |
+| `operario` | Acceso a interfaz de planta: iniciar sus propias pasadas, registrar muestras en ellas, avanzar etapas, finalizar sus pasadas |
 | `jefe` | Todo lo del operario + dashboard, reportes, algunos ABM |
 | `visualizacion` | Solo lectura del resumen de líneas de producción |
 | `administrador` | Acceso total. Reservado para el desarrollador |

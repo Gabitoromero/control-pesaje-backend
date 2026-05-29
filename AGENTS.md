@@ -22,7 +22,8 @@ Este archivo es la fuente de verdad para el desarrollo del backend de **Control 
 1. **Orquestador de Contexto:** El servidor decide si procesa o descarta un peso. Si la `LineaProduccion` no tiene una sesión de `Usuario` activa, el dato de la Raspberry se **descarta**.
 2. **Baja Lógica:** Está terminantemente prohibido usar `DELETE` físico. Todas las entidades deben usar baja lógica (ej. propiedad `activo: boolean`).
 3. **Validación de Muestras:** Una muestra `fuera_de_rango` se registra por trazabilidad pero **no suma** para completar la cantidad de muestras requeridas de una etapa (definida en `RutaPasadaEtapa`).
-4. **Sin Estado Offline:** No implementar lógica de sincronización compleja; si la conexión falla, el sistema no opera.
+4. **Propiedad de Pasadas:** Un usuario con sesión activa solo registra muestras de pasadas iniciadas por él mismo. No se permite la adición de muestras sobre pasadas de otros usuarios.
+5. **Sin Estado Offline:** No implementar lógica de sincronización compleja; si la conexión falla, el sistema no opera.
 
 ## 4. Estructura de Carpetas Sugerida
 ```text

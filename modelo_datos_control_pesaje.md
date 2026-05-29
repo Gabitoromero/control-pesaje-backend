@@ -129,7 +129,7 @@ Medición individual de peso. Siempre tiene usuario, artículo, etapa y línea. 
 |-------|------|---------------|-------------|
 | 🔑 id | INT | PK, AUTO_INCREMENT | Identificador único de la muestra |
 | 🔗 pasada_id | INT | ⚪ FK → pasada.id, NULLABLE | NULL cuando es muestra al azar. Presente en muestras normales |
-| 🔗 usuario_id | INT | FK → usuario.id, NOT NULL | Siempre presente. En muestras de pasada se copia desde pasada.usuario_id |
+| 🔗 usuario_id | INT | FK → usuario.id, NOT NULL | Siempre presente. Debe coincidir con el usuario_id de la pasada asociada (RN-12) |
 | 🔗 articulo_id | INT | FK → articulo.id, NOT NULL | Siempre presente. En muestras de pasada se copia desde pasada.articulo_id |
 | 🔗 etapa_id | INT | FK → etapa.id, NOT NULL | Etapa en la que se tomó la muestra |
 | 🔗 linea_produccion_id | INT | FK → linea_produccion.id, NOT NULL | Línea donde se capturó el peso |

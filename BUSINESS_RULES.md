@@ -36,35 +36,37 @@ Toda la lógica de negocio del sistema está definida aquí. Antes de implementa
 
 **RN-11** — Estados posibles de una pasada: `en_curso`, `completa` y `abortada`. Una pasada puede ser abortada por un usuario con permisos, requiriendo ingresar un `motivo_cierre` obligatorio para justificar el cierre inusual.
 
+**RN-12** — Una pasada en curso queda estrictamente asociada al usuario que la inició. Únicamente el usuario titular de la pasada activa puede registrar muestras o realizar acciones sobre ella.
+
 ---
 
 ## Flujo de etapas dentro de una pasada
 
-**RN-12** — El sistema guía al operario de forma secuencial por las etapas de la ruta de pasada. **No se permite saltar etapas pendientes.**
+**RN-13** — El sistema guía al operario de forma secuencial por las etapas de la ruta de pasada. **No se permite saltar etapas pendientes.**
 
-**RN-13** — Si se registran muestras fuera de rango (por debajo del mínimo o por encima del máximo), se solicitarán más muestras hasta cumplir con la cantidad de muestras **con valores aceptables** que corresponden a la etapa.
+**RN-14** — Si se registran muestras fuera de rango (por debajo del mínimo o por encima del máximo), se solicitarán más muestras hasta cumplir con la cantidad de muestras **con valores aceptables** que corresponden a la etapa.
 
 ---
 
 ## Puesta a punto y contexto de sesión
 
-**RN-14** — Si no hay un operario con sesión activa en la tablet de una línea, el sistema asume que esa línea está en **puesta a punto**. Los datos que lleguen de la Raspberry correspondiente son **descartados por el servidor** y no se persisten.
+**RN-15** — Si no hay un operario con sesión activa en la tablet de una línea, el sistema asume que esa línea está en **puesta a punto**. Los datos que lleguen de la Raspberry correspondiente son **descartados por el servidor** y no se persisten.
 
-**RN-15** — Por cada muestra se solicitará PIN de usuario.
+**RN-16** — Por cada muestra se solicitará PIN de usuario.
 
-**RN-16** (sesiones) — Un operario **no puede tener sesión activa en más de una tablet simultáneamente**.
+**RN-17** (sesiones) — Un operario **no puede tener sesión activa en más de una tablet simultáneamente**.
 
 ---
 
 ## Control semanal de balanzas
 
-**RN-16** — El control con pesas fijas se registra como cualquier otro artículo: tiene su propia ruta de pasada, etapas y cantidad de muestras por etapa definidas.
+**RN-18** — El control con pesas fijas se registra como cualquier otro artículo: tiene su propia ruta de pasada, etapas y cantidad de muestras por etapa definidas.
 
 ---
 
 ## Trazabilidad
 
-**RN-17** — Cada muestra debe poder identificar con precisión:
+**RN-19** — Cada muestra debe poder identificar con precisión:
 - Qué operario la registró
 - En qué momento (timestamp exacto)
 - En qué etapa
