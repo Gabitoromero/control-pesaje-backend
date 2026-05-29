@@ -10,6 +10,8 @@ import {
   Marca,
   ArticuloMarca,
   Etapa,
+  RutaPasada,
+  ArticuloRutaPasada,
   RutaPasadaEtapa,
   Pasada,
   Muestra,
@@ -34,6 +36,8 @@ describe('Domain Entities Integration Tests', () => {
         Marca,
         ArticuloMarca,
         Etapa,
+        RutaPasada,
+        ArticuloRutaPasada,
         RutaPasadaEtapa,
         Pasada,
         Muestra,
@@ -55,20 +59,22 @@ describe('Domain Entities Integration Tests', () => {
     }
   });
 
-  it('should discover all 9 core domain entities', () => {
+  it('should discover all 11 core domain entities', () => {
     const entities = orm.config.get('entities');
     const entityNames = entities.map(e => typeof e === 'function' ? e.name : e);
-    
+
     expect(entityNames).toContain('Usuario');
     expect(entityNames).toContain('LineaProduccion');
     expect(entityNames).toContain('Articulo');
     expect(entityNames).toContain('Marca');
     expect(entityNames).toContain('ArticuloMarca');
     expect(entityNames).toContain('Etapa');
+    expect(entityNames).toContain('RutaPasada');
+    expect(entityNames).toContain('ArticuloRutaPasada');
     expect(entityNames).toContain('RutaPasadaEtapa');
     expect(entityNames).toContain('Pasada');
     expect(entityNames).toContain('Muestra');
-    expect(entityNames.length).toBe(9);
+    expect(entityNames.length).toBe(11);
   });
 
   it('should create and retrieve a Usuario with JSONB metadata', async () => {
@@ -115,18 +121,17 @@ describe('Domain Entities Integration Tests', () => {
     const em = orm.em.fork();
 
     // Create required relations
-    const articulo = new Articulo();
-    articulo.nombre = 'Palito Bombón';
-    articulo.descripcion = 'Helado de agua con cobertura';
-    
+    const rutaPasada = new RutaPasada();
+    rutaPasada.nombre = 'Palito Bombón';
+
     const etapa = new Etapa();
     etapa.nombre = 'Cobertura';
     etapa.descripcion = 'Baño de chocolate chocolate amargo';
 
-    await em.persist([articulo, etapa]).flush();
+    await em.persist([rutaPasada, etapa]).flush();
 
     const rutaEtapa = new RutaPasadaEtapa();
-    rutaEtapa.articulo = articulo;
+    rutaEtapa.rutaPasada = rutaPasada;
     rutaEtapa.etapa = etapa;
     rutaEtapa.orden = 1;
     // Set 4 decimal places to verify DB-level rounding
@@ -140,14 +145,14 @@ describe('Domain Entities Integration Tests', () => {
     em.clear();
 
     const retrieved = await em.findOne(RutaPasadaEtapa, {
-      articulo: articulo.id,
+      rutaPasada: rutaPasada.id,
       etapa: etapa.id,
     });
 
     expect(retrieved).not.toBeNull();
     // Serialized weights should be rounded to 3 decimal places
     const serialized = wrap(retrieved!).toJSON();
-    
+
     expect(serialized.pesoIdeal).toBe(12.346);
     expect(serialized.pesoMinimo).toBe(10.111);
     expect(serialized.pesoMaximo).toBe(16.000);
@@ -173,11 +178,15 @@ describe('Domain Entities Integration Tests', () => {
     const etapa = new Etapa();
     etapa.nombre = 'Relleno';
 
-    await em.persist([usuario, linea, articulo, etapa]).flush();
+    const rutaPasada = new RutaPasada();
+    rutaPasada.nombre = 'Ruta Alfajor Standard';
+
+    await em.persist([usuario, linea, articulo, etapa, rutaPasada]).flush();
 
     // Create Pasada
     const pasada = new Pasada();
     pasada.lineaProduccion = linea;
+    pasada.rutaPasada = rutaPasada;
     pasada.articulo = articulo;
     pasada.usuario = usuario;
     pasada.numero = 1;
@@ -190,6 +199,7 @@ describe('Domain Entities Integration Tests', () => {
     const muestra = new Muestra();
     muestra.pasada = pasada;
     muestra.usuario = usuario;
+    muestra.rutaPasada = rutaPasada;
     muestra.articulo = articulo;
     muestra.etapa = etapa;
     muestra.lineaProduccion = linea;
@@ -206,13 +216,13 @@ describe('Domain Entities Integration Tests', () => {
     expect(retrievedPasada!.estado).toBe(PasadaEstado.EN_CURSO);
     expect(retrievedPasada!.numero).toBe(1);
     expect(retrievedPasada!.lineaProduccion.nombre).toBe('Línea de Envasado 1');
-    expect(retrievedPasada!.articulo.nombre).toBe('Alfajor Triple');
+    expect(retrievedPasada!.articulo!.nombre).toBe('Alfajor Triple');
     expect(retrievedPasada!.usuario.nombreApellido).toBe('Test Operario');
 
     const retrievedMuestra = await em.findOne(Muestra, muestra.id, { populate: ['pasada', 'etapa'] });
     expect(retrievedMuestra).not.toBeNull();
     expect(retrievedMuestra!.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
-    
+
     const serialized = wrap(retrievedMuestra!).toJSON();
     expect(serialized.pesoNeto).toBe(85.124);
   });

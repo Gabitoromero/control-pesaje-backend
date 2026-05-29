@@ -7,6 +7,7 @@ import {
   LineaProduccion,
   Articulo,
   Etapa,
+  RutaPasada,
   RutaPasadaEtapa,
   Pasada,
   Muestra,
@@ -28,6 +29,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
   let testArticle: Articulo;
   let testEtapa1: Etapa;
   let testEtapa2: Etapa;
+  let testRutaPasada: RutaPasada;
   let testRuta1: RutaPasadaEtapa;
   let testRuta2: RutaPasadaEtapa;
 
@@ -41,6 +43,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
         LineaProduccion,
         Articulo,
         Etapa,
+        RutaPasada,
         RutaPasadaEtapa,
         Pasada,
         Muestra,
@@ -68,7 +71,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     // Clear in-memory sessions
     sesionService.limpiar();
 
-    // Clear and reseed database
+    // Clear and reseed database (order respects FK constraints)
     const em = orm.em.fork();
     await em.nativeDelete(Muestra, {});
     await em.nativeDelete(Pasada, {});
@@ -76,6 +79,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     await em.nativeDelete(Etapa, {});
     await em.nativeDelete(Articulo, {});
     await em.nativeDelete(LineaProduccion, {});
+    await em.nativeDelete(RutaPasada, {});
     await em.nativeDelete(Usuario, {});
 
     // Seed User
@@ -86,10 +90,16 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     testUser.rol = UsuarioRol.OPERARIO;
     await em.persist(testUser).flush();
 
-    // Seed Line
+    // Seed RutaPasada
+    testRutaPasada = new RutaPasada();
+    testRutaPasada.nombre = 'Ruta Alfajor Standard';
+    await em.persist(testRutaPasada).flush();
+
+    // Seed Line with active route
     testLine = new LineaProduccion();
     testLine.nombre = 'Linea de Envasado 1';
     testLine.numeroBalanza = 1;
+    testLine.rutaPasadaActiva = testRutaPasada;
     await em.persist(testLine).flush();
 
     // Seed Article
@@ -108,9 +118,9 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     testEtapa2.descripcion = 'Baño de chocolate chocolate';
     await em.persist([testEtapa1, testEtapa2]).flush();
 
-    // Seed Stage limits
+    // Seed Stage limits for the route
     testRuta1 = new RutaPasadaEtapa();
-    testRuta1.articulo = testArticle;
+    testRuta1.rutaPasada = testRutaPasada;
     testRuta1.etapa = testEtapa1;
     testRuta1.orden = 1;
     testRuta1.pesoIdeal = 50.000;
@@ -119,7 +129,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     testRuta1.cantidadMuestrasRequeridas = 2;
 
     testRuta2 = new RutaPasadaEtapa();
-    testRuta2.articulo = testArticle;
+    testRuta2.rutaPasada = testRutaPasada;
     testRuta2.etapa = testEtapa2;
     testRuta2.orden = 2;
     testRuta2.pesoIdeal = 70.000;
@@ -154,7 +164,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       expect(pasada1.numero).toBe(1);
       expect(pasada1.estado).toBe(PasadaEstado.EN_CURSO);
       expect(pasada1.lineaProduccion.id).toBe(testLine.id);
-      expect(pasada1.articulo.id).toBe(testArticle.id);
+      expect(pasada1.articulo!.id).toBe(testArticle.id);
 
       // Verify session in memory matches the created pasada
       const activeSession = sesionService.obtenerSesion(testLine.id);
@@ -297,6 +307,42 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       const session = sesionService.obtenerSesion(testLine.id);
       expect(session!.pasadaId).toBeNull();
     }));
+
+    it('should throw when registering a random sample on a line without rutaPasadaActiva', () => runInContext(async () => {
+      const em = orm.em.fork();
+      const lineaSinRuta = new LineaProduccion();
+      lineaSinRuta.nombre = 'Linea Sin Ruta Activa';
+      lineaSinRuta.numeroBalanza = 99;
+      await em.persist(lineaSinRuta).flush();
+
+      sesionService.iniciarSesion(lineaSinRuta.id, testUser.id, testArticle.id);
+
+      await expect(
+        muestraService.registrarMuestra(
+          testUser.id,
+          undefined,
+          testEtapa1.id,
+          lineaSinRuta.id,
+          50.000
+        )
+      ).rejects.toThrow('No se pueden registrar muestras al azar en una línea de producción sin ruta de pasada activa (modo puesta a punto)');
+    }));
+
+    it('should register a random sample successfully when line has active rutaPasada', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, testArticle.id);
+
+      const m = await muestraService.registrarMuestra(
+        testUser.id,
+        undefined, // no articuloId for random quality sample
+        testEtapa1.id,
+        testLine.id,
+        50.000 // inside [45, 55], no pasadaId
+      );
+
+      expect(m.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
+      expect(m.articulo).toBeUndefined();
+      expect(m.rutaPasada.id).toBe(testRutaPasada.id);
+    }));
   });
 
   describe('Deletes and Updates Restrictions on Completed Records', () => {
@@ -306,8 +352,8 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
       // Create samples to complete the pasada
       const m1 = await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
-      const m2 = await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
-      const m3 = await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa2.id, testLine.id, 70.000, pasada.id);
+      await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
+      await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa2.id, testLine.id, 70.000, pasada.id);
 
       // The pasada is now completed
       const em = orm.em.fork();

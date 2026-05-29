@@ -2,6 +2,7 @@ import { BaseService } from './base.service.js';
 import { Muestra, MuestraEstadoValidacion } from '../models/Muestra.js';
 import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
+import { RutaPasada } from '../models/RutaPasada.js';
 import { Usuario } from '../models/Usuario.js';
 import { Articulo } from '../models/Articulo.js';
 import { Etapa } from '../models/Etapa.js';
@@ -15,7 +16,7 @@ export class MuestraService extends BaseService<Muestra> {
 
   async registrarMuestra(
     usuarioId: number,
-    articuloId: number,
+    articuloId: number | undefined,
     etapaId: number,
     lineaProduccionId: number,
     pesoNeto: number,
@@ -30,38 +31,47 @@ export class MuestraService extends BaseService<Muestra> {
 
     const em = this.getEm();
 
-    // 1. If pasadaId is provided, check if it's en_curso
+    // 1. Resolve rutaPasadaId from active pasada or from the line's active route
+    let rutaPasadaId: number;
     let pasada: Pasada | null = null;
     let allRutas: RutaPasadaEtapa[] = [];
+
     if (pasadaId) {
-      pasada = await em.findOne(Pasada, { id: pasadaId });
+      pasada = await em.findOne(Pasada, pasadaId, { populate: ['rutaPasada'] });
       if (!pasada) {
         throw new Error(`Pasada with ID ${pasadaId} not found`);
       }
       if (pasada.estado === PasadaEstado.COMPLETA || pasada.estado === PasadaEstado.ABORTADA) {
         throw new Error(`Cannot register sample: Pasada is already completed or aborted`);
       }
+      rutaPasadaId = pasada.rutaPasada.id;
+    } else {
+      const linea = await em.findOne(LineaProduccion, lineaProduccionId, { populate: ['rutaPasadaActiva'] });
+      if (!linea?.rutaPasadaActiva) {
+        throw new Error(
+          `No se pueden registrar muestras al azar en una línea de producción sin ruta de pasada activa (modo puesta a punto)`
+        );
+      }
+      rutaPasadaId = linea.rutaPasadaActiva.id;
     }
 
     // 2. Fetch RutaPasadaEtapa for limits validation
     const rutaEtapa = await em.findOne(RutaPasadaEtapa, {
-      articulo: articuloId,
+      rutaPasada: rutaPasadaId,
       etapa: etapaId,
     });
     if (!rutaEtapa) {
-      throw new Error(`No route configuration found for article ${articuloId} and stage ${etapaId}`);
+      throw new Error(`No route configuration found for route ${rutaPasadaId} and stage ${etapaId}`);
     }
 
     // 3. Enforce sequential stage order if in a Pasada
     if (pasada) {
-      // Find all stages for this article, ordered by 'orden'
       allRutas = await em.find(
         RutaPasadaEtapa,
-        { articulo: articuloId },
+        { rutaPasada: rutaPasadaId },
         { orderBy: { orden: 'ASC' } }
       );
 
-      // Verify that all preceding stages (lower orden) are complete
       for (const r of allRutas) {
         if (r.orden < rutaEtapa.orden) {
           const count = await em.count(Muestra, {
@@ -84,9 +94,10 @@ export class MuestraService extends BaseService<Muestra> {
 
     // 5. Build and persist Muestra
     const muestra = new Muestra();
-    muestra.pasada = pasada || undefined;
+    muestra.pasada = pasada ?? undefined;
     muestra.usuario = em.getReference(Usuario, usuarioId);
-    muestra.articulo = em.getReference(Articulo, articuloId);
+    muestra.rutaPasada = em.getReference(RutaPasada, rutaPasadaId);
+    muestra.articulo = articuloId ? em.getReference(Articulo, articuloId) : undefined;
     muestra.etapa = em.getReference(Etapa, etapaId);
     muestra.lineaProduccion = em.getReference(LineaProduccion, lineaProduccionId);
     muestra.pesoNeto = pesoNeto;
@@ -118,7 +129,6 @@ export class MuestraService extends BaseService<Muestra> {
         pasada.horaCierre = new Date();
         await em.flush();
 
-        // Clear from active memory session
         const session = sesionService.obtenerSesion(lineaProduccionId);
         if (session && session.pasadaId === pasada.id) {
           sesionService.actualizarPasada(lineaProduccionId, null);

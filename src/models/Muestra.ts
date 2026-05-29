@@ -2,6 +2,7 @@ import { Entity, Filter, PrimaryKey, Property, ManyToOne, Enum } from '@mikro-or
 import { Pasada } from './Pasada.js';
 import { Usuario } from './Usuario.js';
 import { Articulo } from './Articulo.js';
+import { RutaPasada } from './RutaPasada.js';
 import { Etapa } from './Etapa.js';
 import { LineaProduccion } from './LineaProduccion.js';
 
@@ -22,8 +23,11 @@ export class Muestra {
   @ManyToOne(() => Usuario, { deleteRule: 'restrict' })
   usuario!: Usuario;
 
-  @ManyToOne(() => Articulo, { deleteRule: 'restrict' })
-  articulo!: Articulo;
+  @ManyToOne(() => RutaPasada, { deleteRule: 'restrict' })
+  rutaPasada!: RutaPasada;
+
+  @ManyToOne(() => Articulo, { deleteRule: 'restrict', nullable: true })
+  articulo?: Articulo;
 
   @ManyToOne(() => Etapa, { deleteRule: 'restrict' })
   etapa!: Etapa;

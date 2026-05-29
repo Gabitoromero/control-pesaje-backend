@@ -4,6 +4,8 @@ export * from './Articulo.js';
 export * from './Marca.js';
 export * from './ArticuloMarca.js';
 export * from './Etapa.js';
+export * from './RutaPasada.js';
+export * from './ArticuloRutaPasada.js';
 export * from './RutaPasadaEtapa.js';
 export * from './Pasada.js';
 export * from './Muestra.js';

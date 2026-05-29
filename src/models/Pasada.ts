@@ -1,6 +1,7 @@
 import { Entity, Filter, PrimaryKey, Property, ManyToOne, Enum } from '@mikro-orm/decorators/legacy';
 import { LineaProduccion } from './LineaProduccion.js';
 import { Articulo } from './Articulo.js';
+import { RutaPasada } from './RutaPasada.js';
 import { Marca } from './Marca.js';
 import { Usuario } from './Usuario.js';
 
@@ -19,8 +20,11 @@ export class Pasada {
   @ManyToOne(() => LineaProduccion, { deleteRule: 'restrict' })
   lineaProduccion!: LineaProduccion;
 
-  @ManyToOne(() => Articulo, { deleteRule: 'restrict' })
-  articulo!: Articulo;
+  @ManyToOne(() => RutaPasada, { deleteRule: 'restrict' })
+  rutaPasada!: RutaPasada;
+
+  @ManyToOne(() => Articulo, { deleteRule: 'restrict', nullable: true })
+  articulo?: Articulo;
 
   @ManyToOne(() => Marca, { deleteRule: 'restrict', nullable: true })
   marca?: Marca;

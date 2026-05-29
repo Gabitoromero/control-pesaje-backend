@@ -4,6 +4,7 @@ import { LineaProduccion } from '../models/LineaProduccion.js';
 import { Articulo } from '../models/Articulo.js';
 import { Marca } from '../models/Marca.js';
 import { Usuario } from '../models/Usuario.js';
+import { RutaPasada } from '../models/RutaPasada.js';
 import { sesionService } from './sesion.service.js';
 import { LockMode } from '@mikro-orm/core';
 
@@ -37,7 +38,14 @@ export class PasadaService extends BaseService<Pasada> {
     // Start database transaction
     return em.transactional(async (txEm) => {
       // Pessimistic write lock on the line to serialize pasada generation on this line
-      await txEm.findOne(LineaProduccion, { id: lineaProduccionId }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+      const linea = await txEm.findOne(
+        LineaProduccion,
+        { id: lineaProduccionId },
+        { lockMode: LockMode.PESSIMISTIC_WRITE, populate: ['rutaPasadaActiva'] }
+      );
+      if (!linea?.rutaPasadaActiva) {
+        throw new Error(`Cannot start pasada: no active route on production line ${lineaProduccionId}`);
+      }
 
       // Fetch the last Pasada for this line and article to determine the next sequential number
       const lastPasada = await txEm.findOne(
@@ -50,12 +58,14 @@ export class PasadaService extends BaseService<Pasada> {
 
       // Instantiate using references
       const lineaRef = txEm.getReference(LineaProduccion, lineaProduccionId);
+      const rutaPasadaRef = txEm.getReference(RutaPasada, linea.rutaPasadaActiva.id);
       const articuloRef = txEm.getReference(Articulo, articuloId);
       const usuarioRef = txEm.getReference(Usuario, usuarioId);
       const marcaRef = marcaId ? txEm.getReference(Marca, marcaId) : undefined;
 
       const pasada = new Pasada();
       pasada.lineaProduccion = lineaRef;
+      pasada.rutaPasada = rutaPasadaRef;
       pasada.articulo = articuloRef;
       pasada.usuario = usuarioRef;
       pasada.marca = marcaRef;
