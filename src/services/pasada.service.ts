@@ -25,12 +25,9 @@ export class PasadaService extends BaseService<Pasada> {
       throw new Error(`No active session on production line ${lineaProduccionId}`);
     }
 
-    // Verify the session belongs to the initiating operator and article
-    if (session.usuarioId !== usuarioId) {
+    // Verify the session belongs to the initiating operator
+    if (session.usuarioIdOperario !== usuarioId) {
       throw new Error(`User ${usuarioId} does not have an active session on production line ${lineaProduccionId}`);
-    }
-    if (session.articuloId !== articuloId) {
-      throw new Error(`Active session on line ${lineaProduccionId} is for article ${session.articuloId}, not ${articuloId}`);
     }
 
     // Start database transaction
@@ -112,26 +109,28 @@ export class PasadaService extends BaseService<Pasada> {
     }
 
     const em = this.getEm();
-    const pasada = await this.findById(id);
-    if (!pasada) return null;
 
-    if (pasada.estado !== PasadaEstado.EN_CURSO) {
-      throw new Error(`Cannot abort pasada with ID ${id}: it is already in state '${pasada.estado}'`);
-    }
+    return em.transactional(async (txEm) => {
+      const pasada = await txEm.findOne(Pasada, { id }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+      if (!pasada) return null;
 
-    pasada.estado = PasadaEstado.ABORTADA;
-    pasada.motivoCierre = motivoCierre;
-    pasada.horaCierre = new Date();
-    await em.flush();
+      if (pasada.estado !== PasadaEstado.EN_CURSO) {
+        throw new Error(`Cannot abort pasada with ID ${id}: it is already in state '${pasada.estado}'`);
+      }
 
-    // Clear from in-memory session if it matches
-    const lineId = pasada.lineaProduccion.id;
-    const session = sesionService.obtenerSesion(lineId);
-    if (session && session.pasadaId === pasada.id) {
-      sesionService.actualizarPasada(lineId, null);
-    }
+      pasada.estado = PasadaEstado.ABORTADA;
+      pasada.motivoCierre = motivoCierre;
+      pasada.horaCierre = new Date();
+      await txEm.flush();
 
-    return pasada;
+      const lineId = pasada.lineaProduccion.id;
+      const session = sesionService.obtenerSesion(lineId);
+      if (session?.pasadaId === pasada.id) {
+        sesionService.actualizarPasada(lineId, null);
+      }
+
+      return pasada;
+    });
   }
 
   override async update(id: number, data: Partial<Pasada>): Promise<Pasada | null> {

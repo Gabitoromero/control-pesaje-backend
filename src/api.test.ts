@@ -20,6 +20,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { initApp } from './app.js';
 import { UsuarioRol } from './models/Usuario.js';
+import { sesionService } from './services/sesion.service.js';
 
 // ─── JWT helpers ─────────────────────────────────────────────────────────────
 
@@ -362,3 +363,122 @@ describe('4.5 — Logical restrict: parent deletion blocked when active refs exi
     expect(mockEm.count).not.toHaveBeenCalled();
   });
 });
+
+describe('2FA API Endpoints', () => {
+  beforeEach(() => {
+    sesionService.limpiar();
+  });
+
+  it('POST /api/auth/activar-sesion-operario activates operator session successfully', async () => {
+    mockEm.findOne
+      .mockResolvedValueOnce({
+        id: 5,
+        rol: UsuarioRol.OPERARIO,
+        activo: true,
+        datosAdicionales: { pin: '1111' },
+      })
+      .mockResolvedValueOnce({
+        id: 1,
+        nombre: 'Linea 1',
+      });
+
+    const res = await request(app)
+      .post('/api/auth/activar-sesion-operario')
+      .set('Authorization', `Bearer ${jefeToken()}`)
+      .send({ pin: '1111', lineaProduccionId: 1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.usuarioIdOperario).toBe(5);
+    expect(res.body.data).not.toHaveProperty('articuloId');
+  });
+
+  it('POST /api/auth/activar-sesion-operario returns 429 when line is blocked', async () => {
+    sesionService.registrarIntentoFallido(1);
+    sesionService.registrarIntentoFallido(1);
+    sesionService.registrarIntentoFallido(1);
+    expect(sesionService.estaBloqueada(1)).toBe(true);
+
+    const res = await request(app)
+      .post('/api/auth/activar-sesion-operario')
+      .set('Authorization', `Bearer ${jefeToken()}`)
+      .send({ pin: '1111', lineaProduccionId: 1 });
+
+    expect(res.status).toBe(429);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toMatch(/Too many consecutive failed attempts/);
+  });
+
+  it('POST /api/auth/activar-sesion-operario returns 404 and registers failed attempt on invalid PIN', async () => {
+    mockEm.findOne.mockResolvedValue(null); // operario not found
+
+    const res = await request(app)
+      .post('/api/auth/activar-sesion-operario')
+      .set('Authorization', `Bearer ${jefeToken()}`)
+      .send({ pin: '9999', lineaProduccionId: 1 });
+
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toMatch(/No active user found with the provided PIN/);
+  });
+
+  it('POST /api/auth/activar-sesion-operario returns 409 when operator already has session on another line', async () => {
+    // Operator 5 already has an active session on line 1
+    sesionService.iniciarSesion(1, 2, 5);
+
+    mockEm.findOne
+      .mockResolvedValueOnce({ id: 5, rol: UsuarioRol.OPERARIO, activo: true, datosAdicionales: { pin: '1111' } })
+      .mockResolvedValueOnce({ id: 2, nombre: 'Linea 2' });
+
+    const res = await request(app)
+      .post('/api/auth/activar-sesion-operario')
+      .set('Authorization', `Bearer ${jefeToken()}`)
+      .send({ pin: '1111', lineaProduccionId: 2 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.code).toBe('OPERATOR_SESSION_CONFLICT');
+    expect(res.body.error.data.lineaProduccionId).toBe(1);
+    // Original session must be untouched
+    expect(sesionService.obtenerSesion(1)).toBeDefined();
+    expect(sesionService.obtenerSesion(2)).toBeUndefined();
+  });
+
+  it('POST /api/auth/cerrar-sesion-operario closes the session', async () => {
+    sesionService.iniciarSesion(1, 2, 5);
+
+    const res = await request(app)
+      .post('/api/auth/cerrar-sesion-operario')
+      .set('Authorization', `Bearer ${jefeToken()}`)
+      .send({ lineaProduccionId: 1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.message).toMatch(/closed successfully/);
+    expect(sesionService.obtenerSesion(1)).toBeUndefined();
+  });
+
+  it('GET /api/auth/sesion-activa/:lineaId returns null if no session', async () => {
+    const res = await request(app)
+      .get('/api/auth/sesion-activa/1')
+      .set('Authorization', `Bearer ${jefeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toBeNull();
+  });
+
+  it('GET /api/auth/sesion-activa/:lineaId returns session details', async () => {
+    sesionService.iniciarSesion(1, 2, 5);
+
+    const res = await request(app)
+      .get('/api/auth/sesion-activa/1')
+      .set('Authorization', `Bearer ${jefeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.usuarioIdGlobal).toBe(2);
+    expect(res.body.data.usuarioIdOperario).toBe(5);
+  });
+});
+

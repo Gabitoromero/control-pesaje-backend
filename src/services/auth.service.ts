@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { RequestContext } from '@mikro-orm/core';
-import { Usuario } from '../models/Usuario.js';
+import { Usuario, UsuarioRol } from '../models/Usuario.js';
 
 const SALT_ROUNDS = 10;
 
@@ -22,6 +22,7 @@ export class AuthService {
     );
 
     if (!usuario || !usuario.activo) return null;
+    if (usuario.rol !== UsuarioRol.ADMINISTRADOR && usuario.rol !== UsuarioRol.JEFE) return null;
 
     const passwordMatch = await bcrypt.compare(contrasena, usuario.contrasenaHash);
     if (!passwordMatch) return null;

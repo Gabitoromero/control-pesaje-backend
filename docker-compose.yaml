@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -9,8 +11,43 @@ services:
       POSTGRES_DB: control_pesaje
     ports:
       - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pesaje_admin -d control_pesaje"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: control-pesaje-backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=pesaje_admin
+      - DB_PASSWORD=balanzas_control_2026_pwd!
+      - DB_NAME=control_pesaje
+      - JWT_SECRET=super_secret_jwt_key_2026_two_layer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend-net
 
 volumes:
   postgres_data:
+
+networks:
+  backend-net:
+    driver: bridge
