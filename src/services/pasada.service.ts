@@ -2,7 +2,6 @@ import { BaseService } from './base.service.js';
 import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { Articulo } from '../models/Articulo.js';
-import { Marca } from '../models/Marca.js';
 import { Usuario } from '../models/Usuario.js';
 import { RutaPasada } from '../models/RutaPasada.js';
 import { sesionService } from './sesion.service.js';
@@ -16,8 +15,7 @@ export class PasadaService extends BaseService<Pasada> {
   async iniciarPasada(
     lineaProduccionId: number,
     articuloId: number,
-    usuarioId: number,
-    marcaId?: number
+    usuarioId: number
   ): Promise<Pasada> {
     const em = this.getEm();
 
@@ -61,14 +59,12 @@ export class PasadaService extends BaseService<Pasada> {
       const rutaPasadaRef = txEm.getReference(RutaPasada, linea.rutaPasadaActiva.id);
       const articuloRef = txEm.getReference(Articulo, articuloId);
       const usuarioRef = txEm.getReference(Usuario, usuarioId);
-      const marcaRef = marcaId ? txEm.getReference(Marca, marcaId) : undefined;
 
       const pasada = new Pasada();
       pasada.lineaProduccion = lineaRef;
       pasada.rutaPasada = rutaPasadaRef;
       pasada.articulo = articuloRef;
       pasada.usuario = usuarioRef;
-      pasada.marca = marcaRef;
       pasada.numero = nextNumero;
       pasada.estado = PasadaEstado.EN_CURSO;
       pasada.horaInicio = new Date();

@@ -1,54 +1,38 @@
-# Control de Pesaje — Contexto para agentes IA
+# Control de Pesaje — Contexto para agentes IA y Desarrolladores
 
-Este archivo existe para que cualquier agente IA (Claude Code, Cursor, etc.) tenga contexto completo del proyecto antes de escribir código.
-
----
-
-## ¿Qué es este sistema?
-
-Sistema web de control de pesaje industrial para una planta de producción. Reemplaza registros manuales en papel por captura automática de pesos desde balanzas físicas via Raspberry Pi. Desarrollado por MaciaSoft.
-
-**Leer antes de codear:**
-- `docs/OVERVIEW.md` — visión general y alcance
-- `docs/DICTIONARY.md` — glosario del dominio (términos como pasada, muestra, tara, puesta a punto)
-- `docs/BUSINESS_RULES.md` — reglas de negocio (RN-01 a RN-17)
-- `docs/FUNCTIONAL_REQUIREMENTS.md` — requerimientos funcionales (RF-01 a RF-27)
-- `docs/ARCHITECTURE.md` — stack, modelo de datos y fases
+Este archivo sirve como punto de partida técnico rápido. Para evitar desactualizaciones, **no dupliques lógica de negocio ni del modelo de datos acá**. Consultá siempre los archivos de especificación correspondientes en la raíz.
 
 ---
 
-## Lo más importante que tenés que saber
+## Archivos de contexto del proyecto
 
-### Sobre el dominio
-- Una **línea de producción** = una balanza = una Raspberry Pi
-- Una **pasada** es la ejecución física de todos los controles de pesaje de un artículo. Pueden correr múltiples pasadas simultáneas en la misma línea.
-- Una **muestra** es la medición individual de peso. Siempre llega como peso neto (la tara la configura el operario directo en la balanza, no se registra).
-- La **puesta a punto** es cuando no hay sesión activa → el servidor descarta todo lo que llega de esa Raspberry.
-
-### Sobre la lógica crítica
-- El servidor es el **orquestador**: decide si los datos de una Raspberry se procesan o se descartan según el estado de sesión de la línea.
-- Las muestras fuera de rango no cuentan para completar la etapa; se piden más hasta llegar a la cantidad requerida de muestras **aceptables**.
-- Un operario no puede tener sesión activa en más de una tablet simultáneamente.
-- **Ninguna entidad se elimina físicamente.** Siempre baja lógica (`activo: false`).
-
-### Sobre los parámetros de pesaje
-- Cada par `artículo-etapa` tiene sus propios `peso_ideal`, `peso_minimo`, `peso_maximo`.
-- La tolerancia no es simétrica; mínimo y máximo se definen por separado.
+Toda la documentación y diseño del sistema se encuentra en la raíz del backend:
+* **`OVERVIEW.md`** — Visión general y alcance del sistema.
+* **`DICTIONARY.md`** — Glosario del dominio (términos como pasada, muestra, tara, puesta a punto).
+* **`BUSINESS_RULES.md`** — Reglas de negocio obligatorias (**RN-01** a **RN-19**).
+* **`FUNCTIONAL_REQUIREMENTS.md`** — Requerimientos funcionales detallados (**RF-01** a **RF-27**).
+* **`ARCHITECTURE.md`** — Arquitectura del sistema, stack y modelo de datos conceptual.
+* **`modelo_datos_control_pesaje.md`** — Diccionario de datos de la base de datos (11 entidades vigentes).
+* **`ROADMAP.md`** — Fases del proyecto y estado actual de implementación.
 
 ---
 
-## Convenciones de código
+## Convenciones de desarrollo
 
-- Idioma del código: **Inglés** para la estructura técnica (controllers, services, interfaces).
-- Idioma de los nombres de dominio (entidades, variables): **Español** (ej. `Pasada`, `Muestra`). Seguir el diccionario.
-- Estilo: Node.js con TypeScript, patrón MVC. Acceso a datos con MikroORM.
-- Tests: `[POR DEFINIR]`
+* **Idioma**: 
+  * Estructura técnica y de infraestructura en **inglés** (controllers, services, middlewares, tests, etc.).
+  * Nombres de entidades del dominio en **español** (ej. `Pasada`, `Muestra`, `RutaPasada`, `ArticuloRutaPasada`). Respetar siempre el glosario de `DICTIONARY.md`.
+* **Stack**: Node.js v20+, TypeScript, Express 5, MikroORM (PostgreSQL), Zod (validación).
+* **Baja Lógica**: Ninguna entidad se elimina físicamente de la base de datos. Se utiliza soft-delete (`activo: false`).
 
 ---
 
-## Lo que NO hay que implementar
+## Comandos comunes
 
-- Modo offline
-- Integración con ERP u otros sistemas externos
-- Registro de tara (llega directo como peso neto)
-- Eliminación física de entidades en base de datos
+Este proyecto utiliza `pnpm` como gestor de paquetes.
+
+* **Ejecutar en desarrollo**: `pnpm dev`
+* **Compilar el proyecto**: `pnpm build`
+* **Ejecutar tests**: `pnpm test` (modo interactivo/watch) o `pnpm test run` (ejecución única)
+* **Formatear código**: `pnpm format`
+* **Ejecutar linter**: `pnpm lint`

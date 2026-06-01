@@ -2,7 +2,6 @@ import { Entity, Filter, PrimaryKey, Property, ManyToOne, Enum } from '@mikro-or
 import { LineaProduccion } from './LineaProduccion.js';
 import { Articulo } from './Articulo.js';
 import { RutaPasada } from './RutaPasada.js';
-import { Marca } from './Marca.js';
 import { Usuario } from './Usuario.js';
 
 export enum PasadaEstado {
@@ -25,9 +24,6 @@ export class Pasada {
 
   @ManyToOne(() => Articulo, { deleteRule: 'restrict', nullable: true })
   articulo?: Articulo;
-
-  @ManyToOne(() => Marca, { deleteRule: 'restrict', nullable: true })
-  marca?: Marca;
 
   @ManyToOne(() => Usuario, { deleteRule: 'restrict' })
   usuario!: Usuario;

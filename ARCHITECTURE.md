@@ -46,6 +46,30 @@ El sistema requiere comunicación bidireccional en tiempo real para:
 
 ---
 
+## Autenticación en Dos Capas (2FA)
+
+Para balancear la seguridad de la administración técnica con la velocidad del operario en planta, el sistema implementa una autenticación de dos capas:
+
+```
+[Administrador / Jefe]                      [Operario de Planta]
+          │                                           │
+  (Capa 1: Login Global)                     (Capa 2: Sesión Planta)
+  POST /api/auth/login                       POST /api/auth/activar-sesion-operario
+  Contraseña robusta                         PIN (4-6 dígitos)
+  JWT válido por 8 horas                     Expiración por inactividad (5 min)
+          │                                           │
+          ▼                                           ▼
+[Tablet desbloqueada a nivel API]  ◄────────  [Sesión de pesaje activa en Línea]
+```
+
+### Flujo de Interacción
+1. **Capa 1 (Desbloqueo Global):** El jefe/admin realiza login con contraseña robusta. Recibe un JWT con validez de 8 horas que autoriza a la tablet a comunicarse con la API de planta.
+2. **Capa 2 (Sesión Operativa):** El operario de planta activa su sesión en una línea de producción enviando su PIN (4-6 dígitos) a `POST /api/auth/activar-sesion-operario` (con el JWT de Capa 1 en las cabeceras). El `SesionService` en memoria vincula la línea con el operario.
+3. **Mantenimiento y Timeout:** Cada interacción de planta refresca el timestamp `operarioUltimaActividadAt`. Si transcurren **5 minutos** sin actividad, el backend pone la sesión del operario en `null` (modo puesta a punto, descarte de datos) sin invalidar el JWT global.
+4. **Rate Limiting:** Tras **3 intentos fallidos** consecutivos de PIN en una línea, el backend bloquea las validaciones de PIN para esa línea durante **5 minutos** (HTTP 429).
+
+---
+
 ## Modelo de datos (conceptual)
 
 ### Entidades principales
@@ -81,34 +105,50 @@ ArticuloMarca (Intermedia N:M)
   - articulo_id
   - marca_id
 
+RutaPasada
+  - id
+  - nombre
+  - descripcion
+  - activo
+
+ArticuloRutaPasada (Intermedia N:M explícita)
+  - id
+  - articulo_id
+  - ruta_pasada_id
+  - activo
+
 Etapa
   - id
   - nombre
   - descripcion
   - activo
 
-RutaPasadaEtapa (Configuración Artículo-Etapa)
+RutaPasadaEtapa (Configuración de Etapa en Ruta)
   - id
-  - articulo_id
+  - ruta_pasada_id
   - etapa_id
   - orden
   - peso_ideal
   - peso_minimo
   - peso_maximo
   - cantidad_muestras_requeridas
+  - activo
 
-Pasada
+Pasada (Ejecución de Pesaje)
   - id
   - linea_produccion_id
-  - articulo_id
+  - ruta_pasada_id
+  - articulo_id (opcional)
   - marca_id (opcional)
   - usuario_id
-  - numero (autoincremental por artículo en esa línea)
-  - estado (en_curso | completa)
+  - numero (autoincremental por línea por día)
+  - estado (en_curso | completa | abortada)
+  - motivo_cierre (opcional - justificación de aborto)
   - hora_inicio
   - hora_cierre
+  - activo
 
-Muestra
+Muestra (Medición de Peso)
   - id
   - pasada_id (opcional - NULL en muestras al azar)
   - usuario_id
@@ -119,6 +159,7 @@ Muestra
   - estado_validacion (ok | fuera_de_rango)
   - observacion
   - timestamp
+  - activo
 ```
 
 ---

@@ -1,8 +1,10 @@
 # Roadmap
 
 ## Estado actual
-`[ ] Fase I — Setup de infraestructura`
-`[ ] Fase II — API Core`
+`[x] Fase I — Setup de infraestructura`
+`[x] Fase II — API Core`
+`[ ] Fase III — Integración Raspberry Pi`
+`[ ] Fase IV — Lógica de negocio avanzada (En progreso — Planificando 2FA)`
 
 ---
 
@@ -10,28 +12,28 @@
 
 ### Fase I — Setup de infraestructura
 **Estimado:** 35 horas  
-**Estado:** ⬜ Pendiente
+**Estado:** ✅ Completado
 
-- [ ] Servidor configurado (VPS o local)
-- [x] Base de datos inicializada
+- [x] Servidor configurado (VPS o local)
+- [x] Base de datos inicializada (MikroORM & PostgreSQL)
 - [x] Docker configurado
-- [ ] Seguridad base implementada
+- [x] Seguridad base implementada (JWT Capa 1 y bcrypt)
 - [x] Variables de entorno y configuración
 
 ---
 
 ### Fase II — API Core
 **Estimado:** 60 horas  
-**Estado:** ⬜ Pendiente
+**Estado:** ✅ Completado
 
-- [ ] CRUD de Usuarios (con roles y PIN)
-- [ ] CRUD de Artículos
-- [ ] CRUD de Etapas
-- [ ] CRUD de Líneas de producción
-- [ ] CRUD de Rutas de pasada (con etapas y parámetros por artículo-etapa)
-- [ ] Lógica de Pasadas (inicio, listado, retomar, finalizar)
-- [ ] Registro de Muestras
-- [ ] Validación de peso por parámetros de etapa
+- [x] CRUD de Usuarios (con roles y PIN)
+- [x] CRUD de Artículos
+- [x] CRUD de Etapas
+- [x] CRUD de Líneas de producción
+- [x] CRUD de Rutas de pasada (desacopladas y con parámetros por etapa en la ruta)
+- [x] Lógica de Pasadas (inicio, listado, retomar, finalizar/abortar)
+- [x] Registro de Muestras (trazabilidad y validaciones)
+- [x] Validación de peso por parámetros de etapa en la ruta
 
 ---
 

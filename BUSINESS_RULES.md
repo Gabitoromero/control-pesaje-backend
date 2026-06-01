@@ -20,9 +20,9 @@ Toda la lógica de negocio del sistema está definida aquí. Antes de implementa
 
 ## Parámetros de pesaje
 
-**RN-06** — Cada combinación `artículo-etapa` tiene sus propios parámetros: peso ideal, peso mínimo y peso máximo. Una misma etapa puede tener parámetros distintos según el artículo.
+**RN-06** — Cada etapa dentro de una **ruta de pasada** tiene sus propios parámetros: peso ideal, peso mínimo, peso máximo y cantidad de muestras requeridas. Distintas rutas pueden configurar la misma etapa con parámetros diferentes.
 
-**RN-07** — La tolerancia de cada etapa no es necesariamente simétrica. Los valores de peso mínimo y máximo se definen de forma independiente por `artículo-etapa`.
+**RN-07** — Los artículos heredan las etapas y parámetros de pesaje a través de su asociación activa a una **ruta de pasada** (mediante `articulo_ruta_pasada`). La tolerancia de cada etapa no es necesariamente simétrica y los valores de peso mínimo y máximo se definen de forma independiente.
 
 **RN-08** — La tara se realiza una sola vez por etapa dentro de una pasada. No se registra. La Raspberry envía el peso neto (las balanzas KRETZ no envían pesos negativos).
 
@@ -48,13 +48,19 @@ Toda la lógica de negocio del sistema está definida aquí. Antes de implementa
 
 ---
 
-## Puesta a punto y contexto de sesión
+## Autenticación en Dos Capas y Contexto de Sesión
 
 **RN-15** — Si no hay un operario con sesión activa en la tablet de una línea, el sistema asume que esa línea está en **puesta a punto**. Los datos que lleguen de la Raspberry correspondiente son **descartados por el servidor** y no se persisten.
 
-**RN-16** — Por cada muestra se solicitará PIN de usuario.
+**RN-16** (Desbloqueo global - Capa 1) — Toda tablet en planta requiere un desbloqueo previo por parte de un usuario con rol de `administrador` o `jefe` mediante contraseña robusta. Esto genera un JWT con validez de 8 horas que autoriza la comunicación de la tablet con la API.
 
-**RN-17** (sesiones) — Un operario **no puede tener sesión activa en más de una tablet simultáneamente**.
+**RN-17** (Sesiones concurrentes) — Un operario **no puede tener sesión activa en más de una tablet simultáneamente**.
+
+**RN-20** (Sesión operativa - Capa 2) — Para registrar muestras o pasadas, el operario debe activar su sesión en la línea ingresando su PIN de 4-6 dígitos. Todas las muestras se asociarán automáticamente a su usuario mientras su sesión permanezca activa.
+
+**RN-21** (Expiración por inactividad) — Si transcurren 5 minutos sin registrar muestras, pasadas o cambios de etapa, la sesión del operario (Capa 2) expira automáticamente, volviendo la línea a modo puesta a punto (descarte de datos) sin invalidar el JWT global de Capa 1.
+
+**RN-22** (Rate limiting de PIN) — El PIN de operario se protege contra ataques de fuerza bruta en memoria: tras 3 intentos fallidos consecutivos de PIN en una línea, el registro por PIN para esa línea queda bloqueado temporalmente por 5 minutos.
 
 ---
 

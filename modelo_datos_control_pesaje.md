@@ -84,21 +84,49 @@ Tabla intermedia N:M entre artículo y marca. Define qué marcas son válidas pa
 
 ---
 
+### ruta_pasada
+
+Secuencia ordenada de etapas de pesaje independiente de un artículo específico. Permite reutilizar configuraciones de control de calidad.
+
+| Campo | Tipo | Restricciones | Descripción |
+|-------|------|---------------|-------------|
+| 🔑 id | INT | PK, AUTO_INCREMENT | Identificador único de la ruta de pasada |
+| nombre | VARCHAR(100) | NOT NULL | Nombre descriptivo de la ruta |
+| descripcion | TEXT | ⚪ NULLABLE | Descripción opcional del proceso o ruta |
+| activo | BOOLEAN | NOT NULL, DEFAULT true | Baja lógica |
+
+---
+
+### articulo_ruta_pasada
+
+Tabla pivot explícita que asocia un artículo a una ruta de pasada. Permite relacionar múltiples artículos a una misma ruta.
+
+| Campo | Tipo | Restricciones | Descripción |
+|-------|------|---------------|-------------|
+| 🔑 id | INT | PK, AUTO_INCREMENT | Identificador único de la asociación |
+| 🔗 articulo_id | INT | FK → articulo.id, NOT NULL | Artículo asociado |
+| 🔗 ruta_pasada_id | INT | FK → ruta_pasada.id, NOT NULL | Ruta de pasada asociada |
+| activo | BOOLEAN | NOT NULL, DEFAULT true | Baja lógica |
+| UNIQUE | | (articulo_id, ruta_pasada_id) | Asociación única por artículo y ruta |
+
+---
+
 ### ruta_pasada_etapa
 
-Plantilla de la pasada. Define la secuencia de etapas de un artículo y los parámetros de pesaje para cada par artículo-etapa.
+Plantilla de pesaje para las etapas de una ruta de pasada. Define los parámetros de tolerancia y la cantidad de muestras requeridas para cada etapa dentro de una ruta.
 
 | Campo | Tipo | Restricciones | Descripción |
 |-------|------|---------------|-------------|
 | 🔑 id | INT | PK, AUTO_INCREMENT | Identificador único del registro |
-| 🔗 articulo_id | INT | FK → articulo.id, NOT NULL | Artículo base al que pertenece esta configuración |
-| 🔗 etapa_id | INT | FK → etapa.id, NOT NULL | Etapa configurada para este artículo |
-| orden | INT | NOT NULL | Posición secuencial de la etapa dentro de la ruta del artículo |
-| peso_ideal | DECIMAL(8,3) | NOT NULL | Peso objetivo de la muestra en esta etapa (gramos) |
-| peso_minimo | DECIMAL(8,3) | NOT NULL | Límite inferior aceptable. La tolerancia no es simétrica |
+| 🔗 ruta_pasada_id | INT | FK → ruta_pasada.id, NOT NULL | Ruta de pasada a la que pertenece esta configuración |
+| 🔗 etapa_id | INT | FK → etapa.id, NOT NULL | Etapa configurada dentro de esta ruta |
+| orden | INT | NOT NULL | Posición secuencial de la etapa dentro de la ruta |
+| peso_ideal | DECIMAL(8,3) | NOT NULL | Peso objetivo de la muestra (gramos) |
+| peso_minimo | DECIMAL(8,3) | NOT NULL | Límite inferior aceptable |
 | peso_maximo | DECIMAL(8,3) | NOT NULL | Límite superior aceptable |
-| cantidad_muestras_requeridas | INT | NOT NULL | Muestras aceptables requeridas para completar la etapa |
-| UNIQUE | | (articulo_id, etapa_id) | Un artículo no puede tener la misma etapa dos veces |
+| cantidad_muestras_requeridas | INT | NOT NULL | Cantidad de muestras correctas para completar la etapa |
+| activo | BOOLEAN | NOT NULL, DEFAULT true | Baja lógica |
+| UNIQUE | | (ruta_pasada_id, etapa_id) | Una ruta no puede tener la misma etapa dos veces |
 
 ---
 
@@ -110,34 +138,36 @@ Ejecución física de la ruta de pasada. Puede haber múltiples pasadas simultá
 |-------|------|---------------|-------------|
 | 🔑 id | INT | PK, AUTO_INCREMENT | Identificador único de la pasada |
 | 🔗 linea_produccion_id | INT | FK → linea_produccion.id, NOT NULL | Línea donde se ejecuta la pasada |
-| 🔗 articulo_id | INT | FK → articulo.id, NOT NULL | Artículo base que se está produciendo |
-| 🔗 marca_id | INT | ⚪ FK → marca.id, NULLABLE | Marca de destino opcional. NULL si no se especifica |
+| 🔗 ruta_pasada_id | INT | FK → ruta_pasada.id, NOT NULL | Ruta de pasada que se está ejecutando |
+| 🔗 articulo_id | INT | ⚪ FK → articulo.id, NULLABLE | Artículo base producido (opcional) |
+| 🔗 marca_id | INT | ⚪ FK → marca.id, NULLABLE | Marca de destino (opcional) |
 | 🔗 usuario_id | INT | FK → usuario.id, NOT NULL | Operario responsable. Se asigna al iniciar y no cambia |
-| numero | INT | NOT NULL | Contador autoincremental por artículo en esa línea. Se resetea al cambiar de artículo |
-| estado | ENUM | NOT NULL, DEFAULT 'en_curso' | `en_curso` \| `completa` |
+| numero | INT | NOT NULL | Contador autoincremental por línea por día. Se resetea al cambiar de artículo en la línea |
+| estado | ENUM | NOT NULL, DEFAULT 'en_curso' | `en_curso` \| `completa` \| `abortada` |
+| motivo_cierre | TEXT | ⚪ NULLABLE | Obligatorio al abortar para justificar el cierre inusual |
 | hora_inicio | DATETIME | NOT NULL | Timestamp de inicio de la pasada |
-| hora_cierre | DATETIME | ⚪ NULLABLE | Se completa al finalizar. NULL si está en curso |
-| CHECK | | articulo_marca(articulo_id, marca_id) existe | Cuando marca_id no es NULL, la combinación artículo-marca debe existir en articulo_marca |
+| hora_cierre | DATETIME | ⚪ NULLABLE | Se completa al finalizar/abortar. NULL si está en curso |
+| activo | BOOLEAN | NOT NULL, DEFAULT true | Baja lógica |
 
 ---
 
 ### muestra
 
-Medición individual de peso. Siempre tiene usuario, artículo, etapa y línea. La pasada es el único campo opcional (NULL en muestras al azar).
+Medición individual de peso. Siempre tiene usuario, artículo, etapa y línea. La pasada es opcional (NULL en muestras al azar).
 
 | Campo | Tipo | Restricciones | Descripción |
 |-------|------|---------------|-------------|
 | 🔑 id | INT | PK, AUTO_INCREMENT | Identificador único de la muestra |
 | 🔗 pasada_id | INT | ⚪ FK → pasada.id, NULLABLE | NULL cuando es muestra al azar. Presente en muestras normales |
-| 🔗 usuario_id | INT | FK → usuario.id, NOT NULL | Siempre presente. Debe coincidir con el usuario_id de la pasada asociada (RN-12) |
-| 🔗 articulo_id | INT | FK → articulo.id, NOT NULL | Siempre presente. En muestras de pasada se copia desde pasada.articulo_id |
+| 🔗 usuario_id | INT | FK → usuario.id, NOT NULL | Siempre presente. Debe coincidir con el usuario_id de la pasada si existe |
+| 🔗 articulo_id | INT | FK → articulo.id, NOT NULL | Siempre presente |
 | 🔗 etapa_id | INT | FK → etapa.id, NOT NULL | Etapa en la que se tomó la muestra |
 | 🔗 linea_produccion_id | INT | FK → linea_produccion.id, NOT NULL | Línea donde se capturó el peso |
-| peso_neto | DECIMAL(8,3) | NOT NULL | Peso registrado. Siempre neto (la tara la configura el operario en la balanza) |
-| estado_validacion | ENUM | NOT NULL | `ok` \| `fuera_de_rango`. Se calcula contra ruta_pasada_etapa (articulo_id + etapa_id) |
-| observacion | TEXT | ⚪ NULLABLE | Nota opcional del operario (ej: temperatura del chocolate) |
-| timestamp | DATETIME | NOT NULL | Momento exacto del registro. Clave para trazabilidad (RN-17) |
-| CHECK | | pasada.articulo_id = muestra.articulo_id | Cuando pasada_id no es NULL, el artículo debe coincidir con el de la pasada |
+| peso_neto | DECIMAL(8,3) | NOT NULL | Peso registrado (neto) |
+| estado_validacion | ENUM | NOT NULL | `ok` \| `fuera_de_rango`. Se calcula contra los límites definidos en ruta_pasada_etapa |
+| observacion | TEXT | ⚪ NULLABLE | Nota opcional del operario |
+| timestamp | DATETIME | NOT NULL | Momento exacto del registro |
+| activo | BOOLEAN | NOT NULL, DEFAULT true | Baja lógica |
 
 ---
 
@@ -147,13 +177,16 @@ Medición individual de peso. Siempre tiene usuario, artículo, etapa y línea. 
 |--------------|-------|------------|:------------:|:--------:|
 | articulo_marca | articulo_id | articulo.id | N:1 | No |
 | articulo_marca | marca_id | marca.id | N:1 | No |
-| ruta_pasada_etapa | articulo_id | articulo.id | N:1 | No |
+| articulo_ruta_pasada | articulo_id | articulo.id | N:1 | No |
+| articulo_ruta_pasada | ruta_pasada_id | ruta_pasada.id | N:1 | No |
+| ruta_pasada_etapa | ruta_pasada_id | ruta_pasada.id | N:1 | No |
 | ruta_pasada_etapa | etapa_id | etapa.id | N:1 | No |
 | pasada | linea_produccion_id | linea_produccion.id | N:1 | No |
-| pasada | articulo_id | articulo.id | N:1 | No |
-| pasada | marca_id | marca.id | N:1 | Sí (opcional) |
+| pasada | ruta_pasada_id | ruta_pasada.id | N:1 | No |
+| pasada | articulo_id | articulo.id | N:1 | Sí |
+| pasada | marca_id | marca.id | N:1 | Sí |
 | pasada | usuario_id | usuario.id | N:1 | No |
-| muestra | pasada_id | pasada.id | N:1 | Sí (muestra al azar) |
+| muestra | pasada_id | pasada.id | N:1 | Sí |
 | muestra | usuario_id | usuario.id | N:1 | No |
 | muestra | articulo_id | articulo.id | N:1 | No |
 | muestra | etapa_id | etapa.id | N:1 | No |

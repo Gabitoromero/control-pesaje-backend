@@ -7,8 +7,6 @@ import {
   Usuario,
   LineaProduccion,
   Articulo,
-  Marca,
-  ArticuloMarca,
   Etapa,
   RutaPasada,
   ArticuloRutaPasada,
@@ -33,8 +31,6 @@ describe('Domain Entities Integration Tests', () => {
         Usuario,
         LineaProduccion,
         Articulo,
-        Marca,
-        ArticuloMarca,
         Etapa,
         RutaPasada,
         ArticuloRutaPasada,
@@ -59,22 +55,20 @@ describe('Domain Entities Integration Tests', () => {
     }
   });
 
-  it('should discover all 11 core domain entities', () => {
+  it('should discover all 9 core domain entities', () => {
     const entities = orm.config.get('entities');
     const entityNames = entities.map(e => typeof e === 'function' ? e.name : e);
 
     expect(entityNames).toContain('Usuario');
     expect(entityNames).toContain('LineaProduccion');
     expect(entityNames).toContain('Articulo');
-    expect(entityNames).toContain('Marca');
-    expect(entityNames).toContain('ArticuloMarca');
     expect(entityNames).toContain('Etapa');
     expect(entityNames).toContain('RutaPasada');
     expect(entityNames).toContain('ArticuloRutaPasada');
     expect(entityNames).toContain('RutaPasadaEtapa');
     expect(entityNames).toContain('Pasada');
     expect(entityNames).toContain('Muestra');
-    expect(entityNames.length).toBe(11);
+    expect(entityNames.length).toBe(9);
   });
 
   it('should create and retrieve a Usuario with JSONB metadata', async () => {
@@ -225,5 +219,28 @@ describe('Domain Entities Integration Tests', () => {
 
     const serialized = wrap(retrievedMuestra!).toJSON();
     expect(serialized.pesoNeto).toBe(85.124);
+  });
+
+  it('should support a nullable string marca on Articulo', async () => {
+    const em = orm.em.fork();
+
+    const articuloSinMarca = new Articulo();
+    articuloSinMarca.nombre = 'Alfajor Sin Marca';
+    articuloSinMarca.marca = undefined;
+
+    const articuloConMarca = new Articulo();
+    articuloConMarca.nombre = 'Alfajor Con Marca';
+    articuloConMarca.marca = 'Havanna';
+
+    await em.persist([articuloSinMarca, articuloConMarca]).flush();
+    em.clear();
+
+    const retrievedSin = await em.findOne(Articulo, { nombre: 'Alfajor Sin Marca' });
+    expect(retrievedSin).not.toBeNull();
+    expect(retrievedSin!.marca).toBeNull();
+
+    const retrievedCon = await em.findOne(Articulo, { nombre: 'Alfajor Con Marca' });
+    expect(retrievedCon).not.toBeNull();
+    expect(retrievedCon!.marca).toBe('Havanna');
   });
 });

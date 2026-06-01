@@ -9,8 +9,6 @@ import {
   Usuario,
   LineaProduccion,
   Articulo,
-  Marca,
-  ArticuloMarca,
   Etapa,
   RutaPasadaEtapa
 } from './models/index.js';
@@ -29,8 +27,6 @@ describe('API Health Check', () => {
         Usuario,
         LineaProduccion,
         Articulo,
-        Marca,
-        ArticuloMarca,
         Etapa,
         RutaPasadaEtapa
       ],

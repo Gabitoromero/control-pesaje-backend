@@ -44,6 +44,16 @@
 
 **RF-17** — Un operario no puede tener sesión activa en más de una tablet simultáneamente.
 
+**RF-28** (Desbloqueo Capa 1) — Exponer un endpoint `POST /api/auth/login` público para que jefes o administradores desbloqueen la tablet, retornando un JWT firmado con validez de 8 horas.
+
+**RF-29** (Activación Capa 2) — Exponer un endpoint `POST /api/auth/activar-sesion` (protegido por JWT de Capa 1) para que el operario active su sesión ingresando su PIN de 4-6 dígitos y el ID de la línea de producción.
+
+**RF-30** (Cierre Operario) — Exponer un endpoint `POST /api/auth/cerrar-sesion-operario` (protegido por JWT) para permitir el cierre manual de la sesión del operario.
+
+**RF-31** (Verificación de Estado) — Exponer un endpoint `GET /api/auth/sesion-activa/:lineaId` (protegido por JWT) para retornar en tiempo real el estado de la sesión, incluyendo operario activo, artículo y timestamps.
+
+**RF-32** (Autobloqueo por Intentos) — El sistema debe denegar el acceso con HTTP 429 y bloquear por 5 minutos la validación del PIN de una línea de producción si se registran 3 intentos consecutivos fallidos.
+
 ---
 
 ## Promedios y visualización
@@ -76,7 +86,7 @@
 
 Todas las entidades se dan de baja de forma lógica (campo `activo/inactivo`), nunca se eliminan físicamente.
 
-**RF-23** — ABM de Rutas de pasada: nombre de artículo, descripción, estado, secuencia ordenada de etapas, parámetros por par `artículo-etapa` (peso ideal, mínimo, máximo, cantidad de muestras requeridas).
+**RF-23** — ABM de Rutas de pasada: nombre, descripción, estado, secuencia ordenada de etapas, parámetros por etapa en la ruta (peso ideal, mínimo, máximo, cantidad de muestras requeridas) y la gestión de la asociación de artículos a dicha ruta (pivot `articulo_ruta_pasada`).
 
 **RF-24** — ABM de Etapas: nombre, descripción, estado.
 

@@ -12,6 +12,9 @@ export class Articulo {
   @Property({ type: 'string', columnType: 'text', nullable: true })
   descripcion?: string;
 
+  @Property({ type: 'string', length: 100, nullable: true })
+  marca?: string;
+
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
 
