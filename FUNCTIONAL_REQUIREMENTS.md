@@ -46,7 +46,7 @@
 
 **RF-28** (Desbloqueo Capa 1) — Exponer un endpoint `POST /api/auth/login` público para que jefes o administradores desbloqueen la tablet, retornando un JWT firmado con validez de 8 horas.
 
-**RF-29** (Activación Capa 2) — Exponer un endpoint `POST /api/auth/activar-sesion` (protegido por JWT de Capa 1) para que el operario active su sesión ingresando su PIN de 4-6 dígitos y el ID de la línea de producción.
+**RF-29** (Activación Capa 2) — Exponer un endpoint `POST /api/auth/activar-sesion-operario` (protegido por JWT de Capa 1) para que el operario active su sesión ingresando su PIN de 4-6 dígitos y el ID de la línea de producción.
 
 **RF-30** (Cierre Operario) — Exponer un endpoint `POST /api/auth/cerrar-sesion-operario` (protegido por JWT) para permitir el cierre manual de la sesión del operario.
 

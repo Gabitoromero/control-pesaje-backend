@@ -10,7 +10,7 @@ Toda la lógica de negocio del sistema está definida aquí. Antes de implementa
 
 **RN-02** — Al inicio de cada jornada se define qué artículo se produce en cada línea. Esta asignación puede cambiar entre jornadas.
 
-**RN-03** — La tablet y la balanza (con su Raspberry) quedan asociadas a una línea productiva hasta que se termine de producir.
+**RN-03** — La tablet y la balanza (con su Raspberry) quedan asociadas a una línea productiva hasta que se termine de producir. Desde las tablets se puede acceder a los datos de otra linea
 
 **RN-04** — Cada línea tiene una única balanza. Para el sistema, **una balanza = una línea de producción**.
 
