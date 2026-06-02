@@ -24,8 +24,8 @@ services:
 
   backend:
     build:
-      context: ..
-      dockerfile: backend/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     container_name: control-pesaje-backend
     restart: always
     ports:
