@@ -14,7 +14,7 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "keywords": [],
-  "author": "",
+  "author": "RomeroSoft",
   "license": "ISC",
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
