@@ -2,8 +2,10 @@
 FROM node:20-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml tsconfig.json mikro-orm.config.ts ./
-COPY src ./src
+COPY backend/package.json backend/pnpm-lock.yaml backend/tsconfig.json backend/mikro-orm.config.ts ./
+COPY backend/src ./src
+# Copiamos la carpeta shared real encima del symlink roto
+COPY shared ./src/shared
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
 
@@ -11,7 +13,7 @@ RUN pnpm build
 FROM node:20-alpine AS prod-deps
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY backend/package.json backend/pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
 # Stage 3: Run the application
