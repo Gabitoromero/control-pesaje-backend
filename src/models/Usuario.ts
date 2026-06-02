@@ -19,6 +19,9 @@ export class Usuario {
   @Property({ type: 'string', length: 255 })
   contrasenaHash!: string;
 
+  @Property({ type: 'string', length: 255, nullable: true })
+  pinHash?: string;
+
   @Enum({ items: () => UsuarioRol, nativeEnumName: 'usuario_rol_enum' })
   rol!: UsuarioRol;
 

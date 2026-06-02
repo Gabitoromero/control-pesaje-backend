@@ -52,31 +52,38 @@ async function run() {
     });
 
     // 3 operarios with PINs
+    const pin1Hash = await bcrypt.hash('1111', saltRounds);
+    const pin2Hash = await bcrypt.hash('2222', saltRounds);
+    const pin3Hash = await bcrypt.hash('3333', saltRounds);
+
     const operario1 = em.create(Usuario, {
       nombreApellido: 'Lionel Andres Messi',
       nombreUsuario: 'operario1',
       contrasenaHash: operarioPasswordHash,
+      pinHash: pin1Hash,
       rol: UsuarioRol.OPERARIO,
       activo: true,
-      datosAdicionales: { pin: '1111' },
+      datosAdicionales: {},
     });
 
     const operario2 = em.create(Usuario, {
       nombreApellido: 'Angel Di Maria',
       nombreUsuario: 'operario2',
       contrasenaHash: operarioPasswordHash,
+      pinHash: pin2Hash,
       rol: UsuarioRol.OPERARIO,
       activo: true,
-      datosAdicionales: { pin: '2222' },
+      datosAdicionales: {},
     });
 
     const operario3 = em.create(Usuario, {
       nombreApellido: 'Sergio Agüero',
       nombreUsuario: 'operario3',
       contrasenaHash: operarioPasswordHash,
+      pinHash: pin3Hash,
       rol: UsuarioRol.OPERARIO,
       activo: true,
-      datosAdicionales: { pin: '3333' },
+      datosAdicionales: {},
     });
 
     // 2. Create Etapas
