@@ -438,7 +438,7 @@ describe('2FA API Endpoints', () => {
     expect(res.status).toBe(409);
     expect(res.body.success).toBe(false);
     expect(res.body.error.code).toBe('OPERATOR_SESSION_CONFLICT');
-    expect(res.body.error.data.lineaProduccionId).toBe(1);
+    expect(res.body.data.lineaProduccionId).toBe(1);
     // Original session must be untouched
     expect(sesionService.obtenerSesion(1)).toBeDefined();
     expect(sesionService.obtenerSesion(2)).toBeUndefined();

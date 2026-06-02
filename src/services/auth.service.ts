@@ -1,20 +1,17 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { RequestContext } from '@mikro-orm/core';
+import { RequestContext, type FilterQuery } from '@mikro-orm/core';
 import { Usuario, UsuarioRol } from '../models/Usuario.js';
+import { LineaProduccion } from '../models/LineaProduccion.js';
 
 const SALT_ROUNDS = 10;
 
 export class AuthService {
-  /**
-   * Validates credentials and returns a signed JWT, or null if invalid.
-   * Inactive users always fail authentication.
-   */
   async login(nombreUsuario: string, contrasena: string): Promise<string | null> {
     const em = RequestContext.getEntityManager();
     if (!em) throw new Error('No EntityManager in RequestContext');
 
-    // Disable the default activo filter so we can check the flag ourselves
+    // Disable the global activo filter to distinguish "inactive account" from "wrong credentials"
     const usuario = await em.findOne(
       Usuario,
       { nombreUsuario },
@@ -30,13 +27,28 @@ export class AuthService {
     const secret = process.env.JWT_SECRET;
     if (!secret) throw new Error('JWT_SECRET not configured');
 
-    const payload = {
-      id: usuario.id,
-      nombreUsuario: usuario.nombreUsuario,
-      rol: usuario.rol,
-    };
+    return jwt.sign(
+      { id: usuario.id, nombreUsuario: usuario.nombreUsuario, rol: usuario.rol },
+      secret,
+      { expiresIn: '8h' }
+    );
+  }
 
-    return jwt.sign(payload, secret, { expiresIn: '8h' });
+  async validateOperatorPin(pin: string): Promise<Usuario | null> {
+    const em = RequestContext.getEntityManager();
+    if (!em) throw new Error('No EntityManager in RequestContext');
+
+    return em.findOne(
+      Usuario,
+      { rol: UsuarioRol.OPERARIO, activo: true, datosAdicionales: { pin } } as FilterQuery<Usuario>
+    );
+  }
+
+  async findLineaById(id: number): Promise<LineaProduccion | null> {
+    const em = RequestContext.getEntityManager();
+    if (!em) throw new Error('No EntityManager in RequestContext');
+
+    return em.findOne(LineaProduccion, { id });
   }
 
   async hashPassword(plain: string): Promise<string> {

@@ -1,8 +1,5 @@
 import type { RequestHandler } from 'express';
-import { RequestContext, type FilterQuery } from '@mikro-orm/core';
 import { AuthService } from '../services/auth.service.js';
-import { Usuario, UsuarioRol } from '../models/Usuario.js';
-import { LineaProduccion } from '../models/LineaProduccion.js';
 import { sesionService } from '../services/sesion.service.js';
 
 const authService = new AuthService();
@@ -19,19 +16,15 @@ export const login: RequestHandler = async (req, res) => {
     }
 
     res.json({ success: true, data: { token } });
-  } catch (err) {
+  } catch {
     res.status(500).json({ success: false, error: { message: 'Internal server error' } });
   }
 };
 
-export const activateOperatorSession: RequestHandler = async (req, res) => {
+export const activateOperatorSesion: RequestHandler = async (req, res) => {
   const { pin, lineaProduccionId } = req.body as { pin: string; lineaProduccionId: number };
 
   try {
-    const em = RequestContext.getEntityManager();
-    if (!em) throw new Error('No EntityManager in RequestContext');
-
-    // 1. Check if line is blocked
     if (sesionService.estaBloqueada(lineaProduccionId)) {
       res.status(429).json({
         success: false,
@@ -40,15 +33,7 @@ export const activateOperatorSession: RequestHandler = async (req, res) => {
       return;
     }
 
-    // 2. Validate PIN against active operario in PostgreSQL
-    const operario = await em.findOne(
-      Usuario,
-      {
-        rol: UsuarioRol.OPERARIO,
-        activo: true,
-        datosAdicionales: { pin },
-      } as FilterQuery<Usuario>
-    );
+    const operario = await authService.validateOperatorPin(pin);
 
     if (!operario) {
       sesionService.registrarIntentoFallido(lineaProduccionId);
@@ -59,8 +44,7 @@ export const activateOperatorSession: RequestHandler = async (req, res) => {
       return;
     }
 
-    // 3. Verify production line exists
-    const linea = await em.findOne(LineaProduccion, { id: lineaProduccionId });
+    const linea = await authService.findLineaById(lineaProduccionId);
 
     if (!linea) {
       res.status(404).json({
@@ -70,19 +54,18 @@ export const activateOperatorSession: RequestHandler = async (req, res) => {
       return;
     }
 
-    const usuarioIdGlobal = req.user!.id;
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Not authenticated' } });
+      return;
+    }
 
-    // 4. Establish session in memory
-    const result = sesionService.iniciarSesion(lineaProduccionId, usuarioIdGlobal, operario.id);
+    const result = sesionService.iniciarSesion(lineaProduccionId, req.user.id, operario.id);
 
     if (!result.ok) {
       res.status(409).json({
         success: false,
-        error: {
-          code: 'OPERATOR_SESSION_CONFLICT',
-          message: 'Operator already has an active session on another line',
-          data: { lineaProduccionId: result.conflict.lineaProduccionId }
-        }
+        error: { code: 'OPERATOR_SESSION_CONFLICT', message: 'Operator already has an active session on another line' },
+        data: { lineaProduccionId: result.conflict.lineaProduccionId }
       });
       return;
     }
@@ -97,15 +80,17 @@ export const activateOperatorSession: RequestHandler = async (req, res) => {
         usuarioIdOperario: session.usuarioIdOperario,
         pasadaId: session.pasadaId,
         connectedAt: session.connectedAt.toISOString(),
-        operarioUltimaActividadAt: session.operarioUltimaActividadAt ? session.operarioUltimaActividadAt.toISOString() : null
+        operarioUltimaActividadAt: session.operarioUltimaActividadAt
+          ? session.operarioUltimaActividadAt.toISOString()
+          : null
       }
     });
-  } catch (err) {
+  } catch {
     res.status(500).json({ success: false, error: { message: 'Internal server error' } });
   }
 };
 
-export const closeOperatorSession: RequestHandler = async (req, res) => {
+export const closeOperatorSesion: RequestHandler = async (req, res) => {
   const { lineaProduccionId } = req.body as { lineaProduccionId: number };
 
   try {
@@ -122,16 +107,14 @@ export const closeOperatorSession: RequestHandler = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: {
-        message: 'Operator session closed successfully'
-      }
+      data: { message: 'Operator session closed successfully' }
     });
-  } catch (err) {
+  } catch {
     res.status(500).json({ success: false, error: { message: 'Internal server error' } });
   }
 };
 
-export const getSesionActiva: RequestHandler = async (req, res) => {
+export const getActiveSesion: RequestHandler = async (req, res) => {
   const { lineaId: lineaIdStr } = req.params as { lineaId: string };
   const lineaId = parseInt(lineaIdStr, 10);
 
@@ -143,10 +126,7 @@ export const getSesionActiva: RequestHandler = async (req, res) => {
 
     const session = sesionService.obtenerSesion(lineaId);
     if (!session) {
-      res.status(200).json({
-        success: true,
-        data: null
-      });
+      res.status(200).json({ success: true, data: null });
       return;
     }
 
@@ -158,11 +138,12 @@ export const getSesionActiva: RequestHandler = async (req, res) => {
         usuarioIdOperario: session.usuarioIdOperario,
         pasadaId: session.pasadaId,
         connectedAt: session.connectedAt.toISOString(),
-        operarioUltimaActividadAt: session.operarioUltimaActividadAt ? session.operarioUltimaActividadAt.toISOString() : null
+        operarioUltimaActividadAt: session.operarioUltimaActividadAt
+          ? session.operarioUltimaActividadAt.toISOString()
+          : null
       }
     });
-  } catch (err) {
+  } catch {
     res.status(500).json({ success: false, error: { message: 'Internal server error' } });
   }
 };
-
