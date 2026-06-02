@@ -16,7 +16,7 @@ export default defineConfig({
   port: parseInt(process.env.DB_PORT || '5433', 10),
   user: process.env.DB_USER || 'pesaje_admin',
   password: process.env.DB_PASSWORD || 'balanzas_control_2026_pwd!',
-  entities: ['./dist/models/**/*.js'],
+  entities: ['./dist/src/models/**/*.js'],
   entitiesTs: ['./src/models/**/*.ts'],
   debug: process.env.NODE_ENV !== 'production',
   discovery: {
@@ -24,7 +24,7 @@ export default defineConfig({
   },
   extensions: [Migrator],
   migrations: {
-    path: './dist/migrations',
+    path: './dist/src/migrations',
     pathTs: './src/migrations',
   },
 });
