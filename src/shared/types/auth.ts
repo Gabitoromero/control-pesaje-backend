@@ -1,9 +1,9 @@
-import type { UsuarioRolType } from '../types';
+import type { UsuarioRol } from '../types.js';
 
 export interface User {
   id: number;
   nombreUsuario: string;
-  rol: UsuarioRolType;
+  rol: UsuarioRol;
   lineaId?: number;
 }
 

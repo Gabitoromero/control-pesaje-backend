@@ -5,7 +5,7 @@ export const UsuarioRol = {
   ADMINISTRADOR: 'administrador',
 } as const;
 
-export type UsuarioRolType = typeof UsuarioRol[keyof typeof UsuarioRol];
+export type UsuarioRol = typeof UsuarioRol[keyof typeof UsuarioRol];
 
 export interface UsuarioMetadata {
   preferenciasInterfaz?: {

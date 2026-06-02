@@ -1,3 +1,3 @@
-export * from './domain';
-export * from './auth';
-export * from '../types';
+export * from './domain.js';
+export * from './auth.js';
+export * from '../types.js';
