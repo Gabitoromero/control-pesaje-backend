@@ -1,21 +1,27 @@
+import { UsuarioRol } from '../shared/types.js';
+
 export interface SesionActiva {
-  lineaProduccionId: number;
+  lineaProduccionId: number | null;
   usuarioIdGlobal: number;
-  usuarioIdOperario: number | null;
+  usuarioIdUsuario: number | null;
+  rolUsuario: UsuarioRol | null;
   pasadaId: number | null;
   connectedAt: Date;
-  operarioUltimaActividadAt: Date | null;
+  usuarioUltimaActividadAt: Date | null;
 }
 
 export type IniciarSesionResult =
   | { ok: true; session: SesionActiva }
   | { ok: false; conflict: { lineaProduccionId: number } };
 
+const OPERATOR_INACTIVITY_MS = 5 * 60 * 1000;
+
 export class SesionService {
   private static instance: SesionService;
-  private sessions = new Map<number, SesionActiva>(); // Key: lineaProduccionId
-  private failedAttempts = new Map<number, number>(); // Key: lineaProduccionId
-  private lockExpires = new Map<number, Date>(); // Key: lineaProduccionId
+  private lineSessions = new Map<number, SesionActiva>();    
+  private globalSessions = new Map<number, SesionActiva>();
+  private failedAttempts = new Map<number, number>();        
+  private lockExpires = new Map<number, Date>();             
 
   private constructor() {}
 
@@ -27,53 +33,81 @@ export class SesionService {
   }
 
   iniciarSesion(
-    lineaProduccionId: number,
+    lineaProduccionId: number | null,
     usuarioIdGlobal: number,
-    usuarioIdOperario: number | null = null
+    usuarioIdUsuario: number,
+    rolUsuario: UsuarioRol
   ): IniciarSesionResult {
-    const opId = usuarioIdOperario ?? usuarioIdGlobal;
-
-    for (const [lineId, session] of this.sessions.entries()) {
-      if (session.usuarioIdOperario === opId && lineId !== lineaProduccionId) {
-        return { ok: false, conflict: { lineaProduccionId: lineId } };
+    if (lineaProduccionId !== null) {
+      // Line-based session (operario): enforce one active session per user across lines
+      for (const [lineId, session] of this.lineSessions.entries()) {
+        if (session.usuarioIdUsuario === usuarioIdUsuario && lineId !== lineaProduccionId) {
+          return { ok: false, conflict: { lineaProduccionId: lineId } };
+        }
       }
+
+      const session: SesionActiva = {
+        lineaProduccionId,
+        usuarioIdGlobal,
+        usuarioIdUsuario,
+        rolUsuario,
+        pasadaId: null,
+        connectedAt: new Date(),
+        usuarioUltimaActividadAt: new Date(),
+      };
+
+      this.lineSessions.set(lineaProduccionId, session);
+      this.resetearIntentos(lineaProduccionId);
+      return { ok: true, session };
     }
 
+    // Global session (jefe/admin): not tied to a line, replaces any existing global session for this user
     const session: SesionActiva = {
-      lineaProduccionId,
+      lineaProduccionId: null,
       usuarioIdGlobal,
-      usuarioIdOperario: opId,
+      usuarioIdUsuario,
+      rolUsuario,
       pasadaId: null,
       connectedAt: new Date(),
-      operarioUltimaActividadAt: new Date(),
+      usuarioUltimaActividadAt: new Date(),
     };
 
-    this.sessions.set(lineaProduccionId, session);
-    this.resetearIntentos(lineaProduccionId);
-
+    this.globalSessions.set(usuarioIdGlobal, session);
     return { ok: true, session };
   }
 
   cerrarSesion(lineaProduccionId: number): boolean {
-    return this.sessions.delete(lineaProduccionId);
+    return this.lineSessions.delete(lineaProduccionId);
+  }
+
+  cerrarSesionGlobal(usuarioIdGlobal: number): boolean {
+    return this.globalSessions.delete(usuarioIdGlobal);
   }
 
   obtenerSesion(lineaProduccionId: number): SesionActiva | undefined {
-    const session = this.sessions.get(lineaProduccionId);
-    if (session && session.usuarioIdOperario !== null && session.operarioUltimaActividadAt) {
-      if (Date.now() - session.operarioUltimaActividadAt.getTime() > 5 * 60 * 1000) {
-        session.usuarioIdOperario = null;
-        session.operarioUltimaActividadAt = null;
-      }
+    const session = this.lineSessions.get(lineaProduccionId);
+    if (
+      session &&
+      session.usuarioIdUsuario !== null &&
+      session.usuarioUltimaActividadAt &&
+      session.rolUsuario === UsuarioRol.OPERARIO &&
+      Date.now() - session.usuarioUltimaActividadAt.getTime() > OPERATOR_INACTIVITY_MS
+    ) {
+      session.usuarioIdUsuario = null;
+      session.rolUsuario = null;
+      session.usuarioUltimaActividadAt = null;
     }
     return session;
   }
 
+  obtenerSesionGlobal(usuarioIdGlobal: number): SesionActiva | undefined {
+    return this.globalSessions.get(usuarioIdGlobal);
+  }
+
   obtenerSesionPorUsuario(usuarioId: number): SesionActiva | undefined {
-    for (const [lineId, session] of this.sessions.entries()) {
-      // Apply timeout on the session first
+    for (const [lineId, session] of this.lineSessions.entries()) {
       this.obtenerSesion(lineId);
-      if (session.usuarioIdOperario === usuarioId) {
+      if (session.usuarioIdUsuario === usuarioId) {
         return session;
       }
     }
@@ -81,18 +115,17 @@ export class SesionService {
   }
 
   actualizarPasada(lineaProduccionId: number, pasadaId: number | null): void {
-    const session = this.sessions.get(lineaProduccionId);
+    const session = this.lineSessions.get(lineaProduccionId);
     if (session) {
       session.pasadaId = pasadaId;
-      // Any pasada update (start/complete) counts as operator activity
       this.actualizarActividad(lineaProduccionId);
     }
   }
 
   actualizarActividad(lineaProduccionId: number): void {
-    const session = this.sessions.get(lineaProduccionId);
-    if (session && session.usuarioIdOperario !== null) {
-      session.operarioUltimaActividadAt = new Date();
+    const session = this.lineSessions.get(lineaProduccionId);
+    if (session && session.usuarioIdUsuario !== null) {
+      session.usuarioUltimaActividadAt = new Date();
     }
   }
 
@@ -123,11 +156,11 @@ export class SesionService {
   }
 
   limpiar(): void {
-    this.sessions.clear();
+    this.lineSessions.clear();
+    this.globalSessions.clear();
     this.failedAttempts.clear();
     this.lockExpires.clear();
   }
 }
 
 export const sesionService = SesionService.getInstance();
-

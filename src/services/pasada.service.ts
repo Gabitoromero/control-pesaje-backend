@@ -26,7 +26,7 @@ export class PasadaService extends BaseService<Pasada> {
     }
 
     // Verify the session belongs to the initiating operator
-    if (session.usuarioIdOperario !== usuarioId) {
+    if (session.usuarioIdUsuario !== usuarioId) {
       throw new Error(`User ${usuarioId} does not have an active session on production line ${lineaProduccionId}`);
     }
 

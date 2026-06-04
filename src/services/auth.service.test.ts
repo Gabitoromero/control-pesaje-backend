@@ -9,6 +9,7 @@ const JWT_SECRET = 'test-secret';
 
 // Mock the entity manager
 const mockEm = {
+  find: vi.fn(),
   findOne: vi.fn(),
 };
 
@@ -71,6 +72,47 @@ describe('AuthService.login', () => {
   });
 });
 
+describe('AuthService.validatePin', () => {
+  let service: AuthService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new AuthService();
+  });
+
+  it('returns null when user is not found', async () => {
+    mockEm.findOne.mockResolvedValue(null);
+    const result = await service.validatePin('123', '1234');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when PIN does not match', async () => {
+    const pinHash = await bcrypt.hash('5678', 1);
+    mockEm.findOne.mockResolvedValue(
+      { id: 1, nombreApellido: 'Test User', rol: UsuarioRol.OPERARIO, activo: true, pinHash, legajo: '123' }
+    );
+    const result = await service.validatePin('123', '9999');
+    expect(result).toBeNull();
+  });
+
+  it('returns the matching user when PIN is correct', async () => {
+    const pinHash = await bcrypt.hash('1234', 1);
+    mockEm.findOne.mockResolvedValue(
+      { id: 1, nombreApellido: 'Test User', rol: UsuarioRol.OPERARIO, activo: true, pinHash, legajo: '123' }
+    );
+    const result = await service.validatePin('123', '1234');
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe(1);
+  });
+
+  it('returns null when user has no pinHash set', async () => {
+    mockEm.findOne.mockResolvedValue(
+      { id: 1, nombreApellido: 'Sin PIN', rol: UsuarioRol.OPERARIO, activo: true, pinHash: undefined, legajo: '123' }
+    );
+    const result = await service.validatePin('123', '1234');
+    expect(result).toBeNull();
+  });
+});
 describe('AuthService.hashPassword', () => {
   it('returns a bcrypt hash', async () => {
     const service = new AuthService();

@@ -157,7 +157,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
     it('should successfully initiate a Pasada and assign sequential numbers per line-article', () => runInContext(async () => {
       // 1. Establish session in memory
-      sesionService.iniciarSesion(testLine.id, testUser.id);
+      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
 
       // 2. Start first Pasada
       const pasada1 = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
@@ -185,7 +185,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
   describe('MuestraService.registrarMuestra', () => {
     it('should validate sample range correctly', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id);
+      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // OK sample
@@ -224,7 +224,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     }));
 
     it('should reject registration of subsequent stages if preceding stages are incomplete', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id);
+      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // Attempt to register Etapa 2 directly (Etapa 1 needs 2 OK samples, currently has 0)
@@ -241,7 +241,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     }));
 
     it('should progress through stages and complete the Pasada on the last sample', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id);
+      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // Register 1st OK sample for Etapa 1
@@ -315,7 +315,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       lineaSinRuta.numeroBalanza = 99;
       await em.persist(lineaSinRuta).flush();
 
-      sesionService.iniciarSesion(lineaSinRuta.id, testUser.id);
+      sesionService.iniciarSesion(lineaSinRuta.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
 
       await expect(
         muestraService.registrarMuestra(
@@ -329,7 +329,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     }));
 
     it('should register a random sample successfully when line has active rutaPasada', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id);
+      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
 
       const m = await muestraService.registrarMuestra(
         testUser.id,
@@ -347,7 +347,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
   describe('Deletes and Updates Restrictions on Completed Records', () => {
     it('should reject updates and soft-deletes of completed Pasadas and Muestras', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id);
+      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // Create samples to complete the pasada
@@ -380,7 +380,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     }));
 
     it('should successfully abort a pasada and reject subsequent operations', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id);
+      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
       expect(pasada.estado).toBe(PasadaEstado.EN_CURSO);
 

@@ -365,75 +365,77 @@ describe('4.5 — Logical restrict: parent deletion blocked when active refs exi
 });
 
 describe('2FA API Endpoints', () => {
+  let pin1111Hash: string;
+
+  beforeAll(async () => {
+    pin1111Hash = await bcrypt.hash('1111', 1); // low rounds for test speed
+  });
+
   beforeEach(() => {
     sesionService.limpiar();
   });
 
-  it('POST /api/auth/activar-sesion-operario activates operator session successfully', async () => {
-    mockEm.findOne
-      .mockResolvedValueOnce({
-        id: 5,
-        rol: UsuarioRol.OPERARIO,
-        activo: true,
-        datosAdicionales: { pin: '1111' },
-      })
-      .mockResolvedValueOnce({
-        id: 1,
-        nombre: 'Linea 1',
-      });
+  it('POST /api/auth/activar-sesion activates operator session successfully', async () => {
+    mockEm.findOne.mockResolvedValueOnce({
+      id: 5,
+      rol: UsuarioRol.OPERARIO,
+      activo: true,
+      pinHash: pin1111Hash,
+      legajo: 'OP001'
+    });
+    mockEm.findOne.mockResolvedValueOnce({ id: 1, nombre: 'Linea 1' });
 
     const res = await request(app)
-      .post('/api/auth/activar-sesion-operario')
+      .post('/api/auth/activar-sesion')
       .set('Authorization', `Bearer ${jefeToken()}`)
-      .send({ pin: '1111', lineaProduccionId: 1 });
+      .send({ legajo: 'OP001', pin: '1111', lineaProduccionId: 1 });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.usuarioIdOperario).toBe(5);
+    expect(res.body.data.usuarioIdUsuario).toBe(5);
     expect(res.body.data).not.toHaveProperty('articuloId');
   });
 
-  it('POST /api/auth/activar-sesion-operario returns 429 when line is blocked', async () => {
+  it('POST /api/auth/activar-sesion returns 429 when line is blocked', async () => {
     sesionService.registrarIntentoFallido(1);
     sesionService.registrarIntentoFallido(1);
     sesionService.registrarIntentoFallido(1);
     expect(sesionService.estaBloqueada(1)).toBe(true);
 
     const res = await request(app)
-      .post('/api/auth/activar-sesion-operario')
+      .post('/api/auth/activar-sesion')
       .set('Authorization', `Bearer ${jefeToken()}`)
-      .send({ pin: '1111', lineaProduccionId: 1 });
+      .send({ legajo: 'OP001', pin: '1111', lineaProduccionId: 1 });
 
     expect(res.status).toBe(429);
     expect(res.body.success).toBe(false);
     expect(res.body.error.message).toMatch(/Too many consecutive failed attempts/);
   });
 
-  it('POST /api/auth/activar-sesion-operario returns 404 and registers failed attempt on invalid PIN', async () => {
-    mockEm.findOne.mockResolvedValue(null); // operario not found
+  it('POST /api/auth/activar-sesion returns 404 and registers failed attempt on invalid PIN', async () => {
+    mockEm.findOne.mockResolvedValueOnce(null); // no user matches the legajo
 
     const res = await request(app)
-      .post('/api/auth/activar-sesion-operario')
+      .post('/api/auth/activar-sesion')
       .set('Authorization', `Bearer ${jefeToken()}`)
-      .send({ pin: '9999', lineaProduccionId: 1 });
+      .send({ legajo: 'UNKNOWN', pin: '9999', lineaProduccionId: 1 });
 
     expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
     expect(res.body.error.message).toMatch(/No active user found with the provided PIN/);
   });
 
-  it('POST /api/auth/activar-sesion-operario returns 409 when operator already has session on another line', async () => {
+  it('POST /api/auth/activar-sesion returns 409 when operator already has session on another line', async () => {
     // Operator 5 already has an active session on line 1
-    sesionService.iniciarSesion(1, 2, 5);
+    sesionService.iniciarSesion(1, 2, 5, UsuarioRol.OPERARIO);
 
-    mockEm.findOne
-      .mockResolvedValueOnce({ id: 5, rol: UsuarioRol.OPERARIO, activo: true, datosAdicionales: { pin: '1111' } })
-      .mockResolvedValueOnce({ id: 2, nombre: 'Linea 2' });
+    mockEm.findOne.mockResolvedValueOnce({ id: 5, rol: UsuarioRol.OPERARIO, activo: true, pinHash: pin1111Hash, legajo: 'OP005' });
+    mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Linea 2' });
 
     const res = await request(app)
-      .post('/api/auth/activar-sesion-operario')
+      .post('/api/auth/activar-sesion')
       .set('Authorization', `Bearer ${jefeToken()}`)
-      .send({ pin: '1111', lineaProduccionId: 2 });
+      .send({ legajo: 'OP005', pin: '1111', lineaProduccionId: 2 });
 
     expect(res.status).toBe(409);
     expect(res.body.success).toBe(false);
@@ -444,11 +446,11 @@ describe('2FA API Endpoints', () => {
     expect(sesionService.obtenerSesion(2)).toBeUndefined();
   });
 
-  it('POST /api/auth/cerrar-sesion-operario closes the session', async () => {
-    sesionService.iniciarSesion(1, 2, 5);
+  it('POST /api/auth/cerrar-sesion closes a line session', async () => {
+    sesionService.iniciarSesion(1, 2, 5, UsuarioRol.OPERARIO);
 
     const res = await request(app)
-      .post('/api/auth/cerrar-sesion-operario')
+      .post('/api/auth/cerrar-sesion')
       .set('Authorization', `Bearer ${jefeToken()}`)
       .send({ lineaProduccionId: 1 });
 
@@ -469,7 +471,7 @@ describe('2FA API Endpoints', () => {
   });
 
   it('GET /api/auth/sesion-activa/:lineaId returns session details', async () => {
-    sesionService.iniciarSesion(1, 2, 5);
+    sesionService.iniciarSesion(1, 2, 5, UsuarioRol.OPERARIO);
 
     const res = await request(app)
       .get('/api/auth/sesion-activa/1')
@@ -478,7 +480,7 @@ describe('2FA API Endpoints', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.usuarioIdGlobal).toBe(2);
-    expect(res.body.data.usuarioIdOperario).toBe(5);
+    expect(res.body.data.usuarioIdUsuario).toBe(5);
   });
 });
 

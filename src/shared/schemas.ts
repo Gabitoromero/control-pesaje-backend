@@ -6,7 +6,9 @@ import { UsuarioRol } from './types.js';
 export const UsuarioCreateSchema = z.object({
   nombreApellido: z.string().min(1),
   nombreUsuario: z.string().min(3),
+  legajo: z.string().min(1).optional(),
   contrasena: z.string().min(4),
+  puedeTomarMuestrasLibres: z.boolean().optional(),
   rol: z.enum([
     UsuarioRol.OPERARIO,
     UsuarioRol.JEFE,
@@ -32,7 +34,6 @@ export const UsuarioUpdateSchema = UsuarioCreateSchema.partial();
 export const ArticuloCreateSchema = z.object({
   nombre: z.string().min(1),
   descripcion: z.string().min(4).optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const ArticuloUpdateSchema = ArticuloCreateSchema.partial();

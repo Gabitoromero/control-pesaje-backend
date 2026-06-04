@@ -43,6 +43,9 @@ export class Pasada {
   @Property({ type: 'datetime', nullable: true })
   horaCierre?: Date;
 
+  @Property({ type: 'string', columnType: 'text', nullable: true })
+  observacionCierre?: string;
+
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
 }

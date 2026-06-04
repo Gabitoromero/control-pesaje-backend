@@ -16,11 +16,18 @@ export class Usuario {
   @Property({ type: 'string', length: 50 })
   nombreUsuario!: string;
 
+  @Unique()
+  @Property({ type: 'string', length: 50, nullable: true })
+  legajo?: string;
+
   @Property({ type: 'string', length: 255 })
   contrasenaHash!: string;
 
   @Property({ type: 'string', length: 255, nullable: true })
   pinHash?: string;
+
+  @Property({ type: 'boolean', default: false })
+  puedeTomarMuestrasLibres: boolean = false;
 
   @Enum({ items: () => UsuarioRol, nativeEnumName: 'usuario_rol_enum' })
   rol!: UsuarioRol;

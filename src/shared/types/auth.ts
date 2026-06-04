@@ -4,6 +4,7 @@ export interface User {
   id: number;
   nombreUsuario: string;
   rol: UsuarioRol;
+  puedeTomarMuestrasLibres?: boolean;
   lineaId?: number;
 }
 

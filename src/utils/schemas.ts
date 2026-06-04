@@ -7,11 +7,17 @@ export const LoginSchema = z.object({
   contrasena: z.string().min(1, { message: 'contrasena is required' }),
 });
 
-export const ActivarSesionSchema = z.object({
+export const VerificarPinSchema = z.object({
+  legajo: z.string().min(1, { message: 'legajo is required' }),
   pin: z.string().regex(/^\d{4,6}$/, { message: 'PIN must be between 4 and 6 digits' }),
-  lineaProduccionId: z.number().int().positive({ message: 'lineaProduccionId must be positive' }),
 });
 
-export const CerrarSesionOperarioSchema = z.object({
-  lineaProduccionId: z.number().int().positive({ message: 'lineaProduccionId must be positive' }),
+export const ActivarSesionSchema = z.object({
+  legajo: z.string().min(1, { message: 'legajo is required' }),
+  pin: z.string().regex(/^\d{4,6}$/, { message: 'PIN must be between 4 and 6 digits' }),
+  lineaProduccionId: z.number().int().positive({ message: 'lineaProduccionId must be positive' }).optional(),
+});
+
+export const CerrarSesionSchema = z.object({
+  lineaProduccionId: z.number().int().positive({ message: 'lineaProduccionId must be positive' }).optional(),
 });

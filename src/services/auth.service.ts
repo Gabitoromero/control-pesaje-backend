@@ -19,7 +19,6 @@ export class AuthService {
     );
 
     if (!usuario || !usuario.activo) return null;
-    if (usuario.rol !== UsuarioRol.ADMINISTRADOR && usuario.rol !== UsuarioRol.JEFE) return null;
 
     const passwordMatch = await bcrypt.compare(contrasena, usuario.contrasenaHash);
     if (!passwordMatch) return null;
@@ -28,20 +27,28 @@ export class AuthService {
     if (!secret) throw new Error('JWT_SECRET not configured');
 
     return jwt.sign(
-      { id: usuario.id, nombreUsuario: usuario.nombreUsuario, rol: usuario.rol },
+      { 
+        id: usuario.id, 
+        nombreUsuario: usuario.nombreUsuario, 
+        rol: usuario.rol,
+        puedeTomarMuestrasLibres: usuario.puedeTomarMuestrasLibres 
+      },
       secret,
       { expiresIn: '8h' }
     );
   }
 
-  async validateOperatorPin(pin: string): Promise<Usuario | null> {
+  async validatePin(legajo: string, pin: string): Promise<Usuario | null> {
     const em = RequestContext.getEntityManager();
     if (!em) throw new Error('No EntityManager in RequestContext');
 
-    return em.findOne(
-      Usuario,
-      { rol: UsuarioRol.OPERARIO, activo: true, datosAdicionales: { pin } } as FilterQuery<Usuario>
-    );
+    const candidate = await em.findOne(Usuario, { legajo, activo: true });
+
+    if (candidate && candidate.pinHash && await bcrypt.compare(pin, candidate.pinHash)) {
+      return candidate;
+    }
+
+    return null;
   }
 
   async findLineaById(id: number): Promise<LineaProduccion | null> {

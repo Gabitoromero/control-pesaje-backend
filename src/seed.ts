@@ -34,20 +34,28 @@ async function run() {
     const adminPasswordHash = await bcrypt.hash('admin123', saltRounds);
     const jefePasswordHash = await bcrypt.hash('jefe123', saltRounds);
     const operarioPasswordHash = await bcrypt.hash('operario123', saltRounds);
+    const adminPinHash = await bcrypt.hash('0000', saltRounds);
+    const jefePinHash = await bcrypt.hash('9999', saltRounds);
 
     const admin = em.create(Usuario, {
       nombreApellido: 'Admin Local',
       nombreUsuario: 'admin',
+      legajo: 'ADMIN01',
       contrasenaHash: adminPasswordHash,
+      pinHash: adminPinHash,
       rol: UsuarioRol.ADMINISTRADOR,
+      puedeTomarMuestrasLibres: true,
       activo: true,
     });
 
     const jefe = em.create(Usuario, {
       nombreApellido: 'Jefe de Planta',
       nombreUsuario: 'jefe',
+      legajo: 'JEFE01',
       contrasenaHash: jefePasswordHash,
+      pinHash: jefePinHash,
       rol: UsuarioRol.JEFE,
+      puedeTomarMuestrasLibres: true,
       activo: true,
     });
 
@@ -59,9 +67,11 @@ async function run() {
     const operario1 = em.create(Usuario, {
       nombreApellido: 'Lionel Andres Messi',
       nombreUsuario: 'operario1',
+      legajo: 'OP001',
       contrasenaHash: operarioPasswordHash,
       pinHash: pin1Hash,
       rol: UsuarioRol.OPERARIO,
+      puedeTomarMuestrasLibres: false,
       activo: true,
       datosAdicionales: {},
     });
@@ -69,9 +79,11 @@ async function run() {
     const operario2 = em.create(Usuario, {
       nombreApellido: 'Angel Di Maria',
       nombreUsuario: 'operario2',
+      legajo: 'OP002',
       contrasenaHash: operarioPasswordHash,
       pinHash: pin2Hash,
       rol: UsuarioRol.OPERARIO,
+      puedeTomarMuestrasLibres: false,
       activo: true,
       datosAdicionales: {},
     });
@@ -79,9 +91,11 @@ async function run() {
     const operario3 = em.create(Usuario, {
       nombreApellido: 'Sergio Agüero',
       nombreUsuario: 'operario3',
+      legajo: 'OP003',
       contrasenaHash: operarioPasswordHash,
       pinHash: pin3Hash,
       rol: UsuarioRol.OPERARIO,
+      puedeTomarMuestrasLibres: true,
       activo: true,
       datosAdicionales: {},
     });
@@ -119,7 +133,6 @@ async function run() {
       descripcion: 'Helado individual bañado en chocolate con crocante',
       marca: 'Montevideana',
       activo: true,
-      metadata: { pesoNominal: 70 },
     });
 
     const articuloPotePremium = em.create(Articulo, {
@@ -127,7 +140,6 @@ async function run() {
       descripcion: 'Pote de helado familiar sabor chocolate intenso con chips',
       marca: 'Montevideana',
       activo: true,
-      metadata: { pesoNominal: 250 },
     });
 
     const articuloConoDoret = em.create(Articulo, {
@@ -135,7 +147,6 @@ async function run() {
       descripcion: 'Cono de helado relleno con dulce de leche repostero',
       marca: 'Com Com',
       activo: true,
-      metadata: { pesoNominal: 70 },
     });
 
     const articuloFlan = em.create(Articulo, {
@@ -143,7 +154,6 @@ async function run() {
       descripcion: 'Flan individual con caramelo líquido',
       marca: 'Com Com',
       activo: true,
-      metadata: { pesoNominal: 250 },
     });
 
     const articuloPostreAlfajor = em.create(Articulo, {
@@ -151,7 +161,6 @@ async function run() {
       descripcion: 'Postre helado con tapitas sabor alfajor y relleno de crema dulce',
       marca: 'Fantoche',
       activo: true,
-      metadata: { pesoNominal: 70 },
     });
 
     // 4. Create Rutas

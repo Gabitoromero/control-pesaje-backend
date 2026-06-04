@@ -17,7 +17,4 @@ export class Articulo {
 
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
-
-  @Property({ type: 'json', columnType: 'jsonb', nullable: true })
-  metadata?: Record<string, unknown>;
 }
