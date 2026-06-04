@@ -34,7 +34,7 @@ export class AuthService {
         puedeTomarMuestrasLibres: usuario.puedeTomarMuestrasLibres 
       },
       secret,
-      { expiresIn: '8h' }
+      { expiresIn: '20h' }
     );
   }
 

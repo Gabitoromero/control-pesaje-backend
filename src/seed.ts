@@ -73,7 +73,7 @@ async function run() {
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: false,
       activo: true,
-      datosAdicionales: {},
+      datosAdicionales: null,
     });
 
     const operario2 = em.create(Usuario, {
@@ -85,7 +85,7 @@ async function run() {
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: false,
       activo: true,
-      datosAdicionales: {},
+      datosAdicionales: null,
     });
 
     const operario3 = em.create(Usuario, {
@@ -97,7 +97,7 @@ async function run() {
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: true,
       activo: true,
-      datosAdicionales: {},
+      datosAdicionales: null,
     });
 
     // 2. Create Etapas

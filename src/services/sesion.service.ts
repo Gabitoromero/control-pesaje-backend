@@ -19,7 +19,7 @@ const OPERATOR_INACTIVITY_MS = 5 * 60 * 1000;
 export class SesionService {
   private static instance: SesionService;
   private lineSessions = new Map<number, SesionActiva>();    
-  private globalSessions = new Map<number, SesionActiva>();
+  private globalSessions = new Map<number, SesionActiva>(); // key: usuarioIdGlobal
   private failedAttempts = new Map<number, number>();        
   private lockExpires = new Map<number, Date>();             
 
