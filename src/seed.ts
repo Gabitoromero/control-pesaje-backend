@@ -35,12 +35,12 @@ async function run() {
     const jefePasswordHash = await bcrypt.hash('jefe123', saltRounds);
     const operarioPasswordHash = await bcrypt.hash('operario123', saltRounds);
     const adminPinHash = await bcrypt.hash('0000', saltRounds);
-    const jefePinHash = await bcrypt.hash('9999', saltRounds);
+    const jefePinHash = await bcrypt.hash('1111', saltRounds);
 
     const admin = em.create(Usuario, {
       nombreApellido: 'Admin Local',
       nombreUsuario: 'admin',
-      legajo: 'ADMIN01',
+      legajo: '0000',
       contrasenaHash: adminPasswordHash,
       pinHash: adminPinHash,
       rol: UsuarioRol.ADMINISTRADOR,
@@ -51,7 +51,7 @@ async function run() {
     const jefe = em.create(Usuario, {
       nombreApellido: 'Jefe de Planta',
       nombreUsuario: 'jefe',
-      legajo: 'JEFE01',
+      legajo: '1111',
       contrasenaHash: jefePasswordHash,
       pinHash: jefePinHash,
       rol: UsuarioRol.JEFE,
@@ -60,14 +60,14 @@ async function run() {
     });
 
     // 3 operarios with PINs
-    const pin1Hash = await bcrypt.hash('1111', saltRounds);
-    const pin2Hash = await bcrypt.hash('2222', saltRounds);
-    const pin3Hash = await bcrypt.hash('3333', saltRounds);
+    const pin1Hash = await bcrypt.hash('3333', saltRounds);
+    const pin2Hash = await bcrypt.hash('4444', saltRounds);
+    const pin3Hash = await bcrypt.hash('5555', saltRounds);
 
     const operario1 = em.create(Usuario, {
       nombreApellido: 'Lionel Andres Messi',
       nombreUsuario: 'operario1',
-      legajo: 'OP001',
+      legajo: '3333',
       contrasenaHash: operarioPasswordHash,
       pinHash: pin1Hash,
       rol: UsuarioRol.OPERARIO,
@@ -79,7 +79,7 @@ async function run() {
     const operario2 = em.create(Usuario, {
       nombreApellido: 'Angel Di Maria',
       nombreUsuario: 'operario2',
-      legajo: 'OP002',
+      legajo: '4444',
       contrasenaHash: operarioPasswordHash,
       pinHash: pin2Hash,
       rol: UsuarioRol.OPERARIO,
@@ -91,7 +91,7 @@ async function run() {
     const operario3 = em.create(Usuario, {
       nombreApellido: 'Sergio Agüero',
       nombreUsuario: 'operario3',
-      legajo: 'OP003',
+      legajo: '5555',
       contrasenaHash: operarioPasswordHash,
       pinHash: pin3Hash,
       rol: UsuarioRol.OPERARIO,

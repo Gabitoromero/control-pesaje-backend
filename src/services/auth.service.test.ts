@@ -70,6 +70,26 @@ describe('AuthService.login', () => {
     expect(decoded.nombreUsuario).toBe('admin');
     expect(decoded.rol).toBe(UsuarioRol.ADMINISTRADOR);
   });
+
+  it('returns a JWT string when logged in with a valid legajo', async () => {
+    const hash = await bcrypt.hash('password', 10);
+    mockEm.findOne.mockResolvedValue({
+      id: 2,
+      nombreUsuario: 'jefe',
+      legajo: 'JEFE01',
+      rol: UsuarioRol.JEFE,
+      activo: true,
+      contrasenaHash: hash,
+    });
+
+    const token = await service.login('JEFE01', 'password');
+    expect(typeof token).toBe('string');
+
+    const decoded = jwt.verify(token!, JWT_SECRET) as any;
+    expect(decoded.id).toBe(2);
+    expect(decoded.nombreUsuario).toBe('jefe');
+    expect(decoded.rol).toBe(UsuarioRol.JEFE);
+  });
 });
 
 describe('AuthService.validatePin', () => {

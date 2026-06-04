@@ -14,7 +14,12 @@ export class AuthService {
     // Disable the global activo filter to distinguish "inactive account" from "wrong credentials"
     const usuario = await em.findOne(
       Usuario,
-      { nombreUsuario },
+      {
+        $or: [
+          { nombreUsuario },
+          { legajo: nombreUsuario }
+        ]
+      },
       { filters: { activo: false } },
     );
 
