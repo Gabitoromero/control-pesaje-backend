@@ -88,6 +88,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     testUser.nombreUsuario = 'juan.perez';
     testUser.contrasenaHash = 'hash';
     testUser.rol = UsuarioRol.OPERARIO;
+    testUser.puedeTomarMuestrasLibres = true;
     await em.persist(testUser).flush();
 
     // Seed RutaPasada
@@ -306,6 +307,53 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // The in-memory session should clear the active pasadaId
       const session = sesionService.obtenerSesion(testLine.id);
       expect(session!.pasadaId).toBeNull();
+    }));
+
+    it('T-15: registrarMuestra throws when user does not have puedeTomarMuestrasLibres', () => runInContext(async () => {
+      const em = orm.em.fork();
+      const restrictedUser = new Usuario();
+      restrictedUser.nombreApellido = 'Restricted User';
+      restrictedUser.nombreUsuario = 'restricted';
+      restrictedUser.contrasenaHash = 'x';
+      restrictedUser.rol = UsuarioRol.OPERARIO;
+      restrictedUser.puedeTomarMuestrasLibres = false;
+      await em.persist(restrictedUser).flush();
+
+      sesionService.iniciarSesion(testLine.id, restrictedUser.id, restrictedUser.id, UsuarioRol.OPERARIO);
+
+      await expect(
+        muestraService.registrarMuestra(
+          restrictedUser.id,
+          undefined,
+          testEtapa1.id,
+          testLine.id,
+          50.000
+        )
+      ).rejects.toThrow('is not authorized to register free samples');
+    }));
+
+    it('T-16: registrarMuestra succeeds for user with puedeTomarMuestrasLibres=true', () => runInContext(async () => {
+      const em = orm.em.fork();
+      const freeUser = new Usuario();
+      freeUser.nombreApellido = 'Free Sample User';
+      freeUser.nombreUsuario = 'freesampler';
+      freeUser.contrasenaHash = 'x';
+      freeUser.rol = UsuarioRol.OPERARIO;
+      freeUser.puedeTomarMuestrasLibres = true;
+      await em.persist(freeUser).flush();
+
+      sesionService.iniciarSesion(testLine.id, freeUser.id, freeUser.id, UsuarioRol.OPERARIO);
+
+      const m = await muestraService.registrarMuestra(
+        freeUser.id,
+        undefined,
+        testEtapa1.id,
+        testLine.id,
+        50.000
+      );
+
+      expect(m.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
+      expect(m.rutaPasada.id).toBe(testRutaPasada.id);
     }));
 
     it('should throw when registering a random sample on a line without rutaPasadaActiva', () => runInContext(async () => {

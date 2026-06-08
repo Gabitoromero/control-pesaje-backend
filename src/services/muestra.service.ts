@@ -49,6 +49,14 @@ export class MuestraService extends BaseService<Muestra> {
       }
       rutaPasadaId = pasada.rutaPasada.id;
     } else {
+      const usuarioQueRegistra = await em.findOne(Usuario, { id: usuarioId, activo: true });
+      if (!usuarioQueRegistra) {
+        throw new Error(`User ${usuarioId} not found or inactive`);
+      }
+      if (!usuarioQueRegistra.puedeTomarMuestrasLibres) {
+        throw new Error(`User ${usuarioId} is not authorized to register free samples`);
+      }
+
       const linea = await em.findOne(LineaProduccion, { id: lineaProduccionId, activo: true }, { populate: ['rutaPasadaActiva'] });
       if (!linea?.rutaPasadaActiva) {
         throw new Error(
