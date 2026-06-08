@@ -8,6 +8,7 @@ export const UsuarioCreateSchema = z.object({
   nombreUsuario: z.string().min(3),
   legajo: z.string().min(1).optional(),
   contrasena: z.string().min(4),
+  pin: z.string().regex(/^\d{4,6}$/).optional(),
   puedeTomarMuestrasLibres: z.boolean().optional(),
   rol: z.enum([
     UsuarioRol.OPERARIO,
@@ -55,6 +56,15 @@ export const LineaProduccionCreateSchema = z.object({
 });
 
 export const LineaProduccionUpdateSchema = LineaProduccionCreateSchema.partial();
+
+// ─── RutaPasada ───────────────────────────────────────────────────────────────
+
+export const RutaPasadaCreateSchema = z.object({
+  nombre: z.string().min(1),
+  descripcion: z.string().optional(),
+});
+
+export const RutaPasadaUpdateSchema = RutaPasadaCreateSchema.partial();
 
 // ─── RutaPasadaEtapa ──────────────────────────────────────────────────────────
 
