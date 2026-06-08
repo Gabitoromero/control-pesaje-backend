@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { RequestContext, type FilterQuery } from '@mikro-orm/core';
+import { RequestContext } from '@mikro-orm/core';
 import { Usuario, UsuarioRol } from '../models/Usuario.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 
@@ -11,7 +11,6 @@ export class AuthService {
     const em = RequestContext.getEntityManager();
     if (!em) throw new Error('No EntityManager in RequestContext');
 
-    // Disable the global activo filter to distinguish "inactive account" from "wrong credentials"
     const usuario = await em.findOne(
       Usuario,
       {
@@ -20,7 +19,6 @@ export class AuthService {
           { legajo: nombreUsuario }
         ]
       },
-      { filters: { activo: false } },
     );
 
     if (!usuario || !usuario.activo) return null;

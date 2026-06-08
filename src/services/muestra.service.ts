@@ -37,19 +37,22 @@ export class MuestraService extends BaseService<Muestra> {
     let allRutas: RutaPasadaEtapa[] = [];
 
     if (pasadaId) {
-      pasada = await em.findOne(Pasada, pasadaId, { populate: ['rutaPasada'] });
+      pasada = await em.findOne(Pasada, pasadaId, { populate: ['rutaPasada', 'usuario'] });
       if (!pasada) {
         throw new Error(`Pasada with ID ${pasadaId} not found`);
+      }
+      if (pasada.usuario.id !== usuarioId) {
+        throw new Error(`User ${usuarioId} cannot register samples on pasada ${pasadaId}: not the owner`);
       }
       if (pasada.estado === PasadaEstado.COMPLETA || pasada.estado === PasadaEstado.ABORTADA) {
         throw new Error(`Cannot register sample: Pasada is already completed or aborted`);
       }
       rutaPasadaId = pasada.rutaPasada.id;
     } else {
-      const linea = await em.findOne(LineaProduccion, lineaProduccionId, { populate: ['rutaPasadaActiva'] });
+      const linea = await em.findOne(LineaProduccion, { id: lineaProduccionId, activo: true }, { populate: ['rutaPasadaActiva'] });
       if (!linea?.rutaPasadaActiva) {
         throw new Error(
-          `No se pueden registrar muestras al azar en una línea de producción sin ruta de pasada activa (modo puesta a punto)`
+          `Cannot register samples on production line ${lineaProduccionId}: no active route assigned (setup mode)`
         );
       }
       rutaPasadaId = linea.rutaPasadaActiva.id;
@@ -59,6 +62,7 @@ export class MuestraService extends BaseService<Muestra> {
     const rutaEtapa = await em.findOne(RutaPasadaEtapa, {
       rutaPasada: rutaPasadaId,
       etapa: etapaId,
+      activo: true,
     });
     if (!rutaEtapa) {
       throw new Error(`No route configuration found for route ${rutaPasadaId} and stage ${etapaId}`);
@@ -68,7 +72,7 @@ export class MuestraService extends BaseService<Muestra> {
     if (pasada) {
       allRutas = await em.find(
         RutaPasadaEtapa,
-        { rutaPasada: rutaPasadaId },
+        { rutaPasada: rutaPasadaId, activo: true },
         { orderBy: { orden: 'ASC' } }
       );
 
@@ -78,6 +82,7 @@ export class MuestraService extends BaseService<Muestra> {
             pasada: pasadaId,
             etapa: r.etapa.id,
             estadoValidacion: MuestraEstadoValidacion.OK,
+            activo: true,
           });
           if (count < r.cantidadMuestrasRequeridas) {
             throw new Error(`Preceding stage '${r.etapa.id}' is not complete (progress: ${count}/${r.cantidadMuestrasRequeridas})`);
@@ -117,6 +122,7 @@ export class MuestraService extends BaseService<Muestra> {
           pasada: pasadaId,
           etapa: r.etapa.id,
           estadoValidacion: MuestraEstadoValidacion.OK,
+          activo: true,
         });
         if (count < r.cantidadMuestrasRequeridas) {
           entirePasadaComplete = false;

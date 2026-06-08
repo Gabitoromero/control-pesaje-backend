@@ -18,7 +18,11 @@ export abstract class BaseService<T extends { id: number; activo: boolean }> {
   }
 
   async findAll(): Promise<T[]> {
-    return this.getEm().find(this.entityClass, {});
+    return this.getEm().find(this.entityClass, { activo: true } as unknown as FilterQuery<T>);
+  }
+
+  async findAllInactive(): Promise<T[]> {
+    return this.getEm().find(this.entityClass, { activo: false } as unknown as FilterQuery<T>);
   }
 
   async findById(id: number): Promise<T | null> {

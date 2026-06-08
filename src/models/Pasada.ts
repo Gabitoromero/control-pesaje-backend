@@ -1,4 +1,4 @@
-import { Entity, Filter, PrimaryKey, Property, ManyToOne, Enum } from '@mikro-orm/decorators/legacy';
+import { Entity, PrimaryKey, Property, ManyToOne, Enum } from '@mikro-orm/decorators/legacy';
 import { LineaProduccion } from './LineaProduccion.js';
 import { Articulo } from './Articulo.js';
 import { RutaPasada } from './RutaPasada.js';
@@ -10,7 +10,6 @@ export enum PasadaEstado {
   ABORTADA = 'abortada',
 }
 
-@Filter({ name: 'activo', cond: { activo: true }, default: true })
 @Entity({ tableName: 'pasada' })
 export class Pasada {
   @PrimaryKey({ type: 'number', autoincrement: true })

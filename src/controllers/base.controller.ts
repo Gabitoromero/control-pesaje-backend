@@ -4,6 +4,7 @@ import { RestrictError } from '../utils/errors.js';
 
 export interface CrudHandlers {
   list: RequestHandler;
+  listInactive: RequestHandler;
   getOne: RequestHandler;
   create: RequestHandler;
   update: RequestHandler;
@@ -20,6 +21,15 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
   const list: RequestHandler = async (_req, res) => {
     try {
       const items = await service.findAll();
+      res.json({ success: true, data: items });
+    } catch (err) {
+      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    }
+  };
+
+  const listInactive: RequestHandler = async (_req, res) => {
+    try {
+      const items = await service.findAllInactive();
       res.json({ success: true, data: items });
     } catch (err) {
       res.status(500).json({ success: false, error: { message: 'Internal server error' } });
@@ -81,5 +91,5 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
     }
   };
 
-  return { list, getOne, create, update, remove };
+  return { list, listInactive, getOne, create, update, remove };
 }

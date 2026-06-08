@@ -8,13 +8,14 @@ import { UsuarioRol } from '../models/Usuario.js';
 
 const router: Router = Router();
 const service = new UsuarioService();
-const { list, getOne, create, update, remove } = createCrudHandlers(service);
+const { list, listInactive, getOne, create, update, remove } = createCrudHandlers(service);
 
 const writeRoles = [UsuarioRol.ADMINISTRADOR];
 
 router.use(authenticateJWT);
 
 router.get('/', list);
+router.get('/inactive', listInactive);
 router.get('/:id', getOne);
 router.post('/', requireRoles(writeRoles), validateBody(UsuarioCreateSchema), create);
 router.put('/:id', requireRoles(writeRoles), validateBody(UsuarioUpdateSchema), update);

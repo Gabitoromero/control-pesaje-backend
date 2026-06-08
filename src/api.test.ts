@@ -87,7 +87,7 @@ beforeEach(() => {
 
 describe('4.1 — soft-delete filter (GET /api/articulos only returns active records)', () => {
   it('returns only items returned by the EM (filter applied at DB level via @Filter)', async () => {
-    // The @Filter decorator ensures the ORM only returns activo=true rows.
+    // findAll() explicitly filters { activo: true } in BaseService.
     // Here we assert the list endpoint forwards EM.find() result as-is.
     const active = [{ id: 1, nombre: 'A', activo: true }];
     mockEm.find.mockResolvedValue(active);
@@ -481,6 +481,100 @@ describe('2FA API Endpoints', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.usuarioIdGlobal).toBe(2);
     expect(res.body.data.usuarioIdUsuario).toBe(5);
+  });
+});
+
+// ─── 4.6  GET /inactive routes ────────────────────────────────────────────────
+
+const inactiveEntities = [
+  { path: '/api/articulos/inactive', name: 'articulos' },
+  { path: '/api/etapas/inactive', name: 'etapas' },
+  { path: '/api/usuarios/inactive', name: 'usuarios' },
+  { path: '/api/rutas-pasadas-etapas/inactive', name: 'rutas-pasadas-etapas' },
+  { path: '/api/lineas-produccion/inactive', name: 'lineas-produccion' },
+];
+
+describe('4.6 — GET /inactive routes', () => {
+  // T-06: valid JWT → 200 with empty data array
+  for (const { path, name } of inactiveEntities) {
+    it(`T-06: GET ${path} returns 200 { success: true, data: [] } when no inactive records`, async () => {
+      mockEm.find.mockResolvedValue([]);
+
+      const res = await request(app)
+        .get(path)
+        .set('Authorization', `Bearer ${adminToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual([]);
+    });
+  }
+
+  // T-07: valid JWT → 200 with inactive records returned
+  for (const { path, name } of inactiveEntities) {
+    it(`T-07: GET ${path} returns 200 with inactive records`, async () => {
+      const inactive = [{ id: 1, nombre: `${name}-inactive`, activo: false }];
+      mockEm.find.mockResolvedValue(inactive);
+
+      const res = await request(app)
+        .get(path)
+        .set('Authorization', `Bearer ${adminToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual(inactive);
+    });
+  }
+
+  // T-07 (deeper): assert findAllInactive calls em.find with { activo: false }
+  it('T-07 (deep): GET /api/articulos/inactive calls em.find with { activo: false }', async () => {
+    const inactive = [{ id: 10, nombre: 'Stale Articulo', activo: false }];
+    mockEm.find.mockResolvedValue(inactive);
+
+    const res = await request(app)
+      .get('/api/articulos/inactive')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(inactive);
+    expect(mockEm.find).toHaveBeenCalledOnce();
+    const [, where] = mockEm.find.mock.calls[0];
+    expect(where).toMatchObject({ activo: false });
+  });
+
+  // T-08: no Authorization header → 401
+  for (const { path } of inactiveEntities) {
+    it(`T-08: GET ${path} without Authorization header → 401`, async () => {
+      const res = await request(app).get(path);
+      expect(res.status).toBe(401);
+    });
+  }
+
+  // T-09 (usuarios): non-admin JWT → 200 (no role guard on /inactive)
+  it('T-09: GET /api/usuarios/inactive with operario JWT → 200 (no role guard)', async () => {
+    mockEm.find.mockResolvedValue([]);
+
+    const res = await request(app)
+      .get('/api/usuarios/inactive')
+      .set('Authorization', `Bearer ${operarioToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  // T-lineas-no-estado: /api/lineas-produccion/inactive does NOT include estado key
+  it('T-lineas-no-estado: GET /api/lineas-produccion/inactive response objects have no estado key', async () => {
+    const inactive = [{ id: 5, nombre: 'Linea Inactiva', activo: false, numeroBalanza: 3 }];
+    mockEm.find.mockResolvedValue(inactive);
+
+    const res = await request(app)
+      .get('/api/lineas-produccion/inactive')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).not.toHaveProperty('estado');
   });
 });
 

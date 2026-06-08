@@ -1,9 +1,8 @@
-import { Entity, Filter, PrimaryKey, Property, Enum, Unique } from '@mikro-orm/decorators/legacy';
+import { Entity, PrimaryKey, Property, Enum, Unique } from '@mikro-orm/decorators/legacy';
 import { UsuarioRol, UsuarioMetadata } from '../shared/types.js';
 
 export { UsuarioRol, UsuarioMetadata };
 
-@Filter({ name: 'activo', cond: { activo: true }, default: true })
 @Entity({ tableName: 'usuario' })
 export class Usuario {
   @PrimaryKey({ type: 'number', autoincrement: true })

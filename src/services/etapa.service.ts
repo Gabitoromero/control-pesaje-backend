@@ -15,7 +15,7 @@ export class EtapaService extends BaseService<Etapa> {
   override async softDelete(id: number): Promise<boolean> {
     const em = this.getEm();
 
-    const activeRefs = await em.count(RutaPasadaEtapa, { etapa: { id } });
+    const activeRefs = await em.count(RutaPasadaEtapa, { etapa: { id }, activo: true });
     if (activeRefs > 0) {
       throw new RestrictError(
         `Cannot delete etapa ${id}: ${activeRefs} active ruta(s) reference it`,

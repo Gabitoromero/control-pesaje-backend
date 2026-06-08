@@ -325,7 +325,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
           lineaSinRuta.id,
           50.000
         )
-      ).rejects.toThrow('No se pueden registrar muestras al azar en una línea de producción sin ruta de pasada activa (modo puesta a punto)');
+      ).rejects.toThrow('Cannot register samples on production line');
     }));
 
     it('should register a random sample successfully when line has active rutaPasada', () => runInContext(async () => {
@@ -342,6 +342,62 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       expect(m.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
       expect(m.articulo).toBeUndefined();
       expect(m.rutaPasada.id).toBe(testRutaPasada.id);
+    }));
+  });
+
+  describe('REQ-13 and REQ-15: activo filtering regressions', () => {
+    // T-10: Stage-order validation ignores inactive RutaPasadaEtapa
+    it('T-10: registrarMuestra succeeds at stage 2 when stage 1 RutaPasadaEtapa is inactive', () => runInContext(async () => {
+      // Mark testRuta1 (stage 1, orden=1) as inactive — it should be ignored by stage-order validation
+      const em = orm.em.fork();
+      const ruta1 = await em.findOneOrFail(RutaPasadaEtapa, testRuta1.id);
+      ruta1.activo = false;
+      await em.flush();
+
+      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+
+      // Stage 2 (testEtapa2) should now be reachable because stage 1 is inactive
+      // (inactive stage 1 RutaPasadaEtapa is excluded from the ordering check)
+      const m = await muestraService.registrarMuestra(
+        testUser.id,
+        testArticle.id,
+        testEtapa2.id,
+        testLine.id,
+        70.000, // OK for [65, 75]
+        pasada.id
+      );
+      expect(m.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
+    }));
+
+    // T-11: Soft-deleted samples (activo=false) are NOT counted in stage completion
+    it('T-11: soft-deleted samples (activo=false) do not count toward stage completion', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+
+      // Register 2 OK samples for stage 1 (cantidadMuestrasRequeridas = 2)
+      const m1 = await muestraService.registrarMuestra(
+        testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id
+      );
+      await muestraService.registrarMuestra(
+        testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id
+      );
+
+      // Soft-delete both OK samples so activo=false
+      const em = orm.em.fork();
+      const samples = await em.find(Muestra, { pasada: pasada.id, etapa: testEtapa1.id });
+      for (const s of samples) {
+        s.activo = false;
+      }
+      await em.flush();
+
+      // Now trying to register stage 2 should fail because all stage-1 samples are soft-deleted
+      // (the em.count with activo:true sees 0, not 2)
+      await expect(
+        muestraService.registrarMuestra(
+          testUser.id, testArticle.id, testEtapa2.id, testLine.id, 70.000, pasada.id
+        )
+      ).rejects.toThrow(`Preceding stage '${testEtapa1.id}' is not complete`);
     }));
   });
 

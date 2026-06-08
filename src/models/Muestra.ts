@@ -1,4 +1,4 @@
-import { Entity, Filter, PrimaryKey, Property, ManyToOne, Enum } from '@mikro-orm/decorators/legacy';
+import { Entity, PrimaryKey, Property, ManyToOne, Enum } from '@mikro-orm/decorators/legacy';
 import { Pasada } from './Pasada.js';
 import { Usuario } from './Usuario.js';
 import { Articulo } from './Articulo.js';
@@ -11,7 +11,6 @@ export enum MuestraEstadoValidacion {
   FUERA_DE_RANGO = 'fuera_de_rango',
 }
 
-@Filter({ name: 'activo', cond: { activo: true }, default: true })
 @Entity({ tableName: 'muestra' })
 export class Muestra {
   @PrimaryKey({ type: 'number', autoincrement: true })
