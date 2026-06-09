@@ -86,7 +86,8 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     testUser = new Usuario();
     testUser.nombreApellido = 'Juan Pérez';
     testUser.nombreUsuario = 'juan.perez';
-    testUser.contrasenaHash = 'hash';
+    testUser.legajo = 'LEG-001';
+    testUser.pinHash = 'hash';
     testUser.rol = UsuarioRol.OPERARIO;
     testUser.puedeTomarMuestrasLibres = true;
     await em.persist(testUser).flush();
@@ -158,7 +159,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
     it('should successfully initiate a Pasada and assign sequential numbers per line-article', () => runInContext(async () => {
       // 1. Establish session in memory
-      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
 
       // 2. Start first Pasada
       const pasada1 = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
@@ -186,7 +187,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
   describe('MuestraService.registrarMuestra', () => {
     it('should validate sample range correctly', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // OK sample
@@ -225,7 +226,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     }));
 
     it('should reject registration of subsequent stages if preceding stages are incomplete', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // Attempt to register Etapa 2 directly (Etapa 1 needs 2 OK samples, currently has 0)
@@ -242,7 +243,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     }));
 
     it('should progress through stages and complete the Pasada on the last sample', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // Register 1st OK sample for Etapa 1
@@ -314,12 +315,13 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       const restrictedUser = new Usuario();
       restrictedUser.nombreApellido = 'Restricted User';
       restrictedUser.nombreUsuario = 'restricted';
-      restrictedUser.contrasenaHash = 'x';
+      restrictedUser.legajo = 'LEG-002';
+      restrictedUser.pinHash = 'x';
       restrictedUser.rol = UsuarioRol.OPERARIO;
       restrictedUser.puedeTomarMuestrasLibres = false;
       await em.persist(restrictedUser).flush();
 
-      sesionService.iniciarSesion(testLine.id, restrictedUser.id, restrictedUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, restrictedUser.id, UsuarioRol.OPERARIO);
 
       await expect(
         muestraService.registrarMuestra(
@@ -337,12 +339,13 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       const freeUser = new Usuario();
       freeUser.nombreApellido = 'Free Sample User';
       freeUser.nombreUsuario = 'freesampler';
-      freeUser.contrasenaHash = 'x';
+      freeUser.legajo = 'LEG-003';
+      freeUser.pinHash = 'x';
       freeUser.rol = UsuarioRol.OPERARIO;
       freeUser.puedeTomarMuestrasLibres = true;
       await em.persist(freeUser).flush();
 
-      sesionService.iniciarSesion(testLine.id, freeUser.id, freeUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, freeUser.id, UsuarioRol.OPERARIO);
 
       const m = await muestraService.registrarMuestra(
         freeUser.id,
@@ -363,7 +366,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       lineaSinRuta.numeroBalanza = 99;
       await em.persist(lineaSinRuta).flush();
 
-      sesionService.iniciarSesion(lineaSinRuta.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(lineaSinRuta.id, testUser.id, UsuarioRol.OPERARIO);
 
       await expect(
         muestraService.registrarMuestra(
@@ -377,7 +380,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     }));
 
     it('should register a random sample successfully when line has active rutaPasada', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
 
       const m = await muestraService.registrarMuestra(
         testUser.id,
@@ -402,7 +405,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       ruta1.activo = false;
       await em.flush();
 
-      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // Stage 2 (testEtapa2) should now be reachable because stage 1 is inactive
@@ -420,7 +423,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
     // T-11: Soft-deleted samples (activo=false) are NOT counted in stage completion
     it('T-11: soft-deleted samples (activo=false) do not count toward stage completion', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // Register 2 OK samples for stage 1 (cantidadMuestrasRequeridas = 2)
@@ -451,7 +454,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
   describe('Deletes and Updates Restrictions on Completed Records', () => {
     it('should reject updates and soft-deletes of completed Pasadas and Muestras', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // Create samples to complete the pasada
@@ -484,7 +487,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     }));
 
     it('should successfully abort a pasada and reject subsequent operations', () => runInContext(async () => {
-      sesionService.iniciarSesion(testLine.id, testUser.id, testUser.id, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
       expect(pasada.estado).toBe(PasadaEstado.EN_CURSO);
 

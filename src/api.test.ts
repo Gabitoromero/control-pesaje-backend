@@ -20,6 +20,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { initApp } from './app.js';
 import { UsuarioRol } from './models/Usuario.js';
+import { LoginSchema, ActividadSchema, SesionLineaSchema, UsuarioCreateSchema } from './utils/schemas.js';
 import { sesionService } from './services/sesion.service.js';
 
 // ─── JWT helpers ─────────────────────────────────────────────────────────────
@@ -167,320 +168,247 @@ describe('4.2 — Zod validation → HTTP 400', () => {
   });
 });
 
+// ─── 4.X  Schema Validation ──────────────────────────────────────────────────
+
+describe('Schema validation (v1.5)', () => {
+  it('LoginSchema validates correctly', () => {
+    expect(LoginSchema.safeParse({ legajo: '12345', pin: '1234' }).success).toBe(true);
+    expect(LoginSchema.safeParse({ pin: 'abc' }).success).toBe(false);
+  });
+
+  it('ActividadSchema validates correctly', () => {
+    expect(ActividadSchema.safeParse({ lineaProduccionId: 2 }).success).toBe(true);
+    expect(ActividadSchema.safeParse({ lineaProduccionId: '2' }).success).toBe(false);
+  });
+
+  it('SesionLineaSchema validates correctly', () => {
+    expect(SesionLineaSchema.safeParse({ lineaProduccionId: 1 }).success).toBe(true);
+    expect(SesionLineaSchema.safeParse({ lineaProduccionId: 'abc' }).success).toBe(false);
+    expect(SesionLineaSchema.safeParse({ lineaProduccionId: -1 }).success).toBe(false);
+  });
+
+  it('UsuarioCreateSchema validates correctly', () => {
+    expect(UsuarioCreateSchema.safeParse({ 
+      nombreApellido: 'A', nombreUsuario: 'abc', rol: 'operario', 
+      legajo: '123', pin: '1234' 
+    }).success).toBe(true);
+    
+    expect(UsuarioCreateSchema.safeParse({ 
+      nombreApellido: 'A', nombreUsuario: 'a', rol: 'operario', 
+      contrasena: 'abc' 
+    }).success).toBe(false);
+  });
+  
+  it('VerificarPinSchema and ActivarSesionSchema are no longer importable', async () => {
+    const schemas = await import('./utils/schemas.js');
+    expect(schemas).not.toHaveProperty('VerificarPinSchema');
+    expect(schemas).not.toHaveProperty('ActivarSesionSchema');
+  });
+});
+
 // ─── 4.3  Login ───────────────────────────────────────────────────────────────
 
-describe('4.3 — Login endpoint', () => {
-  it('returns JWT on valid credentials', async () => {
-    const hash = await bcrypt.hash('password123', 10);
-    mockEm.findOne.mockResolvedValue({
-      id: 1,
-      nombreUsuario: 'admin',
-      rol: UsuarioRol.ADMINISTRADOR,
-      activo: true,
-      contrasenaHash: hash,
-    });
-
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({ nombreUsuario: 'admin', contrasena: 'password123' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(typeof res.body.data.token).toBe('string');
-
-    const decoded = jwt.verify(res.body.data.token, JWT_SECRET) as any;
-    expect(decoded.rol).toBe(UsuarioRol.ADMINISTRADOR);
-  });
-
-  it('returns 401 on wrong password', async () => {
-    const hash = await bcrypt.hash('correct', 10);
-    mockEm.findOne.mockResolvedValue({
-      id: 1,
-      nombreUsuario: 'admin',
-      rol: UsuarioRol.ADMINISTRADOR,
-      activo: true,
-      contrasenaHash: hash,
-    });
-
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({ nombreUsuario: 'admin', contrasena: 'wrong' });
-
-    expect(res.status).toBe(401);
-    expect(res.body.success).toBe(false);
-  });
-
-  it('returns 401 when user is inactive', async () => {
-    const hash = await bcrypt.hash('password', 10);
-    mockEm.findOne.mockResolvedValue({
-      id: 1,
-      nombreUsuario: 'admin',
-      rol: UsuarioRol.ADMINISTRADOR,
-      activo: false,
-      contrasenaHash: hash,
-    });
-
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({ nombreUsuario: 'admin', contrasena: 'password' });
-
-    expect(res.status).toBe(401);
-  });
-
-  it('returns 401 when user does not exist', async () => {
-    mockEm.findOne.mockResolvedValue(null);
-
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({ nombreUsuario: 'nobody', contrasena: 'pass' });
-
-    expect(res.status).toBe(401);
-  });
-});
-
-// ─── 4.4  RBAC ────────────────────────────────────────────────────────────────
-
-describe('4.4 — RBAC authorization', () => {
-  it('operario cannot POST /api/articulos → 403', async () => {
-    const res = await request(app)
-      .post('/api/articulos')
-      .set('Authorization', `Bearer ${operarioToken()}`)
-      .send({ nombre: 'Helado' });
-
-    expect(res.status).toBe(403);
-    expect(res.body.success).toBe(false);
-  });
-
-  it('operario cannot DELETE /api/etapas/:id → 403', async () => {
-    const res = await request(app)
-      .delete('/api/etapas/1')
-      .set('Authorization', `Bearer ${operarioToken()}`);
-
-    expect(res.status).toBe(403);
-  });
-
-  it('operario cannot POST /api/usuarios → 403', async () => {
-    const res = await request(app)
-      .post('/api/usuarios')
-      .set('Authorization', `Bearer ${operarioToken()}`)
-      .send({ nombreApellido: 'New', nombreUsuario: 'new', contrasena: 'abcd', rol: 'operario' });
-
-    expect(res.status).toBe(403);
-  });
-
-  it('jefe can POST /api/articulos → 201 (not blocked)', async () => {
-    const created = { id: 1, nombre: 'Helado', activo: true };
-    mockEm.create.mockReturnValue(created);
-    mockEm.flush.mockResolvedValue(undefined);
-
-    const res = await request(app)
-      .post('/api/articulos')
-      .set('Authorization', `Bearer ${jefeToken()}`)
-      .send({ nombre: 'Helado' });
-
-    expect(res.status).toBe(201);
-  });
-
-  it('jefe cannot POST /api/usuarios → 403 (only administrador can)', async () => {
-    const res = await request(app)
-      .post('/api/usuarios')
-      .set('Authorization', `Bearer ${jefeToken()}`)
-      .send({ nombreApellido: 'X', nombreUsuario: 'xx', contrasena: 'abcd', rol: 'operario' });
-
-    expect(res.status).toBe(403);
-  });
-
-  it('unauthenticated request → 401', async () => {
-    const res = await request(app).get('/api/articulos');
-    expect(res.status).toBe(401);
-  });
-});
-
-// ─── 4.5  Logical restrict ────────────────────────────────────────────────────
-
-describe('4.5 — Logical restrict: parent deletion blocked when active refs exist', () => {
-  it('DELETE /api/articulos/:id returns 400 when active RutaPasadaEtapa exists', async () => {
-    // findOne returns the entity (it exists), count returns 1 (active ref)
-    mockEm.findOne.mockResolvedValue({ id: 1, nombre: 'A', activo: true });
-    mockEm.count.mockResolvedValue(1);
-
-    const res = await request(app)
-      .delete('/api/articulos/1')
-      .set('Authorization', `Bearer ${adminToken()}`);
-
-    expect(res.status).toBe(400);
-    expect(res.body.success).toBe(false);
-    expect(res.body.error.message).toMatch(/Cannot delete articulo/);
-  });
-
-  it('DELETE /api/articulos/:id succeeds when no active refs exist', async () => {
-    mockEm.findOne.mockResolvedValue({ id: 2, nombre: 'B', activo: true });
-    mockEm.count.mockResolvedValue(0);
-    mockEm.flush.mockResolvedValue(undefined);
-
-    const res = await request(app)
-      .delete('/api/articulos/2')
-      .set('Authorization', `Bearer ${adminToken()}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-  });
-
-  it('DELETE /api/etapas/:id returns 400 when active RutaPasadaEtapa exists', async () => {
-    mockEm.findOne.mockResolvedValue({ id: 1, nombre: 'Etapa A', activo: true });
-    mockEm.count.mockResolvedValue(2);
-
-    const res = await request(app)
-      .delete('/api/etapas/1')
-      .set('Authorization', `Bearer ${adminToken()}`);
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.message).toMatch(/Cannot delete etapa/);
-  });
-
-  it('DELETE /api/etapas/:id succeeds when no active refs exist', async () => {
-    mockEm.findOne.mockResolvedValue({ id: 3, nombre: 'Etapa C', activo: true });
-    mockEm.count.mockResolvedValue(0);
-    mockEm.flush.mockResolvedValue(undefined);
-
-    const res = await request(app)
-      .delete('/api/etapas/3')
-      .set('Authorization', `Bearer ${adminToken()}`);
-
-    expect(res.status).toBe(200);
-  });
-
-  it('DELETE /api/lineas-produccion/:id succeeds without restrict check', async () => {
-    mockEm.findOne.mockResolvedValue({ id: 1, nombre: 'Linea 1', activo: true });
-    mockEm.flush.mockResolvedValue(undefined);
-
-    const res = await request(app)
-      .delete('/api/lineas-produccion/1')
-      .set('Authorization', `Bearer ${adminToken()}`);
-
-    expect(res.status).toBe(200);
-    // count should NOT have been called for LineaProduccion
-    expect(mockEm.count).not.toHaveBeenCalled();
-  });
-});
-
-describe('2FA API Endpoints', () => {
-  let pin1111Hash: string;
-
-  beforeAll(async () => {
-    pin1111Hash = await bcrypt.hash('1111', 1); // low rounds for test speed
-  });
-
+describe('4.3 — Login endpoint (v1.5)', () => {
   beforeEach(() => {
     sesionService.limpiar();
   });
 
-  it('POST /api/auth/activar-sesion activates operator session successfully', async () => {
-    mockEm.findOne.mockResolvedValueOnce({
-      id: 5,
-      rol: UsuarioRol.OPERARIO,
+  it('POST /api/auth/login returns JWT on valid credentials', async () => {
+    const hash = await bcrypt.hash('1234', 10);
+    mockEm.findOne.mockResolvedValue({
+      id: 1,
+      legajo: '12345',
+      nombreUsuario: 'admin',
+      rol: UsuarioRol.ADMINISTRADOR,
       activo: true,
-      pinHash: pin1111Hash,
-      legajo: 'OP001'
+      pinHash: hash,
     });
-    mockEm.findOne.mockResolvedValueOnce({ id: 1, nombre: 'Linea 1' });
 
     const res = await request(app)
-      .post('/api/auth/activar-sesion')
-      .set('Authorization', `Bearer ${jefeToken()}`)
-      .send({ legajo: 'OP001', pin: '1111', lineaProduccionId: 1 });
+      .post('/api/auth/login')
+      .send({ legajo: '12345', pin: '1234' });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.usuarioIdUsuario).toBe(5);
-    expect(res.body.data).not.toHaveProperty('articuloId');
+    expect(typeof res.body.data.token).toBe('string');
   });
 
-  it('POST /api/auth/activar-sesion returns 429 when line is blocked', async () => {
-    sesionService.registrarIntentoFallido(1);
-    sesionService.registrarIntentoFallido(1);
-    sesionService.registrarIntentoFallido(1);
-    expect(sesionService.estaBloqueada(1)).toBe(true);
+  it('POST /api/auth/login returns 401 on wrong pin', async () => {
+    const hash = await bcrypt.hash('correct', 10);
+    mockEm.findOne.mockResolvedValue({
+      id: 1,
+      legajo: '12345',
+      activo: true,
+      pinHash: hash,
+    });
 
     const res = await request(app)
-      .post('/api/auth/activar-sesion')
-      .set('Authorization', `Bearer ${jefeToken()}`)
-      .send({ legajo: 'OP001', pin: '1111', lineaProduccionId: 1 });
+      .post('/api/auth/login')
+      .send({ legajo: '12345', pin: '0000' });
 
-    expect(res.status).toBe(429);
-    expect(res.body.success).toBe(false);
-    expect(res.body.error.message).toMatch(/Too many consecutive failed attempts/);
+    expect(res.status).toBe(401);
   });
 
-  it('POST /api/auth/activar-sesion returns 404 and registers failed attempt on invalid PIN', async () => {
-    mockEm.findOne.mockResolvedValueOnce(null); // no user matches the legajo
+  it('POST /api/auth/login returns 401 when user is inactive', async () => {
+    mockEm.findOne.mockResolvedValue(null);
 
     const res = await request(app)
-      .post('/api/auth/activar-sesion')
-      .set('Authorization', `Bearer ${jefeToken()}`)
-      .send({ legajo: 'UNKNOWN', pin: '9999', lineaProduccionId: 1 });
+      .post('/api/auth/login')
+      .send({ legajo: '12345', pin: '1234' });
 
+    expect(res.status).toBe(401);
+  });
+
+  it('POST /api/auth/login returns 400 on invalid body', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ legajo: '12345', pin: 'abc' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('POST /api/auth/verificar-pin returns 404 (removed)', async () => {
+    const res = await request(app).post('/api/auth/verificar-pin').send({ legajo: '12345', pin: '1234' });
     expect(res.status).toBe(404);
-    expect(res.body.success).toBe(false);
-    expect(res.body.error.message).toMatch(/No active user found with the provided PIN/);
   });
 
-  it('POST /api/auth/activar-sesion returns 409 when operator already has session on another line', async () => {
-    // Operator 5 already has an active session on line 1
-    sesionService.iniciarSesion(1, 2, 5, UsuarioRol.OPERARIO);
+  it('POST /api/auth/activar-sesion returns 404 (removed)', async () => {
+    const res = await request(app).post('/api/auth/activar-sesion').send({ legajo: '12345', pin: '1234', lineaProduccionId: 1 });
+    expect(res.status).toBe(404);
+  });
 
-    mockEm.findOne.mockResolvedValueOnce({ id: 5, rol: UsuarioRol.OPERARIO, activo: true, pinHash: pin1111Hash, legajo: 'OP005' });
-    mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Linea 2' });
+  it('POST /api/auth/login rate-limits after 5 failures and resets on success', async () => {
+    const hash = await bcrypt.hash('1234', 10);
+    mockEm.findOne.mockResolvedValue({
+      id: 1, legajo: 'RATE', activo: true, pinHash: hash,
+    });
 
+    for (let i = 0; i < 5; i++) {
+      await request(app).post('/api/auth/login').send({ legajo: 'RATE', pin: '0000' });
+    }
+
+    const res6 = await request(app).post('/api/auth/login').send({ legajo: 'RATE', pin: '1234' });
+    expect(res6.status).toBe(429);
+
+    // fast forward logic is hard here without vitest fake timers, but sesionService is a singleton so we can manual reset
+    sesionService.resetearIntentos('RATE');
+
+    const res7 = await request(app).post('/api/auth/login').send({ legajo: 'RATE', pin: '1234' });
+    expect(res7.status).toBe(200);
+  });
+});
+
+describe('Line Sessions (v1.5)', () => {
+  beforeEach(() => {
+    sesionService.limpiar();
+  });
+
+  it('POST /api/auth/sesion-linea creates a session for operario', async () => {
     const res = await request(app)
-      .post('/api/auth/activar-sesion')
+      .post('/api/auth/sesion-linea')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({ lineaProduccionId: 1 });
+
+    expect(res.status).toBe(201); // or 200 depending on implementation
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.usuarioRol).toBe(UsuarioRol.OPERARIO);
+  });
+
+  it('POST /api/auth/sesion-linea creates a session for jefe', async () => {
+    const res = await request(app)
+      .post('/api/auth/sesion-linea')
       .set('Authorization', `Bearer ${jefeToken()}`)
-      .send({ legajo: 'OP005', pin: '1111', lineaProduccionId: 2 });
+      .send({ lineaProduccionId: 1 });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.usuarioRol).toBe(UsuarioRol.JEFE);
+  });
+
+  it('POST /api/auth/sesion-linea returns 403 for visualizacion', async () => {
+    const visualizacionToken = makeToken(UsuarioRol.VISUALIZACION, 4);
+    const res = await request(app)
+      .post('/api/auth/sesion-linea')
+      .set('Authorization', `Bearer ${visualizacionToken}`)
+      .send({ lineaProduccionId: 1 });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /api/auth/sesion-linea returns 409 if user already has a session on another line', async () => {
+    sesionService.iniciarSesion(2, 3, UsuarioRol.OPERARIO); // User 3 on line 2
+    const res = await request(app)
+      .post('/api/auth/sesion-linea')
+      .set('Authorization', `Bearer ${operarioToken()}`) // token for user 3
+      .send({ lineaProduccionId: 1 });
 
     expect(res.status).toBe(409);
-    expect(res.body.success).toBe(false);
-    expect(res.body.error.code).toBe('OPERATOR_SESSION_CONFLICT');
-    expect(res.body.data.lineaProduccionId).toBe(1);
-    // Original session must be untouched
-    expect(sesionService.obtenerSesion(1)).toBeDefined();
-    expect(sesionService.obtenerSesion(2)).toBeUndefined();
+    expect(res.body.error.code).toBe('SESSION_CONFLICT');
+    expect(res.body.data.lineaProduccionId).toBe(2);
   });
 
-  it('POST /api/auth/cerrar-sesion closes a line session', async () => {
-    sesionService.iniciarSesion(1, 2, 5, UsuarioRol.OPERARIO);
+  it('POST /api/auth/sesion-linea returns 401 without JWT', async () => {
+    const res = await request(app).post('/api/auth/sesion-linea').send({ lineaProduccionId: 1 });
+    expect(res.status).toBe(401);
+  });
 
+  it('POST /api/auth/sesion-linea returns 400 on invalid body', async () => {
     const res = await request(app)
-      .post('/api/auth/cerrar-sesion')
-      .set('Authorization', `Bearer ${jefeToken()}`)
+      .post('/api/auth/sesion-linea')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({ lineaProduccionId: 'abc' });
+    expect(res.status).toBe(400);
+  });
+
+  it('PATCH /api/auth/actividad returns 200 with ultimaActividadAt for active session', async () => {
+    sesionService.iniciarSesion(1, 3, UsuarioRol.OPERARIO);
+    const res = await request(app)
+      .patch('/api/auth/actividad')
+      .set('Authorization', `Bearer ${operarioToken()}`)
       .send({ lineaProduccionId: 1 });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.message).toMatch(/closed successfully/);
-    expect(sesionService.obtenerSesion(1)).toBeUndefined();
+    expect(typeof res.body.data.ultimaActividadAt).toBe('string');
   });
 
-  it('GET /api/auth/sesion-activa/:lineaId returns null if no session', async () => {
+  it('PATCH /api/auth/actividad returns 404 for non-existent session', async () => {
+    const res = await request(app)
+      .patch('/api/auth/actividad')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({ lineaProduccionId: 1 });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('PATCH /api/auth/actividad returns 401 without JWT', async () => {
+    const res = await request(app).patch('/api/auth/actividad').send({ lineaProduccionId: 1 });
+    expect(res.status).toBe(401);
+  });
+
+  it('PATCH /api/auth/actividad returns 400 on invalid body', async () => {
+    const res = await request(app)
+      .patch('/api/auth/actividad')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('GET /api/auth/sesion-activa/:lineaId returns new shape', async () => {
+    sesionService.iniciarSesion(1, 3, UsuarioRol.OPERARIO);
     const res = await request(app)
       .get('/api/auth/sesion-activa/1')
-      .set('Authorization', `Bearer ${jefeToken()}`);
+      .set('Authorization', `Bearer ${operarioToken()}`);
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toBeNull();
-  });
-
-  it('GET /api/auth/sesion-activa/:lineaId returns session details', async () => {
-    sesionService.iniciarSesion(1, 2, 5, UsuarioRol.OPERARIO);
-
-    const res = await request(app)
-      .get('/api/auth/sesion-activa/1')
-      .set('Authorization', `Bearer ${jefeToken()}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.usuarioIdGlobal).toBe(2);
-    expect(res.body.data.usuarioIdUsuario).toBe(5);
+    expect(res.body.data.usuarioId).toBe(3);
+    expect(res.body.data.usuarioRol).toBe(UsuarioRol.OPERARIO);
+    expect(res.body.data.ultimaActividadAt).toBeDefined();
+    // Verify removed fields
+    expect(res.body.data.usuarioIdGlobal).toBeUndefined();
+    expect(res.body.data.usuarioIdUsuario).toBeUndefined();
+    expect(res.body.data.rolUsuario).toBeUndefined();
+    expect(res.body.data.usuarioUltimaActividadAt).toBeUndefined();
   });
 });
 

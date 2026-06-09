@@ -1,27 +1,27 @@
 import { UsuarioRol } from '../shared/types.js';
 
 export interface SesionActiva {
-  lineaProduccionId: number | null;
-  usuarioIdGlobal: number;
-  usuarioIdUsuario: number | null;
-  rolUsuario: UsuarioRol | null;
+  lineaProduccionId: number;
+  usuarioId: number | null;
+  usuarioRol: UsuarioRol | null;
   pasadaId: number | null;
   connectedAt: Date;
-  usuarioUltimaActividadAt: Date | null;
+  ultimaActividadAt: Date | null;
 }
 
 export type IniciarSesionResult =
   | { ok: true; session: SesionActiva }
   | { ok: false; conflict: { lineaProduccionId: number } };
 
-const OPERATOR_INACTIVITY_MS = 5 * 60 * 1000;
+const INACTIVITY_MS = 5 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCK_MS = 3 * 60 * 1000;
 
 export class SesionService {
   private static instance: SesionService;
   private lineSessions = new Map<number, SesionActiva>();    
-  private globalSessions = new Map<number, SesionActiva>(); // key: usuarioIdGlobal
-  private failedAttempts = new Map<number, number>();        
-  private lockExpires = new Map<number, Date>();             
+  private failedAttempts = new Map<string, number>();        
+  private lockExpires = new Map<string, Date>();             
 
   private constructor() {}
 
@@ -33,46 +33,27 @@ export class SesionService {
   }
 
   iniciarSesion(
-    lineaProduccionId: number | null,
-    usuarioIdGlobal: number,
-    usuarioIdUsuario: number,
-    rolUsuario: UsuarioRol
+    lineaProduccionId: number,
+    usuarioId: number,
+    usuarioRol: UsuarioRol
   ): IniciarSesionResult {
-    if (lineaProduccionId !== null) {
-      // Line-based session (operario): enforce one active session per user across lines
-      for (const [lineId, session] of this.lineSessions.entries()) {
-        if (session.usuarioIdUsuario === usuarioIdUsuario && lineId !== lineaProduccionId) {
-          return { ok: false, conflict: { lineaProduccionId: lineId } };
-        }
+    // enforce one active session per user across lines
+    for (const [lineId, session] of this.lineSessions.entries()) {
+      if (session.usuarioId === usuarioId && lineId !== lineaProduccionId) {
+        return { ok: false, conflict: { lineaProduccionId: lineId } };
       }
-
-      const session: SesionActiva = {
-        lineaProduccionId,
-        usuarioIdGlobal,
-        usuarioIdUsuario,
-        rolUsuario,
-        pasadaId: null,
-        connectedAt: new Date(),
-        usuarioUltimaActividadAt: new Date(),
-      };
-
-      this.lineSessions.set(lineaProduccionId, session);
-      this.resetearIntentos(lineaProduccionId);
-      return { ok: true, session };
     }
 
-    // Global session (jefe/admin): not tied to a line, replaces any existing global session for this user
     const session: SesionActiva = {
-      lineaProduccionId: null,
-      usuarioIdGlobal,
-      usuarioIdUsuario,
-      rolUsuario,
+      lineaProduccionId,
+      usuarioId,
+      usuarioRol,
       pasadaId: null,
       connectedAt: new Date(),
-      usuarioUltimaActividadAt: new Date(),
+      ultimaActividadAt: new Date(),
     };
 
-    this.globalSessions.set(usuarioIdGlobal, session);
+    this.lineSessions.set(lineaProduccionId, session);
     return { ok: true, session };
   }
 
@@ -80,38 +61,31 @@ export class SesionService {
     return this.lineSessions.delete(lineaProduccionId);
   }
 
-  cerrarSesionGlobal(usuarioIdGlobal: number): boolean {
-    return this.globalSessions.delete(usuarioIdGlobal);
-  }
-
-  obtenerSesion(lineaProduccionId: number): SesionActiva | undefined {
+  obtenerSesion(lineaProduccionId: number): SesionActiva | null {
     const session = this.lineSessions.get(lineaProduccionId);
+    if (!session) return null;
+
     if (
-      session &&
-      session.usuarioIdUsuario !== null &&
-      session.usuarioUltimaActividadAt &&
-      session.rolUsuario === UsuarioRol.OPERARIO &&
-      Date.now() - session.usuarioUltimaActividadAt.getTime() > OPERATOR_INACTIVITY_MS
+      session.usuarioId !== null &&
+      session.ultimaActividadAt &&
+      (session.usuarioRol === UsuarioRol.OPERARIO || session.usuarioRol === UsuarioRol.JEFE) &&
+      Date.now() - session.ultimaActividadAt.getTime() > INACTIVITY_MS
     ) {
-      session.usuarioIdUsuario = null;
-      session.rolUsuario = null;
-      session.usuarioUltimaActividadAt = null;
+      session.usuarioId = null;
+      session.usuarioRol = null;
+      session.ultimaActividadAt = null;
     }
     return session;
   }
 
-  obtenerSesionGlobal(usuarioIdGlobal: number): SesionActiva | undefined {
-    return this.globalSessions.get(usuarioIdGlobal);
-  }
-
-  obtenerSesionPorUsuario(usuarioId: number): SesionActiva | undefined {
+  obtenerSesionPorUsuario(usuarioId: number): SesionActiva | null {
     for (const [lineId, session] of this.lineSessions.entries()) {
-      this.obtenerSesion(lineId);
-      if (session.usuarioIdUsuario === usuarioId) {
+      this.obtenerSesion(lineId); // Trigger lazy expiry check
+      if (session.usuarioId === usuarioId) {
         return session;
       }
     }
-    return undefined;
+    return null;
   }
 
   actualizarPasada(lineaProduccionId: number, pasadaId: number | null): void {
@@ -124,40 +98,39 @@ export class SesionService {
 
   actualizarActividad(lineaProduccionId: number): void {
     const session = this.lineSessions.get(lineaProduccionId);
-    if (session && session.usuarioIdUsuario !== null) {
-      session.usuarioUltimaActividadAt = new Date();
+    if (session && session.usuarioId !== null) {
+      session.ultimaActividadAt = new Date();
     }
   }
 
-  registrarIntentoFallido(lineaProduccionId: number): void {
-    const attempts = (this.failedAttempts.get(lineaProduccionId) ?? 0) + 1;
-    this.failedAttempts.set(lineaProduccionId, attempts);
-    if (attempts >= 3) {
-      this.lockExpires.set(lineaProduccionId, new Date(Date.now() + 5 * 60 * 1000));
+  registrarIntentoFallido(legajo: string): void {
+    const attempts = (this.failedAttempts.get(legajo) ?? 0) + 1;
+    this.failedAttempts.set(legajo, attempts);
+    if (attempts >= LOGIN_MAX_ATTEMPTS) {
+      this.lockExpires.set(legajo, new Date(Date.now() + LOGIN_LOCK_MS));
     }
   }
 
-  estaBloqueada(lineaProduccionId: number): boolean {
-    const expires = this.lockExpires.get(lineaProduccionId);
+  estaBloqueada(legajo: string): boolean {
+    const expires = this.lockExpires.get(legajo);
     if (!expires) return false;
 
     if (Date.now() >= expires.getTime()) {
-      this.lockExpires.delete(lineaProduccionId);
-      this.failedAttempts.set(lineaProduccionId, 0);
+      this.lockExpires.delete(legajo);
+      this.failedAttempts.set(legajo, 0);
       return false;
     }
 
     return true;
   }
 
-  resetearIntentos(lineaProduccionId: number): void {
-    this.failedAttempts.set(lineaProduccionId, 0);
-    this.lockExpires.delete(lineaProduccionId);
+  resetearIntentos(legajo: string): void {
+    this.failedAttempts.set(legajo, 0);
+    this.lockExpires.delete(legajo);
   }
 
   limpiar(): void {
     this.lineSessions.clear();
-    this.globalSessions.clear();
     this.failedAttempts.clear();
     this.lockExpires.clear();
   }

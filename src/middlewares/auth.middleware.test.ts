@@ -52,6 +52,17 @@ describe('authenticateJWT', () => {
     expect(next).toHaveBeenCalled();
     expect((req as any).user).toMatchObject(payload);
   });
+
+  it('attaches puedeTomarMuestrasLibres as boolean to req.user', () => {
+    const payload = { id: 1, nombreUsuario: 'admin', rol: UsuarioRol.ADMINISTRADOR, puedeTomarMuestrasLibres: true };
+    const token = jwt.sign(payload, JWT_SECRET);
+    const req = makeReq(`Bearer ${token}`) as Request;
+    const res = makeRes();
+    authenticateJWT(req, res, next);
+    expect(next).toHaveBeenCalled();
+    expect((req as any).user.puedeTomarMuestrasLibres).toBe(true);
+    expect(typeof (req as any).user.puedeTomarMuestrasLibres).toBe('boolean');
+  });
 });
 
 describe('requireRoles', () => {

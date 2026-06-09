@@ -6,9 +6,8 @@ import { UsuarioRol } from './types.js';
 export const UsuarioCreateSchema = z.object({
   nombreApellido: z.string().min(1),
   nombreUsuario: z.string().min(3),
-  legajo: z.string().min(1).optional(),
-  contrasena: z.string().min(4),
-  pin: z.string().regex(/^\d{4,6}$/).optional(),
+  legajo: z.string().min(1),
+  pin: z.string().regex(/^\d{4,6}$/),
   puedeTomarMuestrasLibres: z.boolean().optional(),
   activo: z.boolean().optional(),
   rol: z.enum([

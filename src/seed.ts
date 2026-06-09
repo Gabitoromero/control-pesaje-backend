@@ -31,9 +31,6 @@ async function run() {
     // 1. Create Users
     console.log('[seed]: Creating users...');
     const saltRounds = 10;
-    const adminPasswordHash = await bcrypt.hash('admin123', saltRounds);
-    const jefePasswordHash = await bcrypt.hash('jefe123', saltRounds);
-    const operarioPasswordHash = await bcrypt.hash('operario123', saltRounds);
     const adminPinHash = await bcrypt.hash('0000', saltRounds);
     const jefePinHash = await bcrypt.hash('1111', saltRounds);
 
@@ -41,7 +38,6 @@ async function run() {
       nombreApellido: 'Admin Local',
       nombreUsuario: 'admin',
       legajo: '0000',
-      contrasenaHash: adminPasswordHash,
       pinHash: adminPinHash,
       rol: UsuarioRol.ADMINISTRADOR,
       puedeTomarMuestrasLibres: true,
@@ -52,7 +48,6 @@ async function run() {
       nombreApellido: 'Jefe de Planta',
       nombreUsuario: 'jefe',
       legajo: '1111',
-      contrasenaHash: jefePasswordHash,
       pinHash: jefePinHash,
       rol: UsuarioRol.JEFE,
       puedeTomarMuestrasLibres: true,
@@ -68,7 +63,6 @@ async function run() {
       nombreApellido: 'Lionel Andres Messi',
       nombreUsuario: 'operario1',
       legajo: '3333',
-      contrasenaHash: operarioPasswordHash,
       pinHash: pin1Hash,
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: false,
@@ -80,7 +74,6 @@ async function run() {
       nombreApellido: 'Angel Di Maria',
       nombreUsuario: 'operario2',
       legajo: '4444',
-      contrasenaHash: operarioPasswordHash,
       pinHash: pin2Hash,
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: false,
@@ -92,7 +85,6 @@ async function run() {
       nombreApellido: 'Sergio Agüero',
       nombreUsuario: 'operario3',
       legajo: '5555',
-      contrasenaHash: operarioPasswordHash,
       pinHash: pin3Hash,
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: true,

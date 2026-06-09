@@ -1,12 +1,50 @@
-# user-auth Specification
+# user-auth Delta Specification — rediseno-auth-v1-5-backend
 
 ## Purpose
-Secure the endpoints, implement secure JWT authentication with role-based access control (RBAC), and define the two-layer authentication mechanism (Global Login + Operational Session) alongside the Docker containerization MVP requirements.
-Note: v1.5 redesigned auth to use unified login (legajo+pin) and simplified line session scope.
 
-## Requirements
+This delta spec defines what MUST be true in the `user-auth` domain after the v1.5 auth redesign is applied.
+It supersedes the two-layer authentication model defined in the baseline spec at `openspec/specs/user-auth/spec.md`.
 
-### Requirement: User Authentication Endpoint — Unified Login
+Requirements marked **REMOVED** are deleted without replacement.
+Requirements marked **MODIFIED** replace their counterpart in the baseline spec.
+Requirements marked **ADDED** are new and have no counterpart in the baseline spec.
+
+The baseline requirements **JWT Verification Middleware**, **Role Guard Authorization**, and **Especificación del Contenedor Docker (MVP Oficina)** are carried forward unchanged and are NOT listed here.
+
+---
+
+## REMOVED Requirements
+
+### Requirement: User Authentication Endpoint (Capa 1 - Login Global) — REMOVED
+
+The `POST /api/auth/login` endpoint that accepted `{ nombreUsuario, contrasena }` and validated against `contrasenaHash` (bcrypt) is **eliminated**.
+The Zod schema `LoginSchema` (v1.4 shape with `nombreUsuario` + `contrasena`) is **eliminated**.
+
+### Requirement: Activación de Sesión Operativa (Capa 2) — REMOVED
+
+The endpoint `POST /api/auth/activar-sesion-operario` and its associated Zod schema `ActivarSesionSchema` (v1.4: `{ pin, lineaProduccionId }`) are **eliminated**.
+The concept of a separate PIN verification step after a global login no longer exists.
+
+### Requirement: Verificar PIN (Capa 2) — REMOVED
+
+The endpoint `POST /api/auth/verificar-pin` and its Zod schema `VerificarPinSchema` are **eliminated**.
+
+### Requirement: Global Session Map — REMOVED
+
+The in-memory `Map` named `globalSessions` (storing jefe/admin sessions keyed by user id) and all methods that interact with it (`cerrarSesionGlobal`, `obtenerSesionGlobal`, `iniciarSesionGlobal`) are **eliminated**.
+`iniciarSesion` MUST NOT populate `usuarioIdGlobal`.
+
+### Requirement: contrasenaHash on usuario model — REMOVED
+
+The `contrasena_hash` column on the `usuario` table is **eliminated**.
+The `hashPassword` utility and any login branch that reads `contrasenaHash` in `auth.service.ts` are **eliminated**.
+The `contrasena` field in `UsuarioCreateSchema` is **eliminated**.
+
+---
+
+## MODIFIED Requirements
+
+### Requirement: User Authentication Endpoint — Unified Login (MODIFIED)
 
 The system MUST expose a single login endpoint at `POST /api/auth/login` that accepts `{ legajo, pin }`.
 
@@ -58,7 +96,7 @@ The system MUST expose a single login endpoint at `POST /api/auth/login` that ac
 - WHEN `POST /api/auth/login` is called
 - THEN the system MUST return `400 Bad Request` with a `details` array
 
-### Requirement: Login Rate Limiting Keyed by Legajo
+### Requirement: Login Rate Limiting Keyed by Legajo (MODIFIED)
 
 The system MUST enforce a per-`legajo` rate limit on `POST /api/auth/login`.
 
@@ -85,7 +123,7 @@ The system MUST enforce a per-`legajo` rate limit on `POST /api/auth/login`.
 - WHEN 3 minutes have elapsed
 - THEN the system MUST allow a new login attempt for `legajo: "12345"`
 
-### Requirement: JWT Payload Claims
+### Requirement: JWT Payload Claims (MODIFIED)
 
 The signed JWT MUST include the following typed claims:
 
@@ -111,7 +149,7 @@ interface JWTPayload {
 - WHEN the issued JWT is decoded
 - THEN `payload.puedeTomarMuestrasLibres` MUST strictly equal `false`
 
-### Requirement: Cierre de Sesión (Simplified)
+### Requirement: Cierre de Sesión (Simplified — MODIFIED)
 
 The endpoint `POST /api/auth/cerrar-sesion` MUST close the operario line session for the given `lineaProduccionId`.
 
@@ -139,7 +177,7 @@ The endpoint `POST /api/auth/cerrar-sesion` MUST close the operario line session
 - WHEN `POST /api/auth/cerrar-sesion` is called
 - THEN the system MUST return `401 Unauthorized`
 
-### Requirement: Obtener Sesión Activa — Unified SesionActiva Shape
+### Requirement: Obtener Sesión Activa — Unified SesionActiva Shape (MODIFIED)
 
 The endpoint `GET /api/auth/sesion-activa/:lineaId` MUST return the current line session state using the unified `SesionActiva` shape.
 
@@ -192,7 +230,7 @@ The endpoint `GET /api/auth/sesion-activa/:lineaId` MUST return the current line
 - WHEN `GET /api/auth/sesion-activa/99` is called with a valid JWT
 - THEN the system MUST return `404 Not Found`
 
-### Requirement: usuario Model v1.5
+### Requirement: usuario Model v1.5 (MODIFIED)
 
 The `usuario` entity MUST conform to the v1.5 schema:
 
@@ -223,7 +261,7 @@ The DB migration MUST follow this order to avoid constraint violations on existi
 - WHEN the user is saved to the database
 - THEN the operation MUST fail with a NOT NULL constraint violation
 
-### Requirement: UsuarioCreateSchema v1.5
+### Requirement: UsuarioCreateSchema v1.5 (MODIFIED)
 
 The Zod schema `UsuarioCreateSchema` MUST be updated:
 
@@ -241,6 +279,10 @@ The Zod schema `UsuarioCreateSchema` MUST be updated:
 - GIVEN a create-user payload with `pin: "abcd"`
 - WHEN parsed through `UsuarioCreateSchema`
 - THEN Zod MUST return a validation error on the `pin` field
+
+---
+
+## ADDED Requirements
 
 ### Requirement: PATCH /api/auth/actividad — Reset Line Session Activity
 
@@ -304,7 +346,7 @@ The in-memory `lineSessions` map holds one session per active production line. A
 - WHEN `obtenerSesion(lineaProduccionId)` is called
 - THEN the system MUST leave the session intact — `usuarioId` and `ultimaActividadAt` MUST remain unchanged
 
-### Requirement: Open Line Session — POST /api/auth/sesion-linea
+### Requirement: Open Line Session — POST /api/auth/sesion-linea (ADDED)
 
 The system MUST expose `POST /api/auth/sesion-linea` to open an in-memory line session for an authenticated planta user.
 
@@ -369,31 +411,3 @@ The endpoints `POST /api/auth/verificar-pin` and the old `POST /api/auth/activar
 - GIVEN the v1.5 auth router is loaded
 - WHEN `POST /api/auth/activar-sesion` is called with any body
 - THEN the system MUST return `404 Not Found`
-
-### Requirement: JWT Verification Middleware
-The `authenticateJWT` middleware MUST verify JSON Web Tokens in the `Authorization: Bearer <token>` header.
-- The JWT payload MUST include the following claims: `id` (userId), `username`, and `rol`.
-- If the token is expired, invalid, or missing, the system MUST return HTTP 401 Unauthorized.
-
-### Requirement: Role Guard Authorization
-The `requireRoles` guard MUST validate that the authenticated user possesses an authorized role. The roles allowed in the system are: `operario`, `jefe`, `visualizacion`, and `administrador`.
-
-| Protected Endpoint | Allowed Roles |
-|---------------------|---------------|
-| `/api/usuarios` (Write) | `administrador` |
-| `/api/articulos`, `/api/etapas` (Write) | `administrador`, `jefe` |
-| `/api/lineas-produccion`, `/api/rutas-pasadas-etapas` (Write) | `administrador`, `jefe` |
-| Core Endpoint (Read/GET) | `administrador`, `jefe`, `operario`, `visualizacion` |
-
-Unauthorized role access attempts MUST return HTTP 403 Forbidden.
-
-### Requirement: Especificación del Contenedor Docker (MVP Oficina)
-The development and execution environment MUST be containerized for reproducible office execution.
-- **Dockerfile**:
-  - MUST build using the official base Node.js v20-alpine image.
-  - MUST implement a multi-stage build to compile TypeScript and reduce final image size.
-  - MUST install only production dependencies in the final run stage (`pnpm install --prod`).
-- **Docker Compose**:
-  - MUST define a `postgres` database service running PostgreSQL 15 and mapping port `5433` externally.
-  - MUST define a `backend` application service that depends on `postgres` through a reliable healthcheck, ensuring database readiness before launching the Express server.
-  - MUST share a common secure `bridge` network, communicating with database using the `postgres` host.

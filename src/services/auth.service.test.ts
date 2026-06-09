@@ -9,7 +9,6 @@ const JWT_SECRET = 'test-secret';
 
 // Mock the entity manager
 const mockEm = {
-  find: vi.fn(),
   findOne: vi.fn(),
 };
 
@@ -28,117 +27,129 @@ describe('AuthService.login', () => {
     service = new AuthService();
   });
 
-  it('returns null when user is not found', async () => {
-    mockEm.findOne.mockResolvedValue(null);
-    const result = await service.login('noone', 'pass');
-    expect(result).toBeNull();
-  });
-
-  it('returns null when user is inactive', async () => {
-    mockEm.findOne.mockResolvedValue({ activo: false, contrasenaHash: await bcrypt.hash('pass', 10) });
-    const result = await service.login('inactive', 'pass');
-    expect(result).toBeNull();
-  });
-
-  it('returns null when password does not match', async () => {
+  it('returns a JWT string when login is successful', async () => {
+    const pinHash = await bcrypt.hash('1234', 10);
     mockEm.findOne.mockResolvedValue({
       id: 1,
       nombreUsuario: 'admin',
+      legajo: 'ADMIN01',
       rol: UsuarioRol.ADMINISTRADOR,
       activo: true,
-      contrasenaHash: await bcrypt.hash('correct', 10),
-    });
-    const result = await service.login('admin', 'wrong');
-    expect(result).toBeNull();
-  });
-
-  it('returns a JWT string when credentials are valid', async () => {
-    const hash = await bcrypt.hash('password', 10);
-    mockEm.findOne.mockResolvedValue({
-      id: 1,
-      nombreUsuario: 'admin',
-      rol: UsuarioRol.ADMINISTRADOR,
-      activo: true,
-      contrasenaHash: hash,
+      pinHash,
+      puedeTomarMuestrasLibres: true
     });
 
-    const token = await service.login('admin', 'password');
+    const token = await service.login('ADMIN01', '1234');
     expect(typeof token).toBe('string');
-
-    const decoded = jwt.verify(token!, JWT_SECRET) as any;
-    expect(decoded.id).toBe(1);
-    expect(decoded.nombreUsuario).toBe('admin');
-    expect(decoded.rol).toBe(UsuarioRol.ADMINISTRADOR);
   });
 
-  it('returns a JWT string when logged in with a valid legajo', async () => {
-    const hash = await bcrypt.hash('password', 10);
+  it('decoded JWT contains expected claims including puedeTomarMuestrasLibres', async () => {
+    const pinHash = await bcrypt.hash('1234', 10);
     mockEm.findOne.mockResolvedValue({
       id: 2,
       nombreUsuario: 'jefe',
       legajo: 'JEFE01',
       rol: UsuarioRol.JEFE,
       activo: true,
-      contrasenaHash: hash,
+      pinHash,
+      puedeTomarMuestrasLibres: false
     });
 
-    const token = await service.login('JEFE01', 'password');
-    expect(typeof token).toBe('string');
-
+    const token = await service.login('JEFE01', '1234');
     const decoded = jwt.verify(token!, JWT_SECRET) as any;
+    
     expect(decoded.id).toBe(2);
     expect(decoded.nombreUsuario).toBe('jefe');
+    expect(decoded.legajo).toBe('JEFE01');
     expect(decoded.rol).toBe(UsuarioRol.JEFE);
-  });
-});
-
-describe('AuthService.validatePin', () => {
-  let service: AuthService;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    service = new AuthService();
+    expect(decoded.puedeTomarMuestrasLibres).toBe(false);
   });
 
-  it('returns null when user is not found', async () => {
+  it('decoded JWT exp is ~12h from now', async () => {
+    const pinHash = await bcrypt.hash('1234', 10);
+    mockEm.findOne.mockResolvedValue({
+      id: 1,
+      nombreUsuario: 'admin',
+      legajo: 'ADMIN01',
+      rol: UsuarioRol.ADMINISTRADOR,
+      activo: true,
+      pinHash,
+      puedeTomarMuestrasLibres: true
+    });
+
+    const token = await service.login('ADMIN01', '1234');
+    const decoded = jwt.verify(token!, JWT_SECRET) as any;
+    
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    const expectedExp = nowInSeconds + 12 * 60 * 60;
+    
+    // Check it's within a few seconds of 12 hours from now
+    expect(decoded.exp).toBeGreaterThan(expectedExp - 5);
+    expect(decoded.exp).toBeLessThan(expectedExp + 5);
+  });
+
+  it('returns null when legajo is unknown', async () => {
     mockEm.findOne.mockResolvedValue(null);
-    const result = await service.validatePin('123', '1234');
+    const result = await service.login('UNKNOWN', '1234');
     expect(result).toBeNull();
   });
 
-  it('returns null when PIN does not match', async () => {
-    const pinHash = await bcrypt.hash('5678', 1);
-    mockEm.findOne.mockResolvedValue(
-      { id: 1, nombreApellido: 'Test User', rol: UsuarioRol.OPERARIO, activo: true, pinHash, legajo: '123' }
-    );
-    const result = await service.validatePin('123', '9999');
+  it('returns null when pin is wrong', async () => {
+    const pinHash = await bcrypt.hash('1234', 10);
+    mockEm.findOne.mockResolvedValue({
+      id: 1,
+      nombreUsuario: 'admin',
+      legajo: 'ADMIN01',
+      rol: UsuarioRol.ADMINISTRADOR,
+      activo: true,
+      pinHash,
+      puedeTomarMuestrasLibres: true
+    });
+    
+    const result = await service.login('ADMIN01', '9999');
     expect(result).toBeNull();
   });
 
-  it('returns the matching user when PIN is correct', async () => {
-    const pinHash = await bcrypt.hash('1234', 1);
-    mockEm.findOne.mockResolvedValue(
-      { id: 1, nombreApellido: 'Test User', rol: UsuarioRol.OPERARIO, activo: true, pinHash, legajo: '123' }
-    );
-    const result = await service.validatePin('123', '1234');
-    expect(result).not.toBeNull();
-    expect(result!.id).toBe(1);
-  });
-
-  it('returns null when user has no pinHash set', async () => {
-    mockEm.findOne.mockResolvedValue(
-      { id: 1, nombreApellido: 'Sin PIN', rol: UsuarioRol.OPERARIO, activo: true, pinHash: undefined, legajo: '123' }
-    );
-    const result = await service.validatePin('123', '1234');
+  it('returns null when user is inactive', async () => {
+    const pinHash = await bcrypt.hash('1234', 10);
+    mockEm.findOne.mockResolvedValue({
+      id: 1,
+      nombreUsuario: 'admin',
+      legajo: 'ADMIN01',
+      rol: UsuarioRol.ADMINISTRADOR,
+      activo: false,
+      pinHash,
+      puedeTomarMuestrasLibres: true
+    });
+    
+    // Auth service is supposed to query with { legajo, activo: true }
+    // but in case it checks manually after fetching or relies on DB:
+    const result = await service.login('ADMIN01', '1234');
     expect(result).toBeNull();
   });
-});
-describe('AuthService.hashPassword', () => {
-  it('returns a bcrypt hash', async () => {
-    const service = new AuthService();
-    const hash = await service.hashPassword('mypassword');
-    expect(hash).not.toBe('mypassword');
-    const valid = await bcrypt.compare('mypassword', hash);
-    expect(valid).toBe(true);
+
+  it('returns a JWT when logging in with nombreUsuario instead of legajo', async () => {
+    const pinHash = await bcrypt.hash('1234', 10);
+    mockEm.findOne.mockResolvedValue({
+      id: 3,
+      nombreUsuario: 'operario01',
+      legajo: 'LEG-3',
+      rol: UsuarioRol.OPERARIO,
+      activo: true,
+      pinHash,
+      puedeTomarMuestrasLibres: false
+    });
+
+    const token = await service.login('operario01', '1234');
+    expect(typeof token).toBe('string');
+    const decoded = jwt.verify(token!, JWT_SECRET) as any;
+    expect(decoded.nombreUsuario).toBe('operario01');
+    expect(decoded.legajo).toBe('LEG-3');
+  });
+
+  it('returns null when neither legajo nor nombreUsuario matches', async () => {
+    mockEm.findOne.mockResolvedValue(null);
+    const result = await service.login('no-existe', '1234');
+    expect(result).toBeNull();
   });
 });

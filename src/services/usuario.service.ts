@@ -6,7 +6,6 @@ import { Usuario } from '../models/Usuario.js';
 const SALT_ROUNDS = 10;
 
 interface UsuarioInput {
-  contrasena?: string;
   pin?: string;
   datosAdicionales?: { pin?: string; [key: string]: unknown };
   [key: string]: unknown;
@@ -18,7 +17,7 @@ export class UsuarioService extends BaseService<Usuario> {
   }
 
   /**
-   * Hashes contrasena → contrasenaHash and pin → pinHash before persisting.
+   * Hashes pin → pinHash before persisting.
    * The plain-text fields are stripped from the payload so they never reach the DB.
    */
   override async create(data: RequiredEntityData<Usuario>): Promise<Usuario> {
@@ -36,20 +35,19 @@ export class UsuarioService extends BaseService<Usuario> {
   // No restrict needed — users have no active children in current model
 
   private async mapCredentials(input: UsuarioInput): Promise<Record<string, unknown>> {
-    const { contrasena, pin, datosAdicionales, ...rest } = input;
+    const { pin, datosAdicionales, ...rest } = input;
 
+    // We no longer strip 'contrasena' from 'rest' because it's not a valid field, 
+    // but if it's passed incidentally, it will just be ignored by the ORM or rejected by schemas.
     const result: Record<string, unknown> = { ...rest };
-
-    if (contrasena) {
-      result.contrasenaHash = await bcrypt.hash(contrasena, SALT_ROUNDS);
-    }
 
     if (pin) {
       result.pinHash = await bcrypt.hash(pin, SALT_ROUNDS);
     }
 
     if (datosAdicionales) {
-      result.datosAdicionales = datosAdicionales;
+      const { pin: _, ...restDatosAdicionales } = datosAdicionales;
+      result.datosAdicionales = restDatosAdicionales;
     }
 
     return result;

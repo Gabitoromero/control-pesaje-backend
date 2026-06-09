@@ -71,43 +71,32 @@ describe('Domain Entities Integration Tests', () => {
     expect(entityNames.length).toBe(9);
   });
 
-  it('should create and retrieve a Usuario with JSONB metadata', async () => {
+  it('should create and retrieve a Usuario with v1.5 shape (legajo, pinHash, no contrasenaHash)', async () => {
     const em = orm.em.fork();
 
     const usuario = new Usuario();
     usuario.nombreApellido = 'Juan Pérez';
     usuario.nombreUsuario = 'juan.perez';
-    usuario.contrasenaHash = '$2b$12$hashedpasswordhere';
+    usuario.legajo = 'LEG123';
+    usuario.pinHash = '$2b$10$hashedpinhere';
+    // @ts-expect-error Testing that contrasenaHash no longer exists on the type
+    usuario.contrasenaHash = 'should-not-exist';
     usuario.rol = UsuarioRol.OPERARIO;
     usuario.datosAdicionales = {
-      preferenciasInterfaz: {
-        tema: 'oscuro',
-        idioma: 'es',
-      },
-      configuracionBalanzaDefecto: {
-        estabilizacionMs: 500,
-        taraDefecto: 15.2,
-      },
+      preferenciasInterfaz: { tema: 'oscuro', idioma: 'es' },
     };
 
     await em.persist(usuario).flush();
 
-    // Clear context to force fetching from database
     em.clear();
 
     const retrieved = await em.findOne(Usuario, { nombreUsuario: 'juan.perez' });
     expect(retrieved).not.toBeNull();
-    expect(retrieved!.nombreApellido).toBe('Juan Pérez');
-    expect(retrieved!.activo).toBe(true); // Default true
+    expect(retrieved!.legajo).toBe('LEG123');
+    expect(retrieved!.pinHash).toBe('$2b$10$hashedpinhere');
+    expect((retrieved as any).contrasenaHash).toBeUndefined();
     expect(retrieved!.datosAdicionales).toEqual({
-      preferenciasInterfaz: {
-        tema: 'oscuro',
-        idioma: 'es',
-      },
-      configuracionBalanzaDefecto: {
-        estabilizacionMs: 500,
-        taraDefecto: 15.2,
-      },
+      preferenciasInterfaz: { tema: 'oscuro', idioma: 'es' },
     });
   });
 
@@ -159,7 +148,8 @@ describe('Domain Entities Integration Tests', () => {
     const usuario = new Usuario();
     usuario.nombreApellido = 'Test Operario';
     usuario.nombreUsuario = 'test.operario';
-    usuario.contrasenaHash = 'hash';
+    usuario.legajo = 'TEST-123';
+    usuario.pinHash = 'hash';
     usuario.rol = UsuarioRol.OPERARIO;
 
     const linea = new LineaProduccion();

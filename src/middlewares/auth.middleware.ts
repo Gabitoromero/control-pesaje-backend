@@ -5,7 +5,9 @@ import { UsuarioRol } from '../models/Usuario.js';
 export interface JWTPayload {
   id: number;
   nombreUsuario: string;
+  legajo: string;
   rol: UsuarioRol;
+  puedeTomarMuestrasLibres: boolean;
 }
 
 // Extend Express Request to carry the decoded JWT payload
