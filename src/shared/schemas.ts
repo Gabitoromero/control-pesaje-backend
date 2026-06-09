@@ -10,6 +10,7 @@ export const UsuarioCreateSchema = z.object({
   contrasena: z.string().min(4),
   pin: z.string().regex(/^\d{4,6}$/).optional(),
   puedeTomarMuestrasLibres: z.boolean().optional(),
+  activo: z.boolean().optional(),
   rol: z.enum([
     UsuarioRol.OPERARIO,
     UsuarioRol.JEFE,
