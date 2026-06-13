@@ -35,6 +35,7 @@ export const UsuarioUpdateSchema = UsuarioCreateSchema.partial();
 export const ArticuloCreateSchema = z.object({
   nombre: z.string().min(1),
   descripcion: z.string().min(4).optional(),
+  activo: z.boolean().optional(),
 });
 
 export const ArticuloUpdateSchema = ArticuloCreateSchema.partial();
@@ -44,6 +45,7 @@ export const ArticuloUpdateSchema = ArticuloCreateSchema.partial();
 export const EtapaCreateSchema = z.object({
   nombre: z.string().min(1),
   descripcion: z.string().min(4).optional(),
+  activo: z.boolean().optional(),
 });
 
 export const EtapaUpdateSchema = EtapaCreateSchema.partial();
@@ -53,6 +55,7 @@ export const EtapaUpdateSchema = EtapaCreateSchema.partial();
 export const LineaProduccionCreateSchema = z.object({
   nombre: z.string().min(1),
   numeroBalanza: z.number().int().positive(),
+  activo: z.boolean().optional(),
 });
 
 export const LineaProduccionUpdateSchema = LineaProduccionCreateSchema.partial();
@@ -62,6 +65,7 @@ export const LineaProduccionUpdateSchema = LineaProduccionCreateSchema.partial()
 export const RutaPasadaCreateSchema = z.object({
   nombre: z.string().min(1),
   descripcion: z.string().optional(),
+  activo: z.boolean().optional(),
 });
 
 export const RutaPasadaUpdateSchema = RutaPasadaCreateSchema.partial();
@@ -76,6 +80,7 @@ export const RutaPasadaEtapaCreateSchema = z.object({
   pesoMinimo: z.number().positive(),
   pesoMaximo: z.number().positive(),
   cantidadMuestrasRequeridas: z.number().int().positive(),
+  activo: z.boolean().optional(),
 });
 
 export const RutaPasadaEtapaUpdateSchema = RutaPasadaEtapaCreateSchema.partial();

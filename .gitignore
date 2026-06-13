@@ -5,5 +5,5 @@ dist
 *.log
 coverage
 .gga
-.atl/.skill-registry.cache.json
+.atl/
 .antigravitycli/*
