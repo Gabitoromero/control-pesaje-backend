@@ -6,5 +6,11 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
     super(LineaProduccion);
   }
 
-  // No restrict needed — no active children in current model
+  override async findAll(): Promise<LineaProduccion[]> {
+    return this.getEm().find(LineaProduccion, { activo: true }, { populate: ['rutaPasadaActiva'] });
+  }
+
+  override async findAllInactive(): Promise<LineaProduccion[]> {
+    return this.getEm().find(LineaProduccion, { activo: false }, { populate: ['rutaPasadaActiva'] });
+  }
 }

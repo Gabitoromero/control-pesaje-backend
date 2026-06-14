@@ -228,6 +228,32 @@ describe('4.2b — nullable fields: PUT with descripcion:null returns 200, not 4
 
     expect(res.status).toBe(400);
   });
+
+  it('PUT /api/rutas-pasadas/:id with descripcion:null returns 200', async () => {
+    mockEm.findOne.mockResolvedValue({ id: 1, nombre: 'Ruta A', descripcion: 'old desc', activo: true });
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .put('/api/rutas-pasadas/1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ nombre: 'Ruta A', descripcion: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('PUT /api/lineas-produccion/:id with rutaPasadaActivaId:null returns 200', async () => {
+    mockEm.findOne.mockResolvedValue({ id: 1, nombre: 'Linea 1', numeroBalanza: 1, rutaPasadaActivaId: 5, activo: true });
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .put('/api/lineas-produccion/1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ nombre: 'Linea 1', numeroBalanza: 1, rutaPasadaActivaId: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
 });
 
 // ─── 4.X  Schema Validation ──────────────────────────────────────────────────

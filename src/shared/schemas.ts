@@ -56,6 +56,7 @@ export const EtapaUpdateSchema = EtapaCreateSchema.partial();
 export const LineaProduccionCreateSchema = z.object({
   nombre: z.string().min(1),
   numeroBalanza: z.number().int().positive(),
+  rutaPasadaActiva: z.number().int().positive().nullable().optional(),
   activo: z.boolean().optional(),
 });
 
@@ -65,7 +66,7 @@ export const LineaProduccionUpdateSchema = LineaProduccionCreateSchema.partial()
 
 export const RutaPasadaCreateSchema = z.object({
   nombre: z.string().min(1),
-  descripcion: z.string().optional(),
+  descripcion: z.string().min(4).nullable().optional(),
   activo: z.boolean().optional(),
 });
 

@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express';
+import { UniqueConstraintViolationException } from '@mikro-orm/core';
 import { BaseService } from '../services/base.service.js';
 import { RestrictError } from '../utils/errors.js';
 
@@ -55,6 +56,10 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
       const entity = await service.create(req.body);
       res.status(201).json({ success: true, data: entity });
     } catch (err) {
+      if (err instanceof UniqueConstraintViolationException) {
+        res.status(400).json({ success: false, error: { message: 'Ya existe un registro con ese valor' } });
+        return;
+      }
       res.status(500).json({ success: false, error: { message: 'Internal server error' } });
     }
   };
@@ -69,6 +74,10 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
       }
       res.json({ success: true, data: entity });
     } catch (err) {
+      if (err instanceof UniqueConstraintViolationException) {
+        res.status(400).json({ success: false, error: { message: 'Ya existe un registro con ese valor' } });
+        return;
+      }
       res.status(500).json({ success: false, error: { message: 'Internal server error' } });
     }
   };
