@@ -33,8 +33,9 @@ export const UsuarioUpdateSchema = UsuarioCreateSchema.partial();
 // ─── Articulo ─────────────────────────────────────────────────────────────────
 
 export const ArticuloCreateSchema = z.object({
+  marca: z.string().min(1),
   nombre: z.string().min(1),
-  descripcion: z.string().min(4).optional(),
+  descripcion: z.string().min(4).nullable().optional(),
   activo: z.boolean().optional(),
 });
 
@@ -44,7 +45,7 @@ export const ArticuloUpdateSchema = ArticuloCreateSchema.partial();
 
 export const EtapaCreateSchema = z.object({
   nombre: z.string().min(1),
-  descripcion: z.string().min(4).optional(),
+  descripcion: z.string().min(4).nullable().optional(),
   activo: z.boolean().optional(),
 });
 

@@ -168,6 +168,68 @@ describe('4.2 — Zod validation → HTTP 400', () => {
   });
 });
 
+// ─── 4.2b  Nullable fields — PUT accepts null to clear optional columns ───────
+
+describe('4.2b — nullable fields: PUT with descripcion:null returns 200, not 400', () => {
+  it('PUT /api/etapas/:id with descripcion:null clears the field (active entity)', async () => {
+    mockEm.findOne.mockResolvedValue({ id: 1, nombre: 'Amasado', descripcion: 'old desc', activo: true });
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .put('/api/etapas/1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ nombre: 'Amasado', descripcion: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('PUT /api/etapas/:id with descripcion:null clears the field (inactive entity)', async () => {
+    mockEm.findOne.mockResolvedValue({ id: 4, nombre: 'Reposo', descripcion: 'old desc', activo: false });
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .put('/api/etapas/4')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ nombre: 'Reposo', descripcion: null });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('PUT /api/etapas/:id with omitted descripcion returns 200', async () => {
+    mockEm.findOne.mockResolvedValue({ id: 1, nombre: 'Amasado', descripcion: 'old desc', activo: true });
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .put('/api/etapas/1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ nombre: 'Amasado' });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('PUT /api/articulos/:id with descripcion:null returns 200', async () => {
+    mockEm.findOne.mockResolvedValue({ id: 1, nombre: 'Harina 000', marca: 'Morixe', descripcion: 'old', activo: true });
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .put('/api/articulos/1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ nombre: 'Harina 000', descripcion: null });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('PUT /api/etapas/:id rejects descripcion shorter than 4 chars with 400', async () => {
+    const res = await request(app)
+      .put('/api/etapas/1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ nombre: 'Amasado', descripcion: 'ab' });
+
+    expect(res.status).toBe(400);
+  });
+});
+
 // ─── 4.X  Schema Validation ──────────────────────────────────────────────────
 
 describe('Schema validation (v1.5)', () => {
