@@ -20,6 +20,12 @@ export const registerBalanzaHandlers = (
       return;
     }
 
+    // Authentication guard: require either device identity or authenticated user
+    if (!socket.data.isDevice && !socket.data.user) {
+      socket.emit('error', { message: 'Unauthorized: authentication required' });
+      return;
+    }
+
     const em = orm.em.fork();
     const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
 

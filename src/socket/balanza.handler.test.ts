@@ -63,15 +63,19 @@ describe('registerBalanzaHandlers', () => {
     it('joins room and stores lineaId when lineaId is valid and line exists and is active', async () => {
       const lineaFixture = { id: 5, activo: true };
       const mockOrm = makeMockOrm(lineaFixture);
-      registerBalanzaHandlers(io as Server, socket as Socket, mockOrm as unknown as MikroORM);
-      const handler = getHandler(socket, 'join-linea');
+      // Provide an authenticated user so the guard passes
+      const authenticatedSocket = makeMockSocket({
+        data: { user: { id: 1, nombreUsuario: 'testuser' } } as Socket['data'],
+      });
+      registerBalanzaHandlers(io as Server, authenticatedSocket as Socket, mockOrm as unknown as MikroORM);
+      const handler = getHandler(authenticatedSocket, 'join-linea');
 
       await handler(5);
 
       expect(mockOrm.em.fork).toHaveBeenCalledOnce();
-      expect(socket.join).toHaveBeenCalledWith('linea-5');
-      expect((socket.data as Record<string, unknown>).lineaId).toBe(5);
-      expect(socket.emit).not.toHaveBeenCalledWith('error', expect.anything());
+      expect(authenticatedSocket.join).toHaveBeenCalledWith('linea-5');
+      expect((authenticatedSocket.data as Record<string, unknown>).lineaId).toBe(5);
+      expect(authenticatedSocket.emit).not.toHaveBeenCalledWith('error', expect.anything());
     });
 
     it('emits error and does not join when lineaId is not a positive integer', async () => {
@@ -98,24 +102,44 @@ describe('registerBalanzaHandlers', () => {
 
     it('emits error when line does not exist', async () => {
       const mockOrm = makeMockOrm(null); // findOne returns null
-      registerBalanzaHandlers(io as Server, socket as Socket, mockOrm as unknown as MikroORM);
-      const handler = getHandler(socket, 'join-linea');
+      const authenticatedSocket = makeMockSocket({
+        data: { user: { id: 1, nombreUsuario: 'testuser' } } as Socket['data'],
+      });
+      registerBalanzaHandlers(io as Server, authenticatedSocket as Socket, mockOrm as unknown as MikroORM);
+      const handler = getHandler(authenticatedSocket, 'join-linea');
 
       await handler(99);
 
-      expect(socket.join).not.toHaveBeenCalled();
-      expect(socket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.any(String) }));
+      expect(authenticatedSocket.join).not.toHaveBeenCalled();
+      expect(authenticatedSocket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.any(String) }));
     });
 
     it('emits error when line exists but is inactive', async () => {
       const mockOrm = makeMockOrm(null); // activo:false → findOne with activo:true returns null
-      registerBalanzaHandlers(io as Server, socket as Socket, mockOrm as unknown as MikroORM);
-      const handler = getHandler(socket, 'join-linea');
+      const authenticatedSocket = makeMockSocket({
+        data: { user: { id: 1, nombreUsuario: 'testuser' } } as Socket['data'],
+      });
+      registerBalanzaHandlers(io as Server, authenticatedSocket as Socket, mockOrm as unknown as MikroORM);
+      const handler = getHandler(authenticatedSocket, 'join-linea');
 
       await handler(3);
 
-      expect(socket.join).not.toHaveBeenCalled();
-      expect(socket.emit).toHaveBeenCalledWith('error', expect.any(Object));
+      expect(authenticatedSocket.join).not.toHaveBeenCalled();
+      expect(authenticatedSocket.emit).toHaveBeenCalledWith('error', expect.any(Object));
+    });
+
+    it('emits error and does not join when socket.data.user is undefined (unauthenticated tablet)', async () => {
+      const lineaFixture = { id: 5, activo: true };
+      const mockOrm = makeMockOrm(lineaFixture);
+      // socket has no isDevice and no user — unauthenticated
+      const unauthSocket = makeMockSocket({ data: {} as Record<string, unknown> });
+      registerBalanzaHandlers(io as Server, unauthSocket as Socket, mockOrm as unknown as MikroORM);
+      const handler = getHandler(unauthSocket, 'join-linea');
+
+      await handler(5);
+
+      expect(unauthSocket.join).not.toHaveBeenCalled();
+      expect(unauthSocket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.any(String) }));
     });
   });
 
