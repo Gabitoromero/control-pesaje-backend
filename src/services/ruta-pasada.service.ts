@@ -30,7 +30,7 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
       
       if (etapas && Array.isArray(etapas)) {
         for (const etapaData of etapas) {
-          const pivot = tx.create(RutaPasadaEtapa, { ...etapaData, rutaPasada: entity });
+          const pivot = tx.create(RutaPasadaEtapa, Object.assign({}, etapaData, { rutaPasada: entity }) as unknown as RequiredEntityData<RutaPasadaEtapa>);
           entity.etapas.add(pivot);
         }
       }
@@ -56,10 +56,10 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
         for (const etapaData of etapas) {
           if (etapaData.id && existingMap.has(etapaData.id)) {
             const existing = existingMap.get(etapaData.id)!;
-            tx.assign(existing, etapaData);
+            tx.assign(existing, etapaData as unknown as Partial<RutaPasadaEtapa>);
             existingMap.delete(etapaData.id);
           } else {
-            const pivot = tx.create(RutaPasadaEtapa, { ...etapaData, rutaPasada: entity });
+            const pivot = tx.create(RutaPasadaEtapa, Object.assign({}, etapaData, { rutaPasada: entity }) as unknown as RequiredEntityData<RutaPasadaEtapa>);
             entity.etapas.add(pivot);
           }
         }
