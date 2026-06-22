@@ -36,7 +36,7 @@ describe('RutaPasadaService', () => {
       const payload = {
         nombre: 'Ruta 1',
         etapas: [
-          { articulo: 1, etapa: 2, orden: 1, pesoIdeal: 10, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 },
+          { etapa: 2, orden: 1, pesoIdeal: 10, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 },
         ],
       };
 
@@ -50,7 +50,7 @@ describe('RutaPasadaService', () => {
 
       expect(mockEm.transactional).toHaveBeenCalledOnce();
       expect(mockEm.create).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ nombre: 'Ruta 1' }));
-      expect(mockEm.create).toHaveBeenCalledWith(RutaPasadaEtapa, expect.objectContaining({ articulo: 1 }));
+      expect(mockEm.create).toHaveBeenCalledWith(RutaPasadaEtapa, expect.objectContaining({ etapa: 2 }));
       expect(rutaMock.etapas.add).toHaveBeenCalledOnce();
       expect(mockEm.flush).toHaveBeenCalledOnce();
       expect(result).toBe(rutaMock);
@@ -62,14 +62,14 @@ describe('RutaPasadaService', () => {
       const payload = {
         nombre: 'Ruta 1 Updated',
         etapas: [
-          { id: 10, articulo: 1, etapa: 2, orden: 1, pesoIdeal: 15, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 }, // Update
-          { articulo: 2, etapa: 3, orden: 2, pesoIdeal: 5, pesoMinimo: 4, pesoMaximo: 6, cantidadMuestrasRequeridas: 2 }, // Create
+          { id: 10, etapa: 2, orden: 1, pesoIdeal: 15, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 }, // Update
+          { etapa: 3, orden: 2, pesoIdeal: 5, pesoMinimo: 4, pesoMaximo: 6, cantidadMuestrasRequeridas: 2 }, // Create
         ],
       };
 
       const existingEtapas = [
-        { id: 10, articulo: 1, etapa: 2, orden: 1, pesoIdeal: 10, activo: true },
-        { id: 11, articulo: 3, etapa: 4, orden: 2, pesoIdeal: 20, activo: true }, // To be deleted
+        { id: 10, etapa: 2, orden: 1, pesoIdeal: 10, activo: true },
+        { id: 11, etapa: 4, orden: 2, pesoIdeal: 20, activo: true }, // To be deleted
       ];
 
       const rutaMock = { 
@@ -90,7 +90,7 @@ describe('RutaPasadaService', () => {
       expect(mockEm.transactional).toHaveBeenCalledOnce();
       expect(mockEm.assign).toHaveBeenCalledWith(existingEtapas[0], expect.objectContaining({ pesoIdeal: 15 }));
       expect(existingEtapas[1].activo).toBe(false); // soft-deleted
-      expect(mockEm.create).toHaveBeenCalledWith(RutaPasadaEtapa, expect.objectContaining({ articulo: 2 }));
+      expect(mockEm.create).toHaveBeenCalledWith(RutaPasadaEtapa, expect.objectContaining({ etapa: 3 }));
       expect(mockEm.flush).toHaveBeenCalledOnce();
       expect(result).toBe(rutaMock);
     });

@@ -7,7 +7,6 @@ import { RequiredEntityData } from '@mikro-orm/core';
 
 type RutaPasadaEtapaInput = {
   id?: number;
-  articulo: number;
   etapa: number;
   orden: number;
   pesoIdeal: number;
@@ -20,6 +19,18 @@ type RutaPasadaEtapaInput = {
 export class RutaPasadaService extends BaseService<RutaPasada> {
   constructor() {
     super(RutaPasada);
+  }
+
+  override async findAll(): Promise<RutaPasada[]> {
+    return this.getEm().find(RutaPasada, { activo: true }, { populate: ['etapas', 'etapas.etapa'] });
+  }
+
+  override async findAllInactive(): Promise<RutaPasada[]> {
+    return this.getEm().find(RutaPasada, { activo: false }, { populate: ['etapas', 'etapas.etapa'] });
+  }
+
+  override async findById(id: number): Promise<RutaPasada | null> {
+    return this.getEm().findOne(RutaPasada, { id }, { populate: ['etapas', 'etapas.etapa'] });
   }
 
   override async create(data: RequiredEntityData<RutaPasada>): Promise<RutaPasada> {

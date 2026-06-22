@@ -607,7 +607,7 @@ describe('Phase 3 - Rutas Pasadas Integration', () => {
       .send({
         nombre: 'Ruta T',
         etapas: [
-          { articulo: 1, etapa: 1, orden: 1, pesoIdeal: 10, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 }
+          { etapa: 1, orden: 1, pesoIdeal: 10, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 }
         ]
       });
 
@@ -618,7 +618,7 @@ describe('Phase 3 - Rutas Pasadas Integration', () => {
 
   it('3.1 - PUT /api/rutas-pasadas/:id handles nested etapas within a transaction', async () => {
     const existingEtapas = [
-      { id: 10, articulo: 1, etapa: 2, orden: 1, pesoIdeal: 10, activo: true },
+      { id: 10, etapa: 2, orden: 1, pesoIdeal: 10, activo: true },
     ];
     mockEm.findOne.mockResolvedValue({ 
       id: 1, 
@@ -634,7 +634,7 @@ describe('Phase 3 - Rutas Pasadas Integration', () => {
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({
         etapas: [
-          { id: 10, articulo: 1, etapa: 2, orden: 1, pesoIdeal: 15, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 }
+          { id: 10, etapa: 2, orden: 1, pesoIdeal: 15, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 }
         ]
       });
 
@@ -674,5 +674,101 @@ describe('Phase 3 - Rutas Pasadas Integration', () => {
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
     expect(res.body.error.message).toMatch(/Cannot delete etapa/);
+  });
+});
+
+// ─── Phase 4: Rutas Pasadas — Populate Depth + Etapas Filter ─────────────────
+
+describe('Phase 4 - RutaPasada populate depth + RutaPasadaEtapa filter', () => {
+  const etapaMock = { id: 5, nombre: 'Amasado', descripcion: 'Primera etapa', activo: true };
+
+  const pivotMock = {
+    id: 1,
+    orden: 1,
+    pesoIdeal: 10,
+    pesoMinimo: 9,
+    pesoMaximo: 11,
+    cantidadMuestrasRequeridas: 5,
+    activo: true,
+    etapa: etapaMock,
+  };
+
+  const rutaMock = {
+    id: 1,
+    nombre: 'Ruta Principal',
+    descripcion: 'Ruta de prueba',
+    activo: true,
+    etapas: [pivotMock],
+  };
+
+  it('4.1a - GET /api/rutas-pasadas returns etapas with nested etapa.nombre', async () => {
+    mockEm.find.mockResolvedValue([rutaMock]);
+
+    const res = await request(app)
+      .get('/api/rutas-pasadas')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data[0].etapas[0].etapa.nombre).toBe('Amasado');
+  });
+
+  it('4.1b - GET /api/rutas-pasadas/:id returns etapas with nested etapa.id and etapa.nombre', async () => {
+    mockEm.findOne.mockResolvedValue(rutaMock);
+
+    const res = await request(app)
+      .get('/api/rutas-pasadas/1')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.etapas[0].etapa.id).toBe(5);
+    expect(res.body.data.etapas[0].etapa.nombre).toBe('Amasado');
+  });
+
+  it('4.1c - GET /api/rutas-pasadas-etapas returns each row with etapa.nombre', async () => {
+    mockEm.find.mockResolvedValue([pivotMock]);
+
+    const res = await request(app)
+      .get('/api/rutas-pasadas-etapas')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data[0].etapa.nombre).toBe('Amasado');
+  });
+
+  it('4.1d - GET /api/rutas-pasadas-etapas?rutaPasadaId=1 returns scoped rows', async () => {
+    mockEm.find.mockResolvedValue([pivotMock]);
+
+    const res = await request(app)
+      .get('/api/rutas-pasadas-etapas?rutaPasadaId=1')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].etapa.nombre).toBe('Amasado');
+  });
+
+  it('4.1e - GET /api/rutas-pasadas-etapas?rutaPasadaId=abc returns 400', async () => {
+    const res = await request(app)
+      .get('/api/rutas-pasadas-etapas?rutaPasadaId=abc')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('4.1f - GET /api/rutas-pasadas-etapas?rutaPasadaId=999 returns empty array with 200', async () => {
+    mockEm.find.mockResolvedValue([]);
+
+    const res = await request(app)
+      .get('/api/rutas-pasadas-etapas?rutaPasadaId=999')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toEqual([]);
   });
 });

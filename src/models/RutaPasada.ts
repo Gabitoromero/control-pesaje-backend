@@ -1,6 +1,6 @@
 import { Entity, OneToMany, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
-import { Collection } from '@mikro-orm/core';
-import { RutaPasadaEtapa } from './RutaPasadaEtapa.js';
+import { Collection, type EntityName } from '@mikro-orm/core';
+import type { RutaPasadaEtapa } from './RutaPasadaEtapa.js';
 
 @Entity({ tableName: 'ruta_pasada' })
 export class RutaPasada {
@@ -16,6 +16,11 @@ export class RutaPasada {
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
 
-  @OneToMany(() => RutaPasadaEtapa, rpe => rpe.rutaPasada)
+  // String reference breaks the ESM circular dep (RutaPasada ↔ RutaPasadaEtapa).
+  // MikroORM resolves entity names during discovery, after all modules are loaded.
+  @OneToMany<RutaPasadaEtapa, RutaPasada>(
+    () => 'RutaPasadaEtapa' as unknown as EntityName<RutaPasadaEtapa>,
+    'rutaPasada',
+  )
   etapas = new Collection<RutaPasadaEtapa>(this);
 }

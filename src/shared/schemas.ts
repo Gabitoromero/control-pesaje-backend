@@ -78,7 +78,6 @@ export const RutaPasadaUpdateSchema = RutaPasadaCreateSchema.partial();
 export const RutaPasadaEtapaCreateSchema = z.object({
   id: z.number().int().positive().optional(),
   rutaPasada: z.number().int().positive().optional(),
-  articulo: z.number().int().positive(),
   etapa: z.number().int().positive(),
   orden: z.number().int(),
   pesoIdeal: z.number().positive(),

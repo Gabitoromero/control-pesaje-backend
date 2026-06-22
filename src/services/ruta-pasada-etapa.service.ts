@@ -6,5 +6,10 @@ export class RutaPasadaEtapaService extends BaseService<RutaPasadaEtapa> {
     super(RutaPasadaEtapa);
   }
 
-  // Leaf entity — no restrict needed
+  override async findAll(rutaPasadaId?: number): Promise<RutaPasadaEtapa[]> {
+    const where = rutaPasadaId
+      ? { activo: true, rutaPasada: rutaPasadaId }
+      : { activo: true };
+    return this.getEm().find(RutaPasadaEtapa, where, { populate: ['etapa'] });
+  }
 }
