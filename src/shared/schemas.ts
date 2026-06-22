@@ -68,6 +68,7 @@ export const RutaPasadaCreateSchema = z.object({
   nombre: z.string().min(1),
   descripcion: z.string().min(4).nullable().optional(),
   activo: z.boolean().optional(),
+  etapas: z.array(z.lazy(() => RutaPasadaEtapaCreateSchema.omit({ rutaPasada: true }))).optional(),
 });
 
 export const RutaPasadaUpdateSchema = RutaPasadaCreateSchema.partial();
@@ -75,6 +76,8 @@ export const RutaPasadaUpdateSchema = RutaPasadaCreateSchema.partial();
 // ─── RutaPasadaEtapa ──────────────────────────────────────────────────────────
 
 export const RutaPasadaEtapaCreateSchema = z.object({
+  id: z.number().int().positive().optional(),
+  rutaPasada: z.number().int().positive().optional(),
   articulo: z.number().int().positive(),
   etapa: z.number().int().positive(),
   orden: z.number().int(),

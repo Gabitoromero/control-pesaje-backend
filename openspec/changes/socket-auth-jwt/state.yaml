@@ -1,0 +1,52 @@
+change: socket-auth-jwt
+status: archived
+archived_at: 2026-06-19T11:00:43Z
+
+# Artifact references (topic keys in engram, file paths in openspec)
+artifacts:
+  proposal:
+    engram_id: 263
+    topic_key: sdd/socket-auth-jwt/proposal
+  spec:
+    engram_id: 264
+    topic_key: sdd/socket-auth-jwt/spec
+  design:
+    engram_id: 265
+    topic_key: sdd/socket-auth-jwt/design
+  tasks:
+    engram_id: 266
+    topic_key: sdd/socket-auth-jwt/tasks
+  apply-progress:
+    engram_id: 267
+    topic_key: sdd/socket-auth-jwt/apply-progress
+  verify-report:
+    engram_id: 268
+    topic_key: sdd/socket-auth-jwt/verify-report
+  archive-report:
+    engram_id: 269
+    topic_key: sdd/socket-auth-jwt/archive-report
+
+# Verification result
+verification:
+  verdict: PASS WITH WARNINGS
+  critical_issues: 0
+  warnings: 1
+  suggestions: 2
+  tests_passed: 274
+  typescript_errors: 0
+
+# Execution summary
+execution:
+  mode: Strict TDD
+  tasks_total: 8
+  tasks_complete: 8
+  files_changed: 9
+  backend_tests: 171/171
+  frontend_tests: 103/103
+
+# Archive metadata
+archive:
+  artifact_store: hybrid
+  engram_persistent: true
+  openspec_file_based: true
+  rollback_safety: high

@@ -8,6 +8,7 @@ import {
   RutaPasadaUpdateSchema,
   LineaProduccionCreateSchema,
   LineaProduccionUpdateSchema,
+  RutaPasadaEtapaCreateSchema,
 } from './schemas.js';
 
 describe('EtapaCreateSchema', () => {
@@ -129,6 +130,26 @@ describe('RutaPasadaCreateSchema', () => {
     const parsed = RutaPasadaCreateSchema.parse({ nombre: 'Ruta A', activo: true });
     expect(parsed.activo).toBe(true);
   });
+
+  it('accepts nested etapas array without rutaPasada', () => {
+    const parsed = RutaPasadaCreateSchema.parse({
+      nombre: 'Ruta A',
+      etapas: [
+        {
+          articulo: 1,
+          etapa: 1,
+          orden: 1,
+          pesoIdeal: 10,
+          pesoMinimo: 9,
+          pesoMaximo: 11,
+          cantidadMuestrasRequeridas: 5,
+        }
+      ]
+    });
+    expect(parsed.etapas).toBeDefined();
+    expect(parsed.etapas![0].articulo).toBe(1);
+    expect((parsed.etapas![0] as any).rutaPasada).toBeUndefined();
+  });
 });
 
 describe('RutaPasadaUpdateSchema', () => {
@@ -145,6 +166,24 @@ describe('RutaPasadaUpdateSchema', () => {
   it('accepts partial update with only nombre', () => {
     const parsed = RutaPasadaUpdateSchema.parse({ nombre: 'Ruta B' });
     expect(parsed.nombre).toBe('Ruta B');
+  });
+
+  it('accepts nested etapas array for update', () => {
+    const parsed = RutaPasadaUpdateSchema.parse({
+      etapas: [
+        {
+          articulo: 1,
+          etapa: 1,
+          orden: 1,
+          pesoIdeal: 10,
+          pesoMinimo: 9,
+          pesoMaximo: 11,
+          cantidadMuestrasRequeridas: 5,
+        }
+      ]
+    });
+    expect(parsed.etapas).toBeDefined();
+    expect(parsed.etapas![0].pesoIdeal).toBe(10);
   });
 });
 
@@ -187,5 +226,35 @@ describe('LineaProduccionUpdateSchema', () => {
   it('accepts partial update with only nombre', () => {
     const parsed = LineaProduccionUpdateSchema.parse({ nombre: 'Linea 2' });
     expect(parsed.nombre).toBe('Linea 2');
+  });
+});
+
+describe('RutaPasadaEtapaCreateSchema', () => {
+  it('accepts valid payload without rutaPasada (for nested creation)', () => {
+    const parsed = RutaPasadaEtapaCreateSchema.parse({
+      articulo: 1,
+      etapa: 1,
+      orden: 1,
+      pesoIdeal: 10,
+      pesoMinimo: 9,
+      pesoMaximo: 11,
+      cantidadMuestrasRequeridas: 5,
+    });
+    expect(parsed.etapa).toBe(1);
+    expect(parsed.rutaPasada).toBeUndefined();
+  });
+
+  it('accepts valid payload with rutaPasada', () => {
+    const parsed = RutaPasadaEtapaCreateSchema.parse({
+      rutaPasada: 1,
+      articulo: 1,
+      etapa: 1,
+      orden: 1,
+      pesoIdeal: 10,
+      pesoMinimo: 9,
+      pesoMaximo: 11,
+      cantidadMuestrasRequeridas: 5,
+    });
+    expect(parsed.rutaPasada).toBe(1);
   });
 });

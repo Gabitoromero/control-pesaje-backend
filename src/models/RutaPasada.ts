@@ -1,4 +1,6 @@
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, OneToMany, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Collection } from '@mikro-orm/core';
+import { RutaPasadaEtapa } from './RutaPasadaEtapa.js';
 
 @Entity({ tableName: 'ruta_pasada' })
 export class RutaPasada {
@@ -13,4 +15,7 @@ export class RutaPasada {
 
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
+
+  @OneToMany(() => RutaPasadaEtapa, rpe => rpe.rutaPasada)
+  etapas = new Collection<RutaPasadaEtapa>(this);
 }

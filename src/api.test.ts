@@ -47,6 +47,7 @@ const mockEm = {
   flush: vi.fn(),
   count: vi.fn(),
   persist: vi.fn().mockReturnThis(),
+  transactional: vi.fn(async (cb) => cb(mockEm)),
 };
 
 vi.mock('@mikro-orm/core', async (importOriginal) => {
@@ -594,3 +595,84 @@ describe('4.6 — GET /inactive routes', () => {
   });
 });
 
+// ─── Phase 3: Rutas Pasadas Integration ────────────────────────────────────────
+
+describe('Phase 3 - Rutas Pasadas Integration', () => {
+  it('3.1 - POST /api/rutas-pasadas handles nested etapas within a transaction', async () => {
+    mockEm.create.mockReturnValue({ id: 1, nombre: 'Ruta T', etapas: { add: vi.fn() } });
+    
+    const res = await request(app)
+      .post('/api/rutas-pasadas')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({
+        nombre: 'Ruta T',
+        etapas: [
+          { articulo: 1, etapa: 1, orden: 1, pesoIdeal: 10, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 }
+        ]
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(mockEm.transactional).toHaveBeenCalled();
+  });
+
+  it('3.1 - PUT /api/rutas-pasadas/:id handles nested etapas within a transaction', async () => {
+    const existingEtapas = [
+      { id: 10, articulo: 1, etapa: 2, orden: 1, pesoIdeal: 10, activo: true },
+    ];
+    mockEm.findOne.mockResolvedValue({ 
+      id: 1, 
+      nombre: 'Ruta', 
+      etapas: { 
+        init: vi.fn().mockResolvedValue({ getItems: () => existingEtapas }),
+        add: vi.fn()
+      } 
+    });
+
+    const res = await request(app)
+      .put('/api/rutas-pasadas/1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({
+        etapas: [
+          { id: 10, articulo: 1, etapa: 2, orden: 1, pesoIdeal: 15, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 }
+        ]
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(mockEm.transactional).toHaveBeenCalled();
+    expect(mockEm.assign).toHaveBeenCalledWith(existingEtapas[0], expect.objectContaining({ pesoIdeal: 15 }));
+  });
+
+  it('3.2 - DELETE /api/rutas-pasadas/:id cascades soft-delete to nested etapas but not master Etapa', async () => {
+    mockEm.count.mockResolvedValue(0); // no active LineaProduccion references
+    const existingEtapas = [{ id: 10, activo: true }];
+    mockEm.findOne.mockResolvedValue({ 
+      id: 1, 
+      activo: true,
+      etapas: { 
+        init: vi.fn().mockResolvedValue({ getItems: () => existingEtapas }),
+      } 
+    });
+
+    const res = await request(app)
+      .delete('/api/rutas-pasadas/1')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(existingEtapas[0].activo).toBe(false);
+  });
+
+  it('3.3 - DELETE /api/etapas/:id returns 400 when attached to active RutaPasada (via RestrictError mapping)', async () => {
+    mockEm.count.mockResolvedValue(1); // active refs exist
+
+    const res = await request(app)
+      .delete('/api/etapas/1')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toMatch(/Cannot delete etapa/);
+  });
+});
