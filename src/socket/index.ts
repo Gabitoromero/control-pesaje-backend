@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
 import { deviceAuthMiddleware, tabletJwtMiddleware } from './auth.middleware.js';
 import { registerBalanzaHandlers } from './balanza.handler.js';
+import { sesionService } from '../services/sesion.service.js';
 
 /**
  * Initializes the Socket.IO server bound to the given HTTP server.
@@ -18,7 +19,7 @@ export const initSocket = (httpServer: http.Server, orm: MikroORM): Server => {
   io.use(tabletJwtMiddleware);
 
   io.on('connection', (socket) => {
-    registerBalanzaHandlers(io, socket, orm);
+    registerBalanzaHandlers(io, socket, orm, sesionService);
   });
 
   return io;

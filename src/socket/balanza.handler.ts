@@ -1,5 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
+import type { SesionService } from '../services/sesion.service.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 
 /**
@@ -13,6 +14,7 @@ export const registerBalanzaHandlers = (
   io: Server,
   socket: Socket,
   orm: MikroORM,
+  sesionService: SesionService,
 ): void => {
   socket.on('join-linea', async (lineaId: number) => {
     if (!Number.isInteger(lineaId) || lineaId <= 0) {
@@ -59,6 +61,13 @@ export const registerBalanzaHandlers = (
     const lineaId = socket.data.lineaId as number | undefined;
     if (lineaId === undefined) {
       return; // device must join a line before sending data
+    }
+
+    // RF-15 / RN-15: discard weight data during "puesta a punto".
+    // Single call: obtenerSesion mutates on lazy expiry, so reuse the reference.
+    const sesion = sesionService.obtenerSesion(lineaId);
+    if (!sesion || sesion.usuarioId === null) {
+      return; // no active operator session — silently discard
     }
 
     // Broadcast ONLY pesoNeto — never spread the full payload to avoid field leakage
