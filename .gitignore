@@ -7,3 +7,4 @@ coverage
 .gga
 .atl/
 .antigravitycli/*
+api-tests/*
