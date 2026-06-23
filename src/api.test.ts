@@ -641,7 +641,7 @@ describe('Phase 3 - Rutas Pasadas Integration', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(mockEm.transactional).toHaveBeenCalled();
-    expect(mockEm.assign).toHaveBeenCalledWith(existingEtapas[0], expect.objectContaining({ pesoIdeal: 15 }));
+    expect(mockEm.assign).toHaveBeenCalledWith(existingEtapas[0], expect.objectContaining({ pesoIdeal: 15 }), { convertCustomTypes: true });
   });
 
   it('3.2 - DELETE /api/rutas-pasadas/:id cascades soft-delete to nested etapas but not master Etapa', async () => {

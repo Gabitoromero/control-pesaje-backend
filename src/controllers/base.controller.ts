@@ -78,6 +78,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
         res.status(400).json({ success: false, error: { message: 'Ya existe un registro con ese valor' } });
         return;
       }
+      console.error('[update error]', err);
       res.status(500).json({ success: false, error: { message: 'Internal server error' } });
     }
   };

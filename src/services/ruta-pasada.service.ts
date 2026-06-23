@@ -62,21 +62,32 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
 
       if (etapas && Array.isArray(etapas)) {
         const existingEtapas = await entity.etapas.init();
-        const existingMap = new Map<number, RutaPasadaEtapa>(existingEtapas.getItems().map((e) => [e.id, e]));
+        const existingById = new Map<number, RutaPasadaEtapa>(
+          existingEtapas.getItems().map((e) => [e.id, e]),
+        );
+        // MikroORM exposes the FK PK even on uninitialized references
+        const existingByEtapaId = new Map<number, RutaPasadaEtapa>(
+          existingEtapas.getItems().map((e) => [e.etapa.id, e]),
+        );
 
         for (const etapaData of etapas) {
-          if (etapaData.id && existingMap.has(etapaData.id)) {
-            const existing = existingMap.get(etapaData.id)!;
-            tx.assign(existing, etapaData as unknown as Partial<RutaPasadaEtapa>);
-            existingMap.delete(etapaData.id);
+          const existing = etapaData.id
+            ? existingById.get(etapaData.id)
+            : existingByEtapaId.get(etapaData.etapa);
+
+          if (existing) {
+            const { id: _, ...updateData } = etapaData;
+            tx.assign(existing, updateData as unknown as Partial<RutaPasadaEtapa>, { convertCustomTypes: true });
+            existingById.delete(existing.id);
+            existingByEtapaId.delete(existing.etapa.id);
           } else {
             const pivot = tx.create(RutaPasadaEtapa, Object.assign({}, etapaData, { rutaPasada: entity }) as unknown as RequiredEntityData<RutaPasadaEtapa>);
             entity.etapas.add(pivot);
           }
         }
 
-        // Soft delete remaining
-        for (const remaining of existingMap.values()) {
+        // Soft delete etapas not present in the payload
+        for (const remaining of existingById.values()) {
           remaining.activo = false;
         }
       }
