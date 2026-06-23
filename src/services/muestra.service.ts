@@ -176,4 +176,18 @@ export class MuestraService extends BaseService<Muestra> {
 
     return super.softDelete(id);
   }
+
+  /**
+   * Physically deletes a muestra row from the database (hard delete).
+   * This is the only entity in the project that deviates from the global soft-delete rule.
+   * Returns true if the muestra was found and deleted, false if it did not exist.
+   */
+  async hardDelete(id: number): Promise<boolean> {
+    const em = this.getEm();
+    const muestra = await em.findOne(Muestra, { id });
+    if (!muestra) return false;
+    await em.remove(muestra);
+    await em.flush();
+    return true;
+  }
 }

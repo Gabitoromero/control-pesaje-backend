@@ -772,3 +772,440 @@ describe('Phase 4 - RutaPasada populate depth + RutaPasadaEtapa filter', () => {
     expect(res.body.data).toEqual([]);
   });
 });
+
+// ─── Phase 4.1: Pasadas HTTP Integration ─────────────────────────────────────
+//
+// Tests the full route → handler → service chain for /api/pasadas.
+// Services use RequestContext.getEntityManager() which is mocked above.
+// sesionService is an in-memory singleton used to gate iniciarPasada.
+
+describe('Pasadas HTTP Integration', () => {
+  beforeEach(() => {
+    // Reset in-memory session state before each test so tests do not bleed into each other
+    sesionService.limpiar();
+  });
+
+  // ── POST /api/pasadas ──────────────────────────────────────────────────────
+
+  it('POST /api/pasadas — 201 on success (operario with active session)', async () => {
+    // Set up an active session for lineaProduccionId=1, operario user id=3
+    sesionService.iniciarSesion(1, 3, UsuarioRol.OPERARIO);
+
+    // iniciarPasada uses em.transactional; the mock runs the callback synchronously with mockEm.
+    // We need findOne to return a linea with an active rutaPasadaActiva for the transaction path.
+    const lineaMock = { id: 1, rutaPasadaActiva: { id: 10 } };
+    const fakePasada = { id: 55, estado: 'en_curso', numero: 1, activo: true };
+
+    // First findOne in transactional is for LineaProduccion; second is for lastPasada check (returns null = first pasada).
+    mockEm.findOne
+      .mockResolvedValueOnce(lineaMock) // linea with rutaPasadaActiva
+      .mockResolvedValueOnce(null);     // no previous pasada → numero = 1
+
+    // em.getReference, em.persist, em.flush are called internally.
+    // We mock getReference to return a plain object so the service can assign it.
+    (mockEm as Record<string, unknown>).getReference = vi.fn((_, id) => ({ id }));
+    (mockEm as Record<string, unknown>).persist = vi.fn().mockReturnThis();
+    mockEm.flush.mockResolvedValue(undefined);
+
+    // Spy on sesionService.actualizarPasada to avoid errors (it reads in-memory state)
+    const actualizarSpy = vi.spyOn(sesionService, 'actualizarPasada').mockImplementation(() => {});
+
+    const res = await request(app)
+      .post('/api/pasadas')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({ lineaProduccionId: 1, articuloId: 5 });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+
+    actualizarSpy.mockRestore();
+  });
+
+  it('POST /api/pasadas — 422 when service throws (no active session)', async () => {
+    // No session set up → iniciarPasada throws immediately
+    const res = await request(app)
+      .post('/api/pasadas')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({ lineaProduccionId: 1, articuloId: 5 });
+
+    expect(res.status).toBe(422);
+    expect(res.body.success).toBe(false);
+    expect(typeof res.body.error.message).toBe('string');
+  });
+
+  it('POST /api/pasadas — 401 when no token', async () => {
+    const res = await request(app)
+      .post('/api/pasadas')
+      .send({ lineaProduccionId: 1, articuloId: 5 });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('POST /api/pasadas — 400 when body fails Zod validation (missing articuloId)', async () => {
+    const res = await request(app)
+      .post('/api/pasadas')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({ lineaProduccionId: 1 }); // articuloId missing
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  // ── GET /api/pasadas ───────────────────────────────────────────────────────
+
+  it('GET /api/pasadas — 200 with array of active pasadas', async () => {
+    const pasadas = [
+      { id: 1, estado: 'en_curso', activo: true },
+      { id: 2, estado: 'completa', activo: true },
+    ];
+    mockEm.find.mockResolvedValue(pasadas);
+
+    const res = await request(app)
+      .get('/api/pasadas')
+      .set('Authorization', `Bearer ${operarioToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+  });
+
+  // ── GET /api/pasadas/:id ───────────────────────────────────────────────────
+
+  it('GET /api/pasadas/:id — 200 when pasada exists', async () => {
+    const pasada = { id: 10, estado: 'en_curso', activo: true };
+    mockEm.findOne.mockResolvedValue(pasada);
+
+    const res = await request(app)
+      .get('/api/pasadas/10')
+      .set('Authorization', `Bearer ${operarioToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.id).toBe(10);
+  });
+
+  it('GET /api/pasadas/:id — 404 when pasada does not exist', async () => {
+    mockEm.findOne.mockResolvedValue(null);
+
+    const res = await request(app)
+      .get('/api/pasadas/999')
+      .set('Authorization', `Bearer ${operarioToken()}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+  });
+
+  // ── PUT /api/pasadas/:id ───────────────────────────────────────────────────
+
+  it('PUT /api/pasadas/:id — 200 on plain update (no action)', async () => {
+    // update handler calls findById (findOne), then super.update which calls findOne + flush
+    const pasada = { id: 10, estado: 'en_curso', activo: true };
+    // First call: PasadaService.update calls findById → findOne (checks estado)
+    // Second call: BaseService.update calls findOne again for the actual update
+    mockEm.findOne
+      .mockResolvedValueOnce(pasada) // PasadaService.update's own findById check
+      .mockResolvedValueOnce(pasada); // BaseService.update's findOne
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .put('/api/pasadas/10')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({}); // no action — generic update
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('PUT /api/pasadas/:id — 200 on completar (owner operario)', async () => {
+    // Controller calls findById to check ownership, then completarPasada which uses transactional
+    const pasada = { id: 10, estado: 'en_curso', activo: true, usuario: { id: 3 }, lineaProduccion: { id: 1 } };
+
+    // First findOne: ownership check in update handler
+    // transactional runs callback with mockEm; inside completarPasada: txEm.findOne returns pasada again
+    mockEm.findOne
+      .mockResolvedValueOnce(pasada)  // ownership check
+      .mockResolvedValueOnce(pasada); // completarPasada's own findOne inside transactional
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const actualizarSpy = vi.spyOn(sesionService, 'obtenerSesion').mockReturnValue(null);
+
+    const res = await request(app)
+      .put('/api/pasadas/10')
+      .set('Authorization', `Bearer ${operarioToken()}`) // id=3 matches pasada.usuario.id
+      .send({ action: 'completar' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    actualizarSpy.mockRestore();
+  });
+
+  it('PUT /api/pasadas/:id — 403 on completar (non-owner operario)', async () => {
+    // pasada owner is user id=99; token user is id=3 → ownership check fails
+    const pasada = { id: 10, estado: 'en_curso', activo: true, usuario: { id: 99 } };
+    mockEm.findOne.mockResolvedValue(pasada);
+
+    const res = await request(app)
+      .put('/api/pasadas/10')
+      .set('Authorization', `Bearer ${operarioToken()}`) // id=3 ≠ 99
+      .send({ action: 'completar' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('PUT /api/pasadas/:id — action=abortar as OPERARIO returns 403', async () => {
+    // Role check: only JEFE/ADMINISTRADOR can abort; OPERARIO must be rejected before service is called
+    const pasada = { id: 1, estado: 'en_curso', activo: true, usuario: { id: 3 } };
+    mockEm.findOne.mockResolvedValue(pasada);
+
+    const res = await request(app)
+      .put('/api/pasadas/1')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({ action: 'abortar', motivoCierre: 'motivo' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('PUT /api/pasadas/:id — 422 when service throws (state transition error)', async () => {
+    // abortarPasada: JEFE passes role check; service finds pasada already COMPLETA → throws
+    const pasada = { id: 10, estado: 'en_curso', activo: true, usuario: { id: 99 } };
+
+    // Role check passes (JEFE), then controller calls findById; abortarPasada runs inside transactional
+    mockEm.findOne
+      .mockResolvedValueOnce(pasada)            // findById in abortar branch
+      .mockResolvedValueOnce({ ...pasada, estado: 'completa' }); // transactional findOne: already completa
+
+    const res = await request(app)
+      .put('/api/pasadas/10')
+      .set('Authorization', `Bearer ${jefeToken()}`)
+      .send({ action: 'abortar', motivoCierre: 'Equipo averiado' });
+
+    // Role check passes; then abortarPasada throws because estado=completa
+    expect(res.status).toBe(422);
+    expect(res.body.success).toBe(false);
+  });
+
+  // ── DELETE /api/pasadas/:id ────────────────────────────────────────────────
+
+  it('DELETE /api/pasadas/:id — 200 on success (JEFE token)', async () => {
+    // softDelete: PasadaService checks findById → estado not completa/abortada → then super.softDelete
+    const pasada = { id: 10, estado: 'en_curso', activo: true };
+    // First findOne: PasadaService.softDelete's own findById
+    // Second findOne: BaseService.softDelete's findOne
+    mockEm.findOne
+      .mockResolvedValueOnce(pasada)
+      .mockResolvedValueOnce(pasada);
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .delete('/api/pasadas/10')
+      .set('Authorization', `Bearer ${jefeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('DELETE /api/pasadas/:id — 403 when OPERARIO tries to soft-delete', async () => {
+    // requireRoles([ADMINISTRADOR, JEFE]) gate blocks OPERARIO before reaching the handler
+    const res = await request(app)
+      .delete('/api/pasadas/10')
+      .set('Authorization', `Bearer ${operarioToken()}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+});
+
+// ─── Phase 4.2: Muestras HTTP Integration ────────────────────────────────────
+//
+// Tests the full route → handler → service chain for /api/muestras.
+// MuestraService.registrarMuestra checks sesionService synchronously.
+// MuestraService.hardDelete calls em.findOne + em.removeAndFlush.
+
+describe('Muestras HTTP Integration', () => {
+  beforeEach(() => {
+    sesionService.limpiar();
+  });
+
+  // ── POST /api/muestras ─────────────────────────────────────────────────────
+
+  it('POST /api/muestras — 201 on success', async () => {
+    // registrarMuestra requires active session; operario token is id=3
+    sesionService.iniciarSesion(1, 3, UsuarioRol.OPERARIO);
+
+    // registrarMuestra with pasadaId: first em.findOne is for the Pasada, returns owned pasada
+    const pasadaMock = {
+      id: 5,
+      estado: 'en_curso',
+      rutaPasada: { id: 10 },
+      usuario: { id: 3 },
+    };
+
+    // The service also finds RutaPasadaEtapas, lineaProduccion, etc.
+    // We take the simpler path: provide pasadaId so it skips "puedeTomarMuestrasLibres" check.
+    // After pasada validation, service calls em.findOne for RutaPasadaEtapa, etc.
+    // To keep the mock simple we rely on the transactional mock (pasada lookup via em.findOne).
+    // registrarMuestra is NOT transactional — it uses em directly.
+    const rutas: unknown[] = [];
+    const fakeMuestra = { id: 1, pesoNeto: 100, activo: true };
+
+    mockEm.findOne
+      .mockResolvedValueOnce(pasadaMock)    // Pasada lookup for pasadaId
+      .mockResolvedValueOnce({ id: 3, puedeTomarMuestrasLibres: true }); // Not reached on pasadaId path, but defensive mock
+    mockEm.find.mockResolvedValue(rutas); // RutaPasadaEtapa lookup
+    (mockEm as Record<string, unknown>).getReference = vi.fn((_, id) => ({ id }));
+    (mockEm as Record<string, unknown>).create = vi.fn().mockReturnValue(fakeMuestra);
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .post('/api/muestras')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({
+        etapaId: 2,
+        lineaProduccionId: 1,
+        pesoNeto: 100,
+        pasadaId: 5,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('POST /api/muestras — 422 when service throws (no active session)', async () => {
+    // No session → registrarMuestra throws immediately
+    const res = await request(app)
+      .post('/api/muestras')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({ etapaId: 2, lineaProduccionId: 1, pesoNeto: 100 });
+
+    expect(res.status).toBe(422);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('POST /api/muestras — 401 when no token', async () => {
+    const res = await request(app)
+      .post('/api/muestras')
+      .send({ etapaId: 2, lineaProduccionId: 1, pesoNeto: 100 });
+
+    expect(res.status).toBe(401);
+  });
+
+  // ── GET /api/muestras ──────────────────────────────────────────────────────
+
+  it('GET /api/muestras — 200 with array', async () => {
+    const muestras = [
+      { id: 1, pesoNeto: 100, activo: true },
+      { id: 2, pesoNeto: 200, activo: true },
+    ];
+    mockEm.find.mockResolvedValue(muestras);
+
+    const res = await request(app)
+      .get('/api/muestras')
+      .set('Authorization', `Bearer ${operarioToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+  });
+
+  // ── GET /api/muestras/:id ──────────────────────────────────────────────────
+
+  it('GET /api/muestras/:id — 200 when muestra exists', async () => {
+    const muestra = { id: 7, pesoNeto: 150, activo: true };
+    mockEm.findOne.mockResolvedValue(muestra);
+
+    const res = await request(app)
+      .get('/api/muestras/7')
+      .set('Authorization', `Bearer ${operarioToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.id).toBe(7);
+  });
+
+  it('GET /api/muestras/:id — 404 when muestra does not exist', async () => {
+    mockEm.findOne.mockResolvedValue(null);
+
+    const res = await request(app)
+      .get('/api/muestras/999')
+      .set('Authorization', `Bearer ${operarioToken()}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+  });
+
+  // ── PUT /api/muestras/:id ──────────────────────────────────────────────────
+
+  it('PUT /api/muestras/:id — 200 on success', async () => {
+    const muestra = { id: 7, pesoNeto: 150, activo: true };
+    mockEm.findOne.mockResolvedValue(muestra);
+    mockEm.flush.mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .put('/api/muestras/7')
+      .set('Authorization', `Bearer ${operarioToken()}`)
+      .send({ pesoNeto: 175 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  // ── DELETE /api/muestras/:id ───────────────────────────────────────────────
+
+  it('DELETE /api/muestras/:id — 204 on success (owner operario)', async () => {
+    // hardDelete handler: findById (findOne) returns muestra with usuario.id matching token id=3
+    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 3 } };
+    mockEm.findOne.mockResolvedValue(muestra);
+
+    // MuestraService.hardDelete: em.findOne + em.remove + em.flush
+    (mockEm as Record<string, unknown>).remove = vi.fn().mockResolvedValue(undefined);
+    (mockEm as Record<string, unknown>).flush = vi.fn().mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .delete('/api/muestras/7')
+      .set('Authorization', `Bearer ${operarioToken()}`); // id=3 matches muestra.usuario.id
+
+    expect(res.status).toBe(204);
+  });
+
+  it('DELETE /api/muestras/:id — 403 when non-owner OPERARIO tries to delete', async () => {
+    // muestra owner is user id=99; operario token has id=3 → ownership check fails
+    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 99 } };
+    mockEm.findOne.mockResolvedValue(muestra);
+
+    const res = await request(app)
+      .delete('/api/muestras/7')
+      .set('Authorization', `Bearer ${operarioToken()}`); // id=3 ≠ 99
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('DELETE /api/muestras/:id — 204 when JEFE deletes any muestra (bypasses owner check)', async () => {
+    // JEFE is a privileged role; can delete regardless of muestra.usuario.id
+    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 99 } };
+    mockEm.findOne.mockResolvedValue(muestra);
+    (mockEm as Record<string, unknown>).remove = vi.fn().mockResolvedValue(undefined);
+    (mockEm as Record<string, unknown>).flush = vi.fn().mockResolvedValue(undefined);
+
+    const res = await request(app)
+      .delete('/api/muestras/7')
+      .set('Authorization', `Bearer ${jefeToken()}`); // JEFE bypasses ownership
+
+    expect(res.status).toBe(204);
+  });
+
+  it('DELETE /api/muestras/:id — 404 when muestra does not exist', async () => {
+    // hardDelete handler: first findById returns null → 404 immediately
+    mockEm.findOne.mockResolvedValue(null);
+
+    const res = await request(app)
+      .delete('/api/muestras/999')
+      .set('Authorization', `Bearer ${jefeToken()}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+  });
+});
