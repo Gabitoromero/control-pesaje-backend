@@ -8,3 +8,14 @@ export class RestrictError extends Error {
     this.name = 'RestrictError';
   }
 }
+
+/**
+ * Thrown when input data violates a business rule that Zod cannot express.
+ * Maps to HTTP 400 in the controller layer.
+ */
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}

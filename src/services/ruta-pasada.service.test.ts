@@ -12,6 +12,7 @@ const mockEm = {
   persist: vi.fn().mockReturnThis(),
   create: vi.fn(),
   assign: vi.fn(),
+  remove: vi.fn(),
   transactional: vi.fn(async (cb) => {
     return cb(mockEm); // execute the callback with the same mockEm
   }),
@@ -89,10 +90,103 @@ describe('RutaPasadaService', () => {
 
       expect(mockEm.transactional).toHaveBeenCalledOnce();
       expect(mockEm.assign).toHaveBeenCalledWith(existingEtapas[0], expect.objectContaining({ pesoIdeal: 15 }), { convertCustomTypes: true });
-      expect(existingEtapas[1].activo).toBe(false); // soft-deleted
+      expect(mockEm.remove).toHaveBeenCalledWith(existingEtapas[1]); // hard deleted from pivot
       expect(mockEm.create).toHaveBeenCalledWith(RutaPasadaEtapa, expect.objectContaining({ etapa: 3 }));
       expect(mockEm.flush).toHaveBeenCalledOnce();
       expect(result).toBe(rutaMock);
+    });
+
+    it('reorders etapas when same etapas are sent with swapped orden', async () => {
+      const payload = {
+        etapas: [
+          { etapa: 2, orden: 1, pesoIdeal: 35, pesoMinimo: 30, pesoMaximo: 40, cantidadMuestrasRequeridas: 1 },
+          { etapa: 1, orden: 2, pesoIdeal: 15, pesoMinimo: 10, pesoMaximo: 20, cantidadMuestrasRequeridas: 2 },
+        ],
+      };
+
+      const existingEtapas = [
+        { id: 10, etapa: { id: 1 }, orden: 1, pesoIdeal: 15, activo: true },
+        { id: 11, etapa: { id: 2 }, orden: 2, pesoIdeal: 35, activo: true },
+      ];
+
+      const rutaMock = {
+        id: 1,
+        etapas: {
+          getItems: vi.fn(() => existingEtapas),
+          init: vi.fn().mockImplementation(async function(this: any) { return this; }),
+          add: vi.fn(),
+        },
+      };
+
+      mockEm.findOne.mockResolvedValue(rutaMock);
+
+      await service.update(1, payload as any);
+
+      // etapa FK 2 → matched by existingByEtapaId, assigned orden: 1
+      expect(mockEm.assign).toHaveBeenCalledWith(existingEtapas[1], expect.objectContaining({ etapa: 2, orden: 1 }), { convertCustomTypes: true });
+      // etapa FK 1 → matched by existingByEtapaId, assigned orden: 2
+      expect(mockEm.assign).toHaveBeenCalledWith(existingEtapas[0], expect.objectContaining({ etapa: 1, orden: 2 }), { convertCustomTypes: true });
+      expect(mockEm.remove).not.toHaveBeenCalled();
+      expect(mockEm.create).not.toHaveBeenCalled();
+    });
+
+    it('replaces an etapa FK — hard deletes old pivot, creates new one', async () => {
+      const payload = {
+        etapas: [
+          // etapa 3 replaces etapa 2 in slot 1
+          { etapa: 3, orden: 1, pesoIdeal: 10, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 },
+        ],
+      };
+
+      const existingEtapas = [
+        { id: 10, etapa: { id: 2 }, orden: 1, activo: true },
+      ];
+
+      const rutaMock = {
+        id: 1,
+        etapas: {
+          getItems: vi.fn(() => existingEtapas),
+          init: vi.fn().mockImplementation(async function(this: any) { return this; }),
+          add: vi.fn(),
+        },
+      };
+
+      mockEm.findOne.mockResolvedValue(rutaMock);
+      mockEm.create.mockReturnValue({ newPivot: true });
+
+      await service.update(1, payload as any);
+
+      expect(mockEm.remove).toHaveBeenCalledWith(existingEtapas[0]);
+      expect(mockEm.create).toHaveBeenCalledWith(RutaPasadaEtapa, expect.objectContaining({ etapa: 3 }));
+      // assign called only for the parent RutaPasada fields, NOT for any pivot
+      expect(mockEm.assign).not.toHaveBeenCalledWith(existingEtapas[0], expect.anything(), expect.anything());
+    });
+
+    it('rejects duplicate orden values — throws before opening transaction', async () => {
+      const payload = {
+        etapas: [
+          { etapa: 1, orden: 1, pesoIdeal: 10, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 },
+          { etapa: 2, orden: 1, pesoIdeal: 20, pesoMinimo: 18, pesoMaximo: 22, cantidadMuestrasRequeridas: 3 },
+        ],
+      };
+
+      await expect(service.update(1, payload as any)).rejects.toThrow('Duplicate orden values');
+      expect(mockEm.transactional).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('create', () => {
+    it('rejects duplicate orden values — throws before opening transaction', async () => {
+      const payload = {
+        nombre: 'Ruta con orden duplicado',
+        etapas: [
+          { etapa: 1, orden: 1, pesoIdeal: 10, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 5 },
+          { etapa: 2, orden: 1, pesoIdeal: 20, pesoMinimo: 18, pesoMaximo: 22, cantidadMuestrasRequeridas: 3 },
+        ],
+      };
+
+      await expect(service.create(payload as any)).rejects.toThrow('Duplicate orden values');
+      expect(mockEm.transactional).not.toHaveBeenCalled();
     });
   });
 
