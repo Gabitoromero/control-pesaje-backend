@@ -9,16 +9,16 @@ export class EtapaService extends BaseService<Etapa> {
   }
 
   /**
-   * Soft-deletes an Etapa after verifying no active RutaPasadaEtapa references it.
-   * Throws RestrictError if active references exist.
+   * Soft-deletes an Etapa after verifying no RutaPasadaEtapa record references it.
+   * Throws RestrictError if ANY pivot record exists, regardless of route active status.
    */
   override async softDelete(id: number): Promise<boolean> {
     const em = this.getEm();
 
-    const activeRefs = await em.count(RutaPasadaEtapa, { etapa: { id }, activo: true });
-    if (activeRefs > 0) {
+    const pivotRefs = await em.count(RutaPasadaEtapa, { etapa: { id } });
+    if (pivotRefs > 0) {
       throw new RestrictError(
-        `Cannot delete etapa ${id}: ${activeRefs} active ruta(s) reference it`,
+        `Cannot delete etapa ${id}: ${pivotRefs} ruta(s) reference it`,
       );
     }
 

@@ -84,7 +84,6 @@ export const RutaPasadaEtapaCreateSchema = z.object({
   pesoMinimo: z.number().positive(),
   pesoMaximo: z.number().positive(),
   cantidadMuestrasRequeridas: z.number().int().positive(),
-  activo: z.boolean().optional(),
 });
 
 export const RutaPasadaEtapaUpdateSchema = RutaPasadaEtapaCreateSchema.partial();

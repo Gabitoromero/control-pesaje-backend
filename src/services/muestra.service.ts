@@ -70,7 +70,6 @@ export class MuestraService extends BaseService<Muestra> {
     const rutaEtapa = await em.findOne(RutaPasadaEtapa, {
       rutaPasada: rutaPasadaId,
       etapa: etapaId,
-      activo: true,
     });
     if (!rutaEtapa) {
       throw new Error(`No route configuration found for route ${rutaPasadaId} and stage ${etapaId}`);
@@ -80,7 +79,7 @@ export class MuestraService extends BaseService<Muestra> {
     if (pasada) {
       allRutas = await em.find(
         RutaPasadaEtapa,
-        { rutaPasada: rutaPasadaId, activo: true },
+        { rutaPasada: rutaPasadaId },
         { orderBy: { orden: 'ASC' } }
       );
 

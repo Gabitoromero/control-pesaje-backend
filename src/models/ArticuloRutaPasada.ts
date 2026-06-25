@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
+import { Entity, ManyToOne, PrimaryKey, Unique } from '@mikro-orm/decorators/legacy';
 import { Articulo } from './Articulo.js';
 import { RutaPasada } from './RutaPasada.js';
 
@@ -14,6 +14,4 @@ export class ArticuloRutaPasada {
   @ManyToOne(() => RutaPasada, { deleteRule: 'restrict' })
   rutaPasada!: RutaPasada;
 
-  @Property({ type: 'boolean', default: true })
-  activo: boolean = true;
 }

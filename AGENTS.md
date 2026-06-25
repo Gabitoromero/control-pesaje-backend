@@ -20,7 +20,9 @@ Este archivo es la fuente de verdad para el desarrollo del backend de **Control 
 
 ## 3. Lógica Crítica del Negocio (No negociable)
 1. **Orquestador de Contexto:** El servidor decide si procesa o descarta un peso. Si la `LineaProduccion` no tiene una sesión de `Usuario` activa, el dato de la Raspberry se **descarta**.
-2. **Baja Lógica:** Está terminantemente prohibido usar `DELETE` físico. Todas las entidades deben usar baja lógica (ej. propiedad `activo: boolean`). **Excepción explícita y única:** `Muestra` usa borrado físico (`hardDelete`) por decisión de producto — las muestras no requieren trazabilidad histórica una vez eliminadas y no tienen entidades hijas dependientes.
+2. **Baja Lógica:** Está terminantemente prohibido usar `DELETE` físico. Todas las entidades deben usar baja lógica (ej. propiedad `activo: boolean`). **Excepciones explícitas por decisión de producto:**
+   - `Muestra`: usa borrado físico (`hardDelete`) — no requiere trazabilidad histórica y no tiene entidades hijas dependientes.
+   - `RutaPasadaEtapa` y `ArticuloRutaPasada` (tablas pivot): usan hard delete — un pivot representa una relación *actual*, no un log histórico. El campo `activo` en un pivot generaba registros zombie que bloqueaban el unique constraint al re-agregar una etapa/artículo. La configuración se preserva desactivando la ruta padre (`RutaPasada.activo = false`) sin tocar los pivots.
 3. **Validación de Muestras:** Una muestra `fuera_de_rango` se registra por trazabilidad pero **no suma** para completar la cantidad de muestras requeridas de una etapa (definida en `RutaPasadaEtapa`).
 4. **Propiedad de Pasadas:** Un usuario con sesión activa solo registra muestras de pasadas iniciadas por él mismo. No se permite la adición de muestras sobre pasadas de otros usuarios.
 5. **Sin Estado Offline:** No implementar lógica de sincronización compleja; si la conexión falla, el sistema no opera.

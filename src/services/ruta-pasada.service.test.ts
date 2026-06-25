@@ -191,21 +191,19 @@ describe('RutaPasadaService', () => {
   });
 
   describe('softDelete', () => {
-    it('cascades softDelete to associated pivot stages', async () => {
+    it('sets rutaPasada.activo = false but does NOT mutate any pivot record', async () => {
       mockEm.count.mockResolvedValue(0); // no active LineaProduccion references
 
-      const existingEtapas = [
-        { id: 10, activo: true },
-        { id: 11, activo: true },
-      ];
+      const pivotStage1 = { id: 10, orden: 1 };
+      const pivotStage2 = { id: 11, orden: 2 };
 
-      const rutaMock = { 
-        id: 1, 
+      const rutaMock = {
+        id: 1,
         activo: true,
-        etapas: { 
-          getItems: vi.fn(() => existingEtapas),
+        etapas: {
+          getItems: vi.fn(() => [pivotStage1, pivotStage2]),
           init: vi.fn().mockImplementation(async function(this: any) { return this; }),
-        } 
+        },
       };
 
       mockEm.findOne.mockResolvedValue(rutaMock);
@@ -214,9 +212,15 @@ describe('RutaPasadaService', () => {
 
       expect(result).toBe(true);
       expect(rutaMock.activo).toBe(false);
-      expect(existingEtapas[0].activo).toBe(false);
-      expect(existingEtapas[1].activo).toBe(false);
-      expect(mockEm.flush).toHaveBeenCalledOnce(); // from BaseService
+
+      // Pivot records must remain untouched — no activo mutation on them
+      expect(pivotStage1).not.toHaveProperty('activo', false);
+      expect(pivotStage2).not.toHaveProperty('activo', false);
+
+      // The cascade loop must not have called etapas.init()
+      expect(rutaMock.etapas.init).not.toHaveBeenCalled();
+
+      expect(mockEm.flush).toHaveBeenCalledOnce();
     });
   });
 });

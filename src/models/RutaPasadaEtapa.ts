@@ -14,9 +14,6 @@ export class RutaPasadaEtapa {
   @ManyToOne(() => Etapa, { deleteRule: 'restrict' })
   etapa!: Etapa;
 
-  @Property({ type: 'boolean', default: true })
-  activo: boolean = true;
-
   @Property({ type: 'number' })
   orden!: number;
 

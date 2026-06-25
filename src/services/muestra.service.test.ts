@@ -397,19 +397,20 @@ describe('PasadaService and MuestraService Integration Tests', () => {
   });
 
   describe('REQ-13 and REQ-15: activo filtering regressions', () => {
-    // T-10: Stage-order validation ignores inactive RutaPasadaEtapa
-    it('T-10: registrarMuestra succeeds at stage 2 when stage 1 RutaPasadaEtapa is inactive', () => runInContext(async () => {
-      // Mark testRuta1 (stage 1, orden=1) as inactive — it should be ignored by stage-order validation
+    // T-10: Stage-order validation only considers existing pivot records
+    // Since RutaPasadaEtapa no longer has activo, pivots are hard-deleted.
+    // If stage 1 pivot is removed from the route, stage 2 becomes the first stage.
+    it('T-10: registrarMuestra succeeds at stage 2 when stage 1 RutaPasadaEtapa is hard-deleted', () => runInContext(async () => {
+      // Hard-delete stage 1 pivot — physically remove from DB
       const em = orm.em.fork();
       const ruta1 = await em.findOneOrFail(RutaPasadaEtapa, testRuta1.id);
-      ruta1.activo = false;
+      em.remove(ruta1);
       await em.flush();
 
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
-      // Stage 2 (testEtapa2) should now be reachable because stage 1 is inactive
-      // (inactive stage 1 RutaPasadaEtapa is excluded from the ordering check)
+      // Stage 2 (testEtapa2) should now be reachable because stage 1 pivot is gone
       const m = await muestraService.registrarMuestra(
         testUser.id,
         testArticle.id,

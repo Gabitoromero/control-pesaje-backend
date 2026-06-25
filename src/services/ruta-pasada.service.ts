@@ -13,7 +13,6 @@ type RutaPasadaEtapaInput = {
   pesoMinimo: number;
   pesoMaximo: number;
   cantidadMuestrasRequeridas: number;
-  activo?: boolean;
 };
 
 export class RutaPasadaService extends BaseService<RutaPasada> {
@@ -22,15 +21,15 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
   }
 
   override async findAll(): Promise<RutaPasada[]> {
-    return this.getEm().find(RutaPasada, { activo: true }, { populate: ['etapas', 'etapas.etapa'], populateWhere: { etapas: { activo: true } } });
+    return this.getEm().find(RutaPasada, { activo: true }, { populate: ['etapas', 'etapas.etapa'] });
   }
 
   override async findAllInactive(): Promise<RutaPasada[]> {
-    return this.getEm().find(RutaPasada, { activo: false }, { populate: ['etapas', 'etapas.etapa'], populateWhere: { etapas: { activo: true } } });
+    return this.getEm().find(RutaPasada, { activo: false }, { populate: ['etapas', 'etapas.etapa'] });
   }
 
   override async findById(id: number): Promise<RutaPasada | null> {
-    return this.getEm().findOne(RutaPasada, { id }, { populate: ['etapas', 'etapas.etapa'], populateWhere: { etapas: { activo: true } } });
+    return this.getEm().findOne(RutaPasada, { id }, { populate: ['etapas', 'etapas.etapa'] });
   }
 
   private assertUniqueOrden(etapas: RutaPasadaEtapaInput[]): void {
@@ -75,14 +74,13 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
 
       if (etapas && Array.isArray(etapas)) {
         const existingEtapas = await entity.etapas.init();
-        // Only consider active pivots — soft-deleted ones must not block re-insertion
-        const activeItems = existingEtapas.getItems().filter((e) => e.activo !== false);
+        const allItems = existingEtapas.getItems();
         const existingById = new Map<number, RutaPasadaEtapa>(
-          activeItems.map((e) => [e.id, e]),
+          allItems.map((e) => [e.id, e]),
         );
         // MikroORM exposes the FK PK even on uninitialized references
         const existingByEtapaId = new Map<number, RutaPasadaEtapa>(
-          activeItems.map((e) => [e.etapa.id, e]),
+          allItems.map((e) => [e.etapa.id, e]),
         );
 
         for (const etapaData of etapas) {
@@ -123,15 +121,10 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
     }
 
     return em.transactional(async (tx) => {
-      const entity = await tx.findOne(RutaPasada, { id }, { populate: ['etapas'] });
+      const entity = await tx.findOne(RutaPasada, { id });
       if (!entity) return false;
 
       entity.activo = false;
-      
-      const etapas = await entity.etapas.init();
-      for (const pivot of etapas.getItems()) {
-        pivot.activo = false;
-      }
 
       await tx.flush();
       return true;

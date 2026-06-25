@@ -11,16 +11,16 @@ export class ArticuloService extends BaseService<Articulo> {
   }
 
   /**
-   * Soft-deletes an Articulo after verifying no active ArticuloRutaPasada references it.
-   * Throws RestrictError if active references exist.
+   * Soft-deletes an Articulo after verifying no ArticuloRutaPasada record references it.
+   * Throws RestrictError if ANY pivot record exists, regardless of route active status.
    */
   override async softDelete(id: number): Promise<boolean> {
     const em = this.getEm();
 
-    const activeRefs = await em.count(ArticuloRutaPasada, { articulo: { id }, activo: true });
-    if (activeRefs > 0) {
+    const pivotRefs = await em.count(ArticuloRutaPasada, { articulo: { id } });
+    if (pivotRefs > 0) {
       throw new RestrictError(
-        `Cannot delete articulo ${id}: ${activeRefs} active ruta(s) reference it`,
+        `Cannot delete articulo ${id}: ${pivotRefs} ruta(s) reference it`,
       );
     }
 

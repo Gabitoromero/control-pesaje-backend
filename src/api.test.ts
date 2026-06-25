@@ -507,7 +507,6 @@ const inactiveEntities = [
   { path: '/api/articulos/inactive', name: 'articulos' },
   { path: '/api/etapas/inactive', name: 'etapas' },
   { path: '/api/usuarios/inactive', name: 'usuarios' },
-  { path: '/api/rutas-pasadas-etapas/inactive', name: 'rutas-pasadas-etapas' },
   { path: '/api/lineas-produccion/inactive', name: 'lineas-produccion' },
 ];
 
@@ -579,6 +578,17 @@ describe('4.6 — GET /inactive routes', () => {
     expect(res.body.success).toBe(true);
   });
 
+  // rutas-pasadas-etapas has no activo field — /inactive endpoint is not registered.
+  // The path matches GET /:id with id="inactive" (NaN), so findOne returns null → 404.
+  it('GET /api/rutas-pasadas-etapas/inactive returns 404 (endpoint not registered)', async () => {
+    mockEm.findOne.mockResolvedValue(null); // ensure no stale mock value
+    const res = await request(app)
+      .get('/api/rutas-pasadas-etapas/inactive')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(404);
+  });
+
   // T-lineas-no-estado: /api/lineas-produccion/inactive does NOT include estado key
   it('T-lineas-no-estado: GET /api/lineas-produccion/inactive response objects have no estado key', async () => {
     const inactive = [{ id: 5, nombre: 'Linea Inactiva', activo: false, numeroBalanza: 3 }];
@@ -644,16 +654,14 @@ describe('Phase 3 - Rutas Pasadas Integration', () => {
     expect(mockEm.assign).toHaveBeenCalledWith(existingEtapas[0], expect.objectContaining({ pesoIdeal: 15 }), { convertCustomTypes: true });
   });
 
-  it('3.2 - DELETE /api/rutas-pasadas/:id cascades soft-delete to nested etapas but not master Etapa', async () => {
+  it('3.2 - DELETE /api/rutas-pasadas/:id soft-deletes the route but does NOT mutate pivot records', async () => {
     mockEm.count.mockResolvedValue(0); // no active LineaProduccion references
-    const existingEtapas = [{ id: 10, activo: true }];
-    mockEm.findOne.mockResolvedValue({ 
-      id: 1, 
+    const pivotStage = { id: 10, orden: 1 }; // no activo field
+    const rutaMock = {
+      id: 1,
       activo: true,
-      etapas: { 
-        init: vi.fn().mockResolvedValue({ getItems: () => existingEtapas }),
-      } 
-    });
+    };
+    mockEm.findOne.mockResolvedValue(rutaMock);
 
     const res = await request(app)
       .delete('/api/rutas-pasadas/1')
@@ -661,7 +669,9 @@ describe('Phase 3 - Rutas Pasadas Integration', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(existingEtapas[0].activo).toBe(false);
+    expect(rutaMock.activo).toBe(false);
+    // Pivot records must remain untouched
+    expect(pivotStage).not.toHaveProperty('activo', false);
   });
 
   it('3.3 - DELETE /api/etapas/:id returns 400 when attached to active RutaPasada (via RestrictError mapping)', async () => {

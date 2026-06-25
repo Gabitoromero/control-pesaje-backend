@@ -180,7 +180,6 @@ async function run() {
       pesoMinimo: 65.000,
       pesoMaximo: 75.000,
       cantidadMuestrasRequeridas: 3,
-      activo: true,
     });
 
     em.create(RutaPasadaEtapa, {
@@ -191,7 +190,6 @@ async function run() {
       pesoMinimo: 67.000,
       pesoMaximo: 73.000,
       cantidadMuestrasRequeridas: 5,
-      activo: true,
     });
 
     em.create(RutaPasadaEtapa, {
@@ -202,7 +200,6 @@ async function run() {
       pesoMinimo: 60.000,
       pesoMaximo: 80.000,
       cantidadMuestrasRequeridas: 2,
-      activo: true,
     });
 
     // Route 2 limits (Familiares: peso ideal 250g, min 235g, max 265g, 3/4/2 samples)
@@ -214,7 +211,6 @@ async function run() {
       pesoMinimo: 235.000,
       pesoMaximo: 265.000,
       cantidadMuestrasRequeridas: 3,
-      activo: true,
     });
 
     em.create(RutaPasadaEtapa, {
@@ -225,7 +221,6 @@ async function run() {
       pesoMinimo: 240.000,
       pesoMaximo: 260.000,
       cantidadMuestrasRequeridas: 4,
-      activo: true,
     });
 
     em.create(RutaPasadaEtapa, {
@@ -236,7 +231,6 @@ async function run() {
       pesoMinimo: 220.000,
       pesoMaximo: 280.000,
       cantidadMuestrasRequeridas: 2,
-      activo: true,
     });
 
     // 6. Link Articles to Routes (ArticuloRutaPasada)
@@ -245,32 +239,27 @@ async function run() {
     em.create(ArticuloRutaPasada, {
       articulo: articuloBombonSuizo,
       rutaPasada: rutaPostresChicos,
-      activo: true,
     });
 
     em.create(ArticuloRutaPasada, {
       articulo: articuloConoDoret,
       rutaPasada: rutaPostresChicos,
-      activo: true,
     });
 
     em.create(ArticuloRutaPasada, {
       articulo: articuloPostreAlfajor,
       rutaPasada: rutaPostresChicos,
-      activo: true,
     });
 
     // Link 250g items to rutaPostresFamiliares
     em.create(ArticuloRutaPasada, {
       articulo: articuloPotePremium,
       rutaPasada: rutaPostresFamiliares,
-      activo: true,
     });
 
     em.create(ArticuloRutaPasada, {
       articulo: articuloFlan,
       rutaPasada: rutaPostresFamiliares,
-      activo: true,
     });
 
     // 7. Create LineasProduccion

@@ -28,12 +28,34 @@ describe('ArticuloService.softDelete', () => {
     service = new ArticuloService();
   });
 
-  // T-13: softDelete succeeds when the only ArticuloRutaPasada refs are inactive
-  it('T-13: softDelete returns true when em.count(ArticuloRutaPasada, { articulo: { id }, activo: true }) returns 0', async () => {
+  it('A) throws RestrictError when article is referenced by an active route pivot', async () => {
+    const articuloId = 4;
+    // 1 pivot record exists (for an active route)
+    mockEm.count.mockResolvedValue(1);
+
+    await expect(service.softDelete(articuloId)).rejects.toThrow(/Cannot delete articulo/);
+
+    // Guard must count WITHOUT filtering by activo
+    expect(mockEm.count).toHaveBeenCalledOnce();
+    const [, where] = mockEm.count.mock.calls[0];
+    expect(where).toMatchObject({ articulo: { id: articuloId } });
+    expect(where).not.toHaveProperty('activo');
+  });
+
+  it('B) throws RestrictError even when article is referenced only by an inactive route pivot', async () => {
+    const articuloId = 5;
+    // 1 pivot record exists even though the route is inactive
+    mockEm.count.mockResolvedValue(1);
+
+    await expect(service.softDelete(articuloId)).rejects.toThrow(/Cannot delete articulo/);
+
+    const [, where] = mockEm.count.mock.calls[0];
+    expect(where).not.toHaveProperty('activo');
+  });
+
+  it('C) succeeds when no pivot records reference the article', async () => {
     const articuloId = 3;
-    // Only inactive refs exist → count of active refs is 0
     mockEm.count.mockResolvedValue(0);
-    // findOne (from super.softDelete) resolves the entity
     mockEm.findOne.mockResolvedValue({ id: articuloId, nombre: 'Articulo Test', activo: true });
     mockEm.flush.mockResolvedValue(undefined);
 
@@ -41,16 +63,10 @@ describe('ArticuloService.softDelete', () => {
 
     expect(result).toBe(true);
 
-    // Verify count was called with activo: true (only active refs should block deletion)
+    // Count must not filter by activo — any pivot record blocks deletion
     expect(mockEm.count).toHaveBeenCalledOnce();
     const [, where] = mockEm.count.mock.calls[0];
-    expect(where).toMatchObject({ articulo: { id: articuloId }, activo: true });
-  });
-
-  it('softDelete throws RestrictError when active refs exist', async () => {
-    const articuloId = 4;
-    mockEm.count.mockResolvedValue(3); // 3 active refs
-
-    await expect(service.softDelete(articuloId)).rejects.toThrow(/Cannot delete articulo/);
+    expect(where).toMatchObject({ articulo: { id: articuloId } });
+    expect(where).not.toHaveProperty('activo');
   });
 });
