@@ -255,6 +255,31 @@ describe('4.2b — nullable fields: PUT with descripcion:null returns 200, not 4
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
+
+  it('PUT /api/lineas-produccion/:id with 0 stages route returns 400 validation error', async () => {
+    const mockLine = { id: 1, nombre: 'Linea 1', numeroBalanza: 1, activo: true };
+    const mockRoute = { id: 2, nombre: 'Ruta 2', activo: true, etapas: { length: 0 } };
+
+    mockEm.findOne.mockImplementation(async (entityClass) => {
+      const className = typeof entityClass === 'function' ? entityClass.name : entityClass;
+      if (className === 'LineaProduccion') {
+        return mockLine;
+      }
+      if (className === 'RutaPasada') {
+        return mockRoute;
+      }
+      return null;
+    });
+
+    const res = await request(app)
+      .put('/api/lineas-produccion/1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ nombre: 'Linea 1', numeroBalanza: 1, rutaPasadaActiva: 2 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toBe('No se puede asignar una ruta sin etapas a una línea de producción');
+  });
 });
 
 // ─── 4.X  Schema Validation ──────────────────────────────────────────────────
