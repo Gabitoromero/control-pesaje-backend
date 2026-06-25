@@ -67,6 +67,21 @@ export interface Muestra {
   timestamp: string | Date;
 }
 
+// ─── Articulo-Ruta pivot ─────────────────────────────────────────────────────
+
+/**
+ * Shape the backend returns for each articulo assigned to a ruta.
+ * The backend populates `articulo` as a nested object.
+ */
+export interface ArticuloRutaPasadaItem {
+  id: number;
+  articulo: {
+    id: number;
+    nombre: string;
+    marca?: string;
+  };
+}
+
 // ─── Ruta de pasada ───────────────────────────────────────────────────────────
 
 /**
@@ -100,6 +115,7 @@ export interface Ruta {
   descripcion?: string | null;
   activo?: boolean;
   etapas?: RutaPasadaEtapa[];
+  articulos?: ArticuloRutaPasadaItem[];
 }
 
 export interface RutaCreate extends Omit<Ruta, 'id' | 'etapas'> {

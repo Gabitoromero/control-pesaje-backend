@@ -88,6 +88,15 @@ export const RutaPasadaEtapaCreateSchema = z.object({
 
 export const RutaPasadaEtapaUpdateSchema = RutaPasadaEtapaCreateSchema.partial();
 
+// ─── ArticuloRutaPasada ───────────────────────────────────────────────────────
+
+export const ArticuloRutaPasadaCreateSchema = z.object({
+  rutaPasada: z.number().int().positive(),
+  articulo: z.number().int().positive(),
+});
+
+export const ArticuloRutaPasadaUpdateSchema = ArticuloRutaPasadaCreateSchema.partial();
+
 // ─── Pasada ───────────────────────────────────────────────────────────────────
 
 export const PasadaIniciarSchema = z.object({
