@@ -140,4 +140,17 @@ describe('SesionService (In-Memory Session Registry)', () => {
       expect(sesionService.estaBloqueada(legajo)).toBe(false);
     });
   });
+
+  describe('obtenerTodasLasSesiones', () => {
+    it('returns an array of all active sessions', () => {
+      sesionService.iniciarSesion(1, 10, UsuarioRol.OPERARIO);
+      sesionService.iniciarSesion(2, 20, UsuarioRol.JEFE);
+
+      const sesiones = sesionService.obtenerTodasLasSesiones();
+      expect(sesiones.length).toBe(2);
+      expect(sesiones.some(s => s.lineaProduccionId === 1 && s.usuarioId === 10)).toBe(true);
+      expect(sesiones.some(s => s.lineaProduccionId === 2 && s.usuarioId === 20)).toBe(true);
+    });
+  });
 });
+

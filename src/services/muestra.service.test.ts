@@ -13,7 +13,8 @@ import {
   Muestra,
   UsuarioRol,
   PasadaEstado,
-  MuestraEstadoValidacion
+  MuestraEstadoValidacion,
+  ArticuloRutaPasada
 } from '../models/index.js';
 import { sesionService } from './sesion.service.js';
 import { PasadaService } from './pasada.service.js';
@@ -47,6 +48,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
         RutaPasadaEtapa,
         Pasada,
         Muestra,
+        ArticuloRutaPasada,
       ],
       entitiesTs: [],
       allowGlobalContext: true,
@@ -76,6 +78,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     await em.nativeDelete(Muestra, {});
     await em.nativeDelete(Pasada, {});
     await em.nativeDelete(RutaPasadaEtapa, {});
+    await em.nativeDelete(ArticuloRutaPasada, {});
     await em.nativeDelete(Etapa, {});
     await em.nativeDelete(Articulo, {});
     await em.nativeDelete(LineaProduccion, {});
@@ -109,6 +112,12 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     testArticle.nombre = 'Alfajor Triple';
     testArticle.descripcion = 'Alfajor relleno con dulce de leche';
     await em.persist(testArticle).flush();
+
+    // Link Article to Route
+    const testArticuloRuta = new ArticuloRutaPasada();
+    testArticuloRuta.articulo = testArticle;
+    testArticuloRuta.rutaPasada = testRutaPasada;
+    await em.persist(testArticuloRuta).flush();
 
     // Seed Stages
     testEtapa1 = new Etapa();
@@ -155,6 +164,21 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       await expect(
         pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id)
       ).rejects.toThrow(`No active session on production line ${testLine.id}`);
+    }));
+
+    it('should fail if the article does not belong to the active route of the line', () => runInContext(async () => {
+      const em = orm.em.fork();
+      
+      const offRouteArticle = new Articulo();
+      offRouteArticle.nombre = 'Alfajor Blanco';
+      offRouteArticle.descripcion = 'Sin ruta asignada';
+      await em.persist(offRouteArticle).flush();
+
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+
+      await expect(
+        pasadaService.iniciarPasada(testLine.id, offRouteArticle.id, testUser.id)
+      ).rejects.toThrow(`Article ${offRouteArticle.id} does not belong to the active route of production line ${testLine.id}`);
     }));
 
     it('should successfully initiate a Pasada and assign sequential numbers per line-article', () => runInContext(async () => {

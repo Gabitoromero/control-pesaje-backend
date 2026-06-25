@@ -143,3 +143,43 @@ export const sesionActiva: RequestHandler = async (req, res) => {
     res.status(500).json({ success: false, error: { message: 'Internal server error' } });
   }
 };
+
+export const todasSesionesActivas: RequestHandler = async (req, res) => {
+  try {
+    const activeSessions = sesionService.obtenerTodasLasSesiones();
+    const em = (req as any).em || await import('@mikro-orm/core').then(m => m.RequestContext.getEntityManager());
+    if (!em) throw new Error('No EntityManager in RequestContext');
+
+    const UsuarioEntity = await import('../models/Usuario.js').then(m => m.Usuario);
+    const LineaProduccionEntity = await import('../models/LineaProduccion.js').then(m => m.LineaProduccion);
+
+    const enrichedSessions = await Promise.all(
+      activeSessions.map(async (session) => {
+        let usuarioNombre = 'Unknown';
+        let lineaNombre = 'Unknown';
+
+        if (session.usuarioId) {
+          const usuario = await em.findOne(UsuarioEntity, { id: session.usuarioId });
+          if (usuario) usuarioNombre = usuario.nombre;
+        }
+
+        const linea = await em.findOne(LineaProduccionEntity, { id: session.lineaProduccionId });
+        if (linea) lineaNombre = linea.nombre;
+
+        return {
+          lineaId: session.lineaProduccionId,
+          lineaNombre,
+          usuarioId: session.usuarioId,
+          usuarioNombre,
+          fechaInicio: session.connectedAt.toISOString(),
+          expiraEn: session.ultimaActividadAt ? new Date(session.ultimaActividadAt.getTime() + 5 * 60 * 1000).toISOString() : null,
+        };
+      })
+    );
+
+    res.status(200).json({ success: true, data: enrichedSessions });
+  } catch (error) {
+    console.error('Error fetching sesiones activas:', error);
+    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+  }
+};

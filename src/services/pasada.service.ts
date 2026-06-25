@@ -4,6 +4,7 @@ import { LineaProduccion } from '../models/LineaProduccion.js';
 import { Articulo } from '../models/Articulo.js';
 import { Usuario } from '../models/Usuario.js';
 import { RutaPasada } from '../models/RutaPasada.js';
+import { ArticuloRutaPasada } from '../models/ArticuloRutaPasada.js';
 import { sesionService } from './sesion.service.js';
 import { LockMode } from '@mikro-orm/core';
 
@@ -40,6 +41,16 @@ export class PasadaService extends BaseService<Pasada> {
       );
       if (!linea?.rutaPasadaActiva) {
         throw new Error(`Cannot start pasada: no active route on production line ${lineaProduccionId}`);
+      }
+
+      const isOnRoute = await txEm.count(ArticuloRutaPasada, {
+        rutaPasada: linea.rutaPasadaActiva.id,
+        articulo: articuloId,
+      });
+      if (isOnRoute === 0) {
+        throw new Error(
+          `Article ${articuloId} does not belong to the active route of production line ${lineaProduccionId}`
+        );
       }
 
       // Fetch the last Pasada for this line and article to determine the next sequential number

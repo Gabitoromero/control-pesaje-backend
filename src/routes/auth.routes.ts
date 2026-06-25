@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { validateBody } from '../middlewares/validation.middleware.js';
 import { authenticateJWT, requireRoles } from '../middlewares/auth.middleware.js';
-import { login, sesionLinea, actividad, cerrarSesion, sesionActiva } from '../controllers/auth.controller.js';
+import { login, sesionLinea, actividad, cerrarSesion, sesionActiva, todasSesionesActivas } from '../controllers/auth.controller.js';
 import { LoginSchema, SesionLineaSchema, ActividadSchema, CerrarSesionSchema } from '../utils/schemas.js';
 import { UsuarioRol } from '../models/Usuario.js';
 
@@ -35,6 +35,12 @@ router.get(
   '/sesion-activa/:lineaId',
   authenticateJWT,
   sesionActiva
+);
+router.get(
+  '/sesiones-activas',
+  authenticateJWT,
+  requireRoles([UsuarioRol.ADMINISTRADOR]),
+  todasSesionesActivas
 );
 
 export default router;

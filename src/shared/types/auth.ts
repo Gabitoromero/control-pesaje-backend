@@ -15,6 +15,14 @@ export interface SesionActiva {
   ultimaActividadAt: string | null;
 }
 
+export interface SesionActivaAdmin {
+  lineaId: number;
+  lineaNombre: string;
+  usuarioId: number | null;
+  fechaInicio: string;
+  expiraEn: string | null;
+}
+
 export interface AuthResponse {
   token: string;
   user: User;

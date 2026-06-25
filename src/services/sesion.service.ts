@@ -88,6 +88,11 @@ export class SesionService {
     return null;
   }
 
+  obtenerTodasLasSesiones(): SesionActiva[] {
+    // Return an array of all active sessions
+    return Array.from(this.lineSessions.values());
+  }
+
   actualizarPasada(lineaProduccionId: number, pasadaId: number | null): void {
     const session = this.lineSessions.get(lineaProduccionId);
     if (session) {
