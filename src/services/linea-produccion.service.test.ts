@@ -116,13 +116,13 @@ describe('LineaProduccionService', () => {
   });
 
   describe('findById', () => {
-    it('should find by id and populate rutaPasadaActiva', async () => {
+    it('should find by id and populate rutaPasadaActiva.etapas.etapa', async () => {
       const mockLinea = { id: 1, rutaPasadaActiva: { id: 2 } };
       mockEm.findOne.mockResolvedValue(mockLinea);
 
       const result = await service.findById(1);
 
-      expect(mockEm.findOne).toHaveBeenCalledWith(expect.anything(), { id: 1 }, { populate: ['rutaPasadaActiva'] });
+      expect(mockEm.findOne).toHaveBeenCalledWith(expect.anything(), { id: 1 }, { populate: ['rutaPasadaActiva', 'rutaPasadaActiva.etapas', 'rutaPasadaActiva.etapas.etapa'] });
       expect(result).toBe(mockLinea);
     });
   });

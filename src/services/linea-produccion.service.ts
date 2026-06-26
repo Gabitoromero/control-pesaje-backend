@@ -4,21 +4,23 @@ import { RutaPasada } from '../models/RutaPasada.js';
 import { ValidationError } from '../utils/errors.js';
 import { RequiredEntityData } from '@mikro-orm/core';
 
+const LINEA_POPULATE = ['rutaPasadaActiva', 'rutaPasadaActiva.etapas', 'rutaPasadaActiva.etapas.etapa'] as const;
+
 export class LineaProduccionService extends BaseService<LineaProduccion> {
   constructor() {
     super(LineaProduccion);
   }
 
   override async findAll(): Promise<LineaProduccion[]> {
-    return this.getEm().find(LineaProduccion, { activo: true }, { populate: ['rutaPasadaActiva'] });
+    return this.getEm().find(LineaProduccion, { activo: true }, { populate: LINEA_POPULATE });
   }
 
   override async findAllInactive(): Promise<LineaProduccion[]> {
-    return this.getEm().find(LineaProduccion, { activo: false }, { populate: ['rutaPasadaActiva'] });
+    return this.getEm().find(LineaProduccion, { activo: false }, { populate: LINEA_POPULATE });
   }
 
   override async findById(id: number): Promise<LineaProduccion | null> {
-    return this.getEm().findOne(LineaProduccion, { id }, { populate: ['rutaPasadaActiva'] });
+    return this.getEm().findOne(LineaProduccion, { id }, { populate: LINEA_POPULATE });
   }
 
   override async create(data: RequiredEntityData<LineaProduccion>): Promise<LineaProduccion> {

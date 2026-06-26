@@ -101,12 +101,12 @@ describe('createPasadaHandlers', () => {
   // ─── list ──────────────────────────────────────────────────────────────────
 
   describe('list', () => {
-    it('returns filtered results from service.findAll()', async () => {
+    it('returns filtered results from service.findAllPopulated()', async () => {
       const pasadas = [
         { id: 1, lineaProduccion: { id: 2 }, estado: 'en_curso', articulo: { id: 4 } },
         { id: 2, lineaProduccion: { id: 3 }, estado: 'en_curso', articulo: { id: 5 } },
       ];
-      service.findAll.mockResolvedValue(pasadas);
+      (service as any).findAllPopulated = vi.fn().mockResolvedValue(pasadas);
 
       // Filter by lineaProduccionId=2 — only the first should be returned
       const req = makeReq({ query: { lineaProduccionId: '2' } });
@@ -122,7 +122,7 @@ describe('createPasadaHandlers', () => {
 
     it('returns all active pasadas when no filters provided', async () => {
       const pasadas = [{ id: 1 }, { id: 2 }];
-      service.findAll.mockResolvedValue(pasadas);
+      (service as any).findAllPopulated = vi.fn().mockResolvedValue(pasadas);
 
       const req = makeReq({ query: {} });
       const { mock } = makeRes();

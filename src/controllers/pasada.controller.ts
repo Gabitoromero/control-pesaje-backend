@@ -52,7 +52,7 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
 
   const list: RequestHandler = async (req, res) => {
     try {
-      const all = await service.findAll();
+      const all = await service.findAllPopulated();
 
       // Apply in-memory filters from query params (REQ-P2)
       const lineaId = req.query.lineaProduccionId ? Number(req.query.lineaProduccionId) : undefined;

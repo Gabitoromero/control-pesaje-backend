@@ -21,6 +21,7 @@ export class RutaPasada {
   @OneToMany<RutaPasadaEtapa, RutaPasada>(
     () => 'RutaPasadaEtapa' as unknown as EntityName<RutaPasadaEtapa>,
     'rutaPasada',
+    { orderBy: { orden: 'asc' } }
   )
   etapas = new Collection<RutaPasadaEtapa>(this);
 }

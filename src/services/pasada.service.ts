@@ -13,6 +13,16 @@ export class PasadaService extends BaseService<Pasada> {
     super(Pasada);
   }
 
+  async findAllPopulated(): Promise<Pasada[]> {
+    return this.getEm().find(
+      Pasada,
+      { activo: true },
+      // populate is cast as any to bypass strictly typed keys if necessary,
+      // though MikroORM usually accepts them if they exist in the schema.
+      { populate: ['usuario', 'lineaProduccion', 'articulo'] as const }
+    );
+  }
+
   async iniciarPasada(
     lineaProduccionId: number,
     articuloId: number,
@@ -94,6 +104,10 @@ export class PasadaService extends BaseService<Pasada> {
     return em.transactional(async (txEm) => {
       const pasada = await txEm.findOne(Pasada, { id }, { lockMode: LockMode.PESSIMISTIC_WRITE });
       if (!pasada) return null;
+
+      if (pasada.estado === PasadaEstado.COMPLETA) {
+        return pasada;
+      }
 
       if (pasada.estado !== PasadaEstado.EN_CURSO) {
         throw new Error(`Cannot complete pasada with ID ${id}: it is already in state '${pasada.estado}'`);
