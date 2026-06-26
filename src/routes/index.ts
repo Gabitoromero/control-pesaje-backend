@@ -9,6 +9,7 @@ import rutasPasadasEtapasRoutes from './rutas-pasadas-etapas.routes.js';
 import rutasPasadasArticulosRoutes from './rutas-pasadas-articulos.routes.js';
 import pasadasRoutes from './pasadas.routes.js';
 import muestrasRoutes from './muestras.routes.js';
+import dispositivosRoutes from './dispositivos.routes.js';
 
 const router: Router = Router();
 
@@ -22,5 +23,6 @@ router.use('/rutas-pasadas-etapas', rutasPasadasEtapasRoutes);
 router.use('/rutas-pasadas-articulos', rutasPasadasArticulosRoutes);
 router.use('/pasadas', pasadasRoutes);
 router.use('/muestras', muestrasRoutes);
+router.use('/dispositivos', dispositivosRoutes);
 
 export default router;

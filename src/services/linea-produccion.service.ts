@@ -17,6 +17,10 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
     return this.getEm().find(LineaProduccion, { activo: false }, { populate: ['rutaPasadaActiva'] });
   }
 
+  override async findById(id: number): Promise<LineaProduccion | null> {
+    return this.getEm().findOne(LineaProduccion, { id }, { populate: ['rutaPasadaActiva'] });
+  }
+
   override async create(data: RequiredEntityData<LineaProduccion>): Promise<LineaProduccion> {
     if (data.rutaPasadaActiva !== undefined && data.rutaPasadaActiva !== null) {
       await this.validateRutaPasadaActiva(data.rutaPasadaActiva);

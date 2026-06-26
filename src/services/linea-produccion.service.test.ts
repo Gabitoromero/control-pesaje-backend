@@ -114,4 +114,16 @@ describe('LineaProduccionService', () => {
       expect(mockEm.findOne).toHaveBeenCalledOnce();
     });
   });
+
+  describe('findById', () => {
+    it('should find by id and populate rutaPasadaActiva', async () => {
+      const mockLinea = { id: 1, rutaPasadaActiva: { id: 2 } };
+      mockEm.findOne.mockResolvedValue(mockLinea);
+
+      const result = await service.findById(1);
+
+      expect(mockEm.findOne).toHaveBeenCalledWith(expect.anything(), { id: 1 }, { populate: ['rutaPasadaActiva'] });
+      expect(result).toBe(mockLinea);
+    });
+  });
 });

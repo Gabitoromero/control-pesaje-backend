@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
 import type { SesionService } from '../services/sesion.service.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
+import { deviceRegistryService } from '../services/device-registry.service.js';
 
 /**
  * Registers domain event handlers for the balanza (scale) real-time channel.
@@ -38,12 +39,26 @@ export const registerBalanzaHandlers = (
 
     socket.join(`linea-${lineaId}`);
     socket.data.lineaId = lineaId;
+
+    if (socket.data.isDevice) {
+      deviceRegistryService.registerDevice(socket.id, lineaId);
+    }
   });
 
   socket.on('leave-linea', (lineaId: number) => {
     socket.leave(`linea-${lineaId}`);
     if (socket.data.lineaId === lineaId) {
       socket.data.lineaId = undefined;
+    }
+    
+    if (socket.data.isDevice) {
+      deviceRegistryService.removeDevice(socket.id);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    if (socket.data.isDevice) {
+      deviceRegistryService.removeDevice(socket.id);
     }
   });
 
