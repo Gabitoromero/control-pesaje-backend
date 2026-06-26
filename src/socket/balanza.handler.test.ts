@@ -4,6 +4,15 @@ import type { Server, Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
 import type { SesionService, SesionActiva } from '../services/sesion.service.js';
 import { registerBalanzaHandlers } from './balanza.handler.js';
+import { deviceRegistryService } from '../services/device-registry.service.js';
+
+vi.mock('../services/device-registry.service.js', () => ({
+  deviceRegistryService: {
+    registerDevice: vi.fn(),
+    removeDevice: vi.fn(),
+    hasDeviceForLinea: vi.fn(),
+  },
+}));
 
 // ---- Mock helpers ----
 
@@ -164,6 +173,39 @@ describe('registerBalanzaHandlers', () => {
       expect(unauthSocket.join).not.toHaveBeenCalled();
       expect(unauthSocket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.any(String) }));
     });
+
+    it('emits balanza-status true to room when a device joins', async () => {
+      const lineaFixture = { id: 5, activo: true };
+      const mockOrm = makeMockOrm(lineaFixture);
+      const deviceSocket = makeMockSocket({
+        data: { isDevice: true } as Socket['data'],
+      });
+      registerBalanzaHandlers(io as Server, deviceSocket as Socket, mockOrm as unknown as MikroORM, sesionService);
+      const handler = getHandler(deviceSocket, 'join-linea');
+
+      await handler(5);
+
+      expect(io.to).toHaveBeenCalledWith('linea-5');
+      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
+      expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: true });
+    });
+
+    it('emits balanza-status to tablet socket based on deviceRegistryService when a tablet joins', async () => {
+      const lineaFixture = { id: 5, activo: true };
+      const mockOrm = makeMockOrm(lineaFixture);
+      const tabletSocket = makeMockSocket({
+        data: { user: { id: 1, nombreUsuario: 'test' } } as Socket['data'],
+      });
+      vi.mocked(deviceRegistryService.hasDeviceForLinea).mockReturnValue(true);
+
+      registerBalanzaHandlers(io as Server, tabletSocket as Socket, mockOrm as unknown as MikroORM, sesionService);
+      const handler = getHandler(tabletSocket, 'join-linea');
+
+      await handler(5);
+
+      expect(deviceRegistryService.hasDeviceForLinea).toHaveBeenCalledWith(5);
+      expect(tabletSocket.emit).toHaveBeenCalledWith('balanza-status', { isConnected: true });
+    });
   });
 
   describe('leave-linea', () => {
@@ -199,6 +241,39 @@ describe('registerBalanzaHandlers', () => {
       handler(5);
 
       expect((socket.data as Record<string, unknown>).lineaId).toBe(7);
+    });
+
+    it('emits balanza-status false to room when a device leaves', () => {
+      (socket.data as Record<string, unknown>).lineaId = 5;
+      (socket.data as Record<string, unknown>).isDevice = true;
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+      const handler = getHandler(socket, 'leave-linea');
+
+      handler(5);
+
+      expect(io.to).toHaveBeenCalledWith('linea-5');
+      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
+      expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: false });
+    });
+  });
+
+  describe('disconnect', () => {
+    it('registers disconnect handler on socket', () => {
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+      expect(getHandler(socket, 'disconnect')).toBeDefined();
+    });
+
+    it('emits balanza-status false to room when a device disconnects', () => {
+      (socket.data as Record<string, unknown>).lineaId = 5;
+      (socket.data as Record<string, unknown>).isDevice = true;
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+      const handler = getHandler(socket, 'disconnect');
+
+      handler();
+
+      expect(io.to).toHaveBeenCalledWith('linea-5');
+      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
+      expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: false });
     });
   });
 

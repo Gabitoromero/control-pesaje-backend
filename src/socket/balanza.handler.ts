@@ -42,6 +42,10 @@ export const registerBalanzaHandlers = (
 
     if (socket.data.isDevice) {
       deviceRegistryService.registerDevice(socket.id, lineaId);
+      io.to(`linea-${lineaId}`).emit('balanza-status', { isConnected: true });
+    } else {
+      const hasDevice = deviceRegistryService.hasDeviceForLinea(lineaId);
+      socket.emit('balanza-status', { isConnected: hasDevice });
     }
   });
 
@@ -53,12 +57,17 @@ export const registerBalanzaHandlers = (
     
     if (socket.data.isDevice) {
       deviceRegistryService.removeDevice(socket.id);
+      io.to(`linea-${lineaId}`).emit('balanza-status', { isConnected: false });
     }
   });
 
   socket.on('disconnect', () => {
     if (socket.data.isDevice) {
+      const lineaId = socket.data.lineaId as number | undefined;
       deviceRegistryService.removeDevice(socket.id);
+      if (lineaId !== undefined) {
+        io.to(`linea-${lineaId}`).emit('balanza-status', { isConnected: false });
+      }
     }
   });
 

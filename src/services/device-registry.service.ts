@@ -22,6 +22,10 @@ export class DeviceRegistryService {
   getConnectedDevices(): ConnectedDevice[] {
     return Array.from(this.devices.values());
   }
+
+  hasDeviceForLinea(lineaId: number): boolean {
+    return Array.from(this.devices.values()).some(d => d.lineaId === lineaId);
+  }
 }
 
 export const deviceRegistryService = new DeviceRegistryService();

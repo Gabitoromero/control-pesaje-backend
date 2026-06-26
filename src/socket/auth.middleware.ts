@@ -73,6 +73,7 @@ export const tabletJwtMiddleware = (
   const token = auth?.token;
 
   if (typeof token !== 'string' || !token) {
+    console.error('[socket] JWT token is missing or not a string. Rejecting.');
     return next(new Error('unauthorized'));
   }
 
@@ -80,7 +81,8 @@ export const tabletJwtMiddleware = (
     const payload = jwt.verify(token, secret) as JWTPayload;
     socket.data.user = payload;
     return next();
-  } catch {
+  } catch (err) {
+    console.error('[socket] JWT verify failed:', err);
     return next(new Error('unauthorized'));
   }
 };
