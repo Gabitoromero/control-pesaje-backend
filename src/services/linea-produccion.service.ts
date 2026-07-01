@@ -1,6 +1,7 @@
 import { BaseService } from './base.service.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { RutaPasada } from '../models/RutaPasada.js';
+import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { ValidationError } from '../utils/errors.js';
 import { RequiredEntityData } from '@mikro-orm/core';
 
@@ -31,8 +32,33 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
   }
 
   override async update(id: number, data: Partial<LineaProduccion>): Promise<LineaProduccion | null> {
-    if (data.rutaPasadaActiva !== undefined && data.rutaPasadaActiva !== null) {
-      await this.validateRutaPasadaActiva(data.rutaPasadaActiva);
+    if (data.rutaPasadaActiva !== undefined) {
+      const em = this.getEm();
+      const linea = await em.findOne(LineaProduccion, { id });
+      
+      if (linea) {
+        const currentRutaId = linea.rutaPasadaActiva?.id;
+        let newRutaId: number | undefined;
+        
+        if (typeof data.rutaPasadaActiva === 'number') {
+          newRutaId = data.rutaPasadaActiva;
+        } else if (typeof data.rutaPasadaActiva === 'object' && data.rutaPasadaActiva !== null && 'id' in data.rutaPasadaActiva) {
+          newRutaId = (data.rutaPasadaActiva as RutaPasada).id;
+        } else if (data.rutaPasadaActiva === null) {
+          newRutaId = undefined; // Treating null as clearing the route
+        }
+
+        if (currentRutaId !== newRutaId) {
+          const activePasadasCount = await em.count(Pasada, { lineaProduccion: id, estado: PasadaEstado.EN_CURSO });
+          if (activePasadasCount > 0) {
+            throw new ValidationError('No se puede cambiar la ruta mientras haya pasadas en curso en esta línea');
+          }
+        }
+      }
+
+      if (data.rutaPasadaActiva !== null) {
+        await this.validateRutaPasadaActiva(data.rutaPasadaActiva);
+      }
     }
     return super.update(id, data);
   }

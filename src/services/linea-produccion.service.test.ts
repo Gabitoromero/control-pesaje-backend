@@ -11,6 +11,7 @@ const mockEm = {
   assign: vi.fn(),
   flush: vi.fn(),
   persist: vi.fn().mockReturnThis(),
+  count: vi.fn(),
 };
 
 vi.mock('@mikro-orm/core', () => ({
@@ -103,7 +104,13 @@ describe('LineaProduccionService', () => {
         activo: true,
         etapas: { length: 0 },
       };
-      mockEm.findOne.mockResolvedValue(mockRoute);
+      // Primera llamada: busca la linea
+      // Segunda llamada: busca la ruta
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity.name === 'LineaProduccion') return { id: 1, rutaPasadaActiva: { id: 1 } };
+        return mockRoute;
+      });
+      mockEm.count.mockResolvedValue(0);
 
       await expect(
         service.update(1, {
@@ -111,7 +118,24 @@ describe('LineaProduccionService', () => {
         } as any)
       ).rejects.toThrow('No se puede asignar una ruta sin etapas a una línea de producción');
 
-      expect(mockEm.findOne).toHaveBeenCalledOnce();
+      expect(mockEm.findOne).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws ValidationError when there are active pasadas on the line during route change', async () => {
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity.name === 'LineaProduccion') return { id: 1, rutaPasadaActiva: { id: 1 } };
+        return null;
+      });
+      // Mock that there is 1 active pasada
+      mockEm.count.mockResolvedValue(1);
+
+      await expect(
+        service.update(1, {
+          rutaPasadaActiva: 2,
+        } as any)
+      ).rejects.toThrow('No se puede cambiar la ruta mientras haya pasadas en curso en esta línea');
+
+      expect(mockEm.count).toHaveBeenCalledOnce();
     });
   });
 
