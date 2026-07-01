@@ -103,7 +103,27 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
 
   const update: RequestHandler = async (req, res) => {
     const id = Number(req.params.id);
+    const userId = req.user!.id;
+    const userRole = req.user!.rol;
+
     try {
+      // Load the muestra to verify ownership before updating (mirrors hardDelete)
+      const muestra = await service.findById(id);
+      if (!muestra) {
+        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        return;
+      }
+
+      // Ownership check: JEFE/ADMIN can update any muestra; OPERARIO only their own
+      const isPrivileged = PRIVILEGED_ROLES.includes(userRole);
+      const ownerId = muestra.usuario?.id;
+      const isOwner = ownerId === userId;
+
+      if (!isPrivileged && !isOwner) {
+        res.status(403).json({ success: false, error: { message: 'Insufficient permissions to update this muestra' } });
+        return;
+      }
+
       const updated = await service.update(id, req.body);
       if (!updated) {
         res.status(404).json({ success: false, error: { message: 'Not found' } });

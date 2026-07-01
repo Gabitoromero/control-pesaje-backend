@@ -68,7 +68,7 @@ describe('SesionService (In-Memory Session Registry)', () => {
       vi.useRealTimers();
     });
 
-    it('does NOT clear anything after 5+ min for administrador', () => {
+    it('clears session details after 5+ min for administrador', () => {
       vi.useFakeTimers();
       const now = new Date('2026-06-01T12:00:00Z');
       vi.setSystemTime(now);
@@ -78,9 +78,9 @@ describe('SesionService (In-Memory Session Registry)', () => {
       vi.setSystemTime(new Date(now.getTime() + 6 * 60 * 1000));
       
       const retrieved = sesionService.obtenerSesion(1);
-      expect(retrieved!.usuarioId).toBe(30);
-      expect(retrieved!.usuarioRol).toBe(UsuarioRol.ADMINISTRADOR);
-      expect(retrieved!.ultimaActividadAt).toBeInstanceOf(Date);
+      expect(retrieved!.usuarioId).toBeNull();
+      expect(retrieved!.usuarioRol).toBeNull();
+      expect(retrieved!.ultimaActividadAt).toBeNull();
 
       vi.useRealTimers();
     });

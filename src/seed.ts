@@ -9,6 +9,7 @@ import { ArticuloRutaPasada } from './models/ArticuloRutaPasada.js';
 import { RutaPasadaEtapa } from './models/RutaPasadaEtapa.js';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
+import { ru } from 'zod/locales';
 
 dotenv.config();
 
@@ -65,7 +66,7 @@ async function run() {
       legajo: '3333',
       pinHash: pin1Hash,
       rol: UsuarioRol.OPERARIO,
-      puedeTomarMuestrasLibres: false,
+      puedeTomarMuestrasLibres: true,
       activo: true,
       datosAdicionales: null,
     });
@@ -87,7 +88,7 @@ async function run() {
       legajo: '5555',
       pinHash: pin3Hash,
       rol: UsuarioRol.OPERARIO,
-      puedeTomarMuestrasLibres: true,
+      puedeTomarMuestrasLibres: false,
       activo: true,
       datosAdicionales: null,
     });
@@ -102,7 +103,7 @@ async function run() {
 
     const etapaControlPeso = em.create(Etapa, {
       nombre: 'Control Peso',
-      descripcion: 'Verificación de peso neto en balanza de precisión',
+      descripcion: 'Medicion de peso neto en balanza de precisión',
       activo: true,
     });
 
@@ -115,6 +116,18 @@ async function run() {
     const etapaEmbalaje = em.create(Etapa, {
       nombre: 'Embalaje',
       descripcion: 'Embalaje secundario en cajas master',
+      activo: true,
+    });
+
+    const etapaControlPeso1kg = em.create(Etapa, {
+      nombre: 'Control Peso 1Kg',
+      descripcion: 'Calibración de balanzas con peso neto en balanza de precisión',
+      activo: true,
+    });
+
+    const etapaControlPeso2kg = em.create(Etapa, {
+      nombre: 'Control Peso 2Kg',
+      descripcion: 'Calibración de balanzas con peso neto en balanza de precisión',
       activo: true,
     });
 
@@ -155,17 +168,30 @@ async function run() {
       activo: true,
     });
 
+    const articuloPesaFija = em.create(Articulo, {
+      nombre: 'Pesa fija de calibración',
+      descripcion: 'Pesa fija utilizada para calibrar balanzas',
+      marca: null,
+      activo: true,
+    });
+
     // 4. Create Rutas
     console.log('[seed]: Creating routes...');
     const rutaPostresChicos = em.create(RutaPasada, {
-      nombre: 'Ruta Control Postres Individuales',
+      nombre: 'Ruta Postres Individuales',
       descripcion: 'Ruta estándar para control de calidad de productos individuales de 70g',
       activo: true,
     });
 
     const rutaPostresFamiliares = em.create(RutaPasada, {
-      nombre: 'Ruta Control Postres Familiares y Flanes',
+      nombre: 'Ruta Postres Familiares y Flanes',
       descripcion: 'Ruta estándar para potes familiares y flanes de 250g',
+      activo: true,
+    });
+
+    const rutaPesoFijo = em.create(RutaPasada, {
+      nombre: 'Ruta Calibracion',
+      descripcion: 'Ruta de calibración de balanzas con pesas fijas',
       activo: true,
     });
 
@@ -176,9 +202,9 @@ async function run() {
       rutaPasada: rutaPostresChicos,
       etapa: etapaEnvasado,
       orden: 1,
-      pesoIdeal: 70.000,
-      pesoMinimo: 65.000,
-      pesoMaximo: 75.000,
+      pesoIdeal: 0.700,
+      pesoMinimo: 0.650,
+      pesoMaximo: 0.750,
       cantidadMuestrasRequeridas: 3,
     });
 
@@ -186,9 +212,9 @@ async function run() {
       rutaPasada: rutaPostresChicos,
       etapa: etapaControlPeso,
       orden: 2,
-      pesoIdeal: 70.000,
-      pesoMinimo: 67.000,
-      pesoMaximo: 73.000,
+      pesoIdeal: 0.700,
+      pesoMinimo: 0.670,
+      pesoMaximo: 0.730,
       cantidadMuestrasRequeridas: 5,
     });
 
@@ -196,9 +222,9 @@ async function run() {
       rutaPasada: rutaPostresChicos,
       etapa: etapaDetectorMetales,
       orden: 3,
-      pesoIdeal: 70.000,
-      pesoMinimo: 60.000,
-      pesoMaximo: 80.000,
+      pesoIdeal: 0.700,
+      pesoMinimo: 0.600,
+      pesoMaximo: 0.800,
       cantidadMuestrasRequeridas: 2,
     });
 
@@ -207,9 +233,9 @@ async function run() {
       rutaPasada: rutaPostresFamiliares,
       etapa: etapaEnvasado,
       orden: 1,
-      pesoIdeal: 250.000,
-      pesoMinimo: 235.000,
-      pesoMaximo: 265.000,
+      pesoIdeal: 0.250,
+      pesoMinimo: 0.235,
+      pesoMaximo: 0.265,
       cantidadMuestrasRequeridas: 3,
     });
 
@@ -217,9 +243,9 @@ async function run() {
       rutaPasada: rutaPostresFamiliares,
       etapa: etapaControlPeso,
       orden: 2,
-      pesoIdeal: 250.000,
-      pesoMinimo: 240.000,
-      pesoMaximo: 260.000,
+      pesoIdeal: 0.250,
+      pesoMinimo: 0.240,
+      pesoMaximo: 0.260,
       cantidadMuestrasRequeridas: 4,
     });
 
@@ -227,10 +253,30 @@ async function run() {
       rutaPasada: rutaPostresFamiliares,
       etapa: etapaEmbalaje,
       orden: 3,
-      pesoIdeal: 250.000,
-      pesoMinimo: 220.000,
-      pesoMaximo: 280.000,
+      pesoIdeal: 0.250,
+      pesoMinimo: 0.220,
+      pesoMaximo: 0.280,
       cantidadMuestrasRequeridas: 2,
+    });
+
+    em.create(RutaPasadaEtapa, {
+      rutaPasada: rutaPesoFijo,
+      etapa: etapaControlPeso1kg,
+      orden: 1,
+      pesoIdeal: 1.000,
+      pesoMinimo: 0.990,
+      pesoMaximo: 1.010,
+      cantidadMuestrasRequeridas: 5,
+    });
+
+    em.create(RutaPasadaEtapa, {
+      rutaPasada: rutaPesoFijo,
+      etapa: etapaControlPeso2kg,
+      orden: 2,
+      pesoIdeal: 2.000,
+      pesoMinimo: 1.990,
+      pesoMaximo: 2.010,
+      cantidadMuestrasRequeridas: 5,
     });
 
     // 6. Link Articles to Routes (ArticuloRutaPasada)
@@ -262,24 +308,30 @@ async function run() {
       rutaPasada: rutaPostresFamiliares,
     });
 
+    em.create(ArticuloRutaPasada, {
+      articulo: articuloPesaFija,
+      rutaPasada: rutaPesoFijo,
+    });
+
+
     // 7. Create LineasProduccion
     console.log('[seed]: Creating production lines...');
     em.create(LineaProduccion, {
-      nombre: 'Línea de Envasado Rápido A',
+      nombre: 'Línea A',
       numeroBalanza: 1,
       rutaPasadaActiva: rutaPostresChicos,
       activo: true,
     });
 
     em.create(LineaProduccion, {
-      nombre: 'Línea de Envasado Pepas B',
+      nombre: 'Línea B',
       numeroBalanza: 2,
       rutaPasadaActiva: rutaPostresFamiliares,
       activo: true,
     });
 
     em.create(LineaProduccion, {
-      nombre: 'Línea Auxiliar Multipropósito C',
+      nombre: 'Línea C',
       numeroBalanza: 3,
       rutaPasadaActiva: undefined,
       activo: true,

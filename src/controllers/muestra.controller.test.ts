@@ -208,28 +208,78 @@ describe('createMuestraHandlers', () => {
   // ─── update ────────────────────────────────────────────────────────────────
 
   describe('update', () => {
-    it('calls service.update and returns 200 on success', async () => {
-      const updatedMustra = { id: 5, pesoNeto: 48 };
-      service.update.mockResolvedValue(updatedMustra);
+    it('owner OPERARIO can update their own muestra — returns 200', async () => {
+      const updatedMuestra = { id: 5, pesoNeto: 48, usuario: { id: 1 } };
+      service.findById.mockResolvedValue({ id: 5, usuario: { id: 1 } });
+      service.update.mockResolvedValue(updatedMuestra);
 
       const req = makeReq({
         params: { id: '5' },
-        body: { pesoNeto: 48 },
+        body: { observacion: 'nota' },
       });
       const { mock } = makeRes();
 
       await handlers.update(req, mock as unknown as Response, vi.fn());
 
-      expect(service.update).toHaveBeenCalledWith(5, { pesoNeto: 48 });
-      expect(mock.json).toHaveBeenCalledWith({ success: true, data: updatedMustra });
+      expect(service.update).toHaveBeenCalledWith(5, { observacion: 'nota' });
+      expect(mock.json).toHaveBeenCalledWith({ success: true, data: updatedMuestra });
     });
 
-    it('returns 422 when service throws an Error', async () => {
+    it('non-owner OPERARIO gets 403 and service.update is NOT called', async () => {
+      service.findById.mockResolvedValue({ id: 5, usuario: { id: 99 } });
+
+      const req = makeReq({
+        params: { id: '5' },
+        body: { observacion: 'nota' },
+      });
+      const { mock } = makeRes();
+
+      await handlers.update(req, mock as unknown as Response, vi.fn());
+
+      expect(mock.status).toHaveBeenCalledWith(403);
+      expect(service.update).not.toHaveBeenCalled();
+    });
+
+    it('JEFE bypasses ownership check and can update any muestra — returns 200', async () => {
+      const updatedMuestra = { id: 8, observacion: 'ok', usuario: { id: 99 } };
+      service.findById.mockResolvedValue({ id: 8, usuario: { id: 99 } });
+      service.update.mockResolvedValue(updatedMuestra);
+
+      const req = makeReq({
+        params: { id: '8' },
+        body: { observacion: 'ok' },
+        user: { id: 2, rol: UsuarioRol.JEFE, nombreUsuario: 'jefe', legajo: 'J1', puedeTomarMuestrasLibres: false },
+      });
+      const { mock } = makeRes();
+
+      await handlers.update(req, mock as unknown as Response, vi.fn());
+
+      expect(service.update).toHaveBeenCalledWith(8, { observacion: 'ok' });
+      expect(mock.json).toHaveBeenCalledWith({ success: true, data: updatedMuestra });
+    });
+
+    it('returns 404 when muestra is not found', async () => {
+      service.findById.mockResolvedValue(null);
+
+      const req = makeReq({
+        params: { id: '999' },
+        body: { observacion: 'nota' },
+      });
+      const { mock } = makeRes();
+
+      await handlers.update(req, mock as unknown as Response, vi.fn());
+
+      expect(mock.status).toHaveBeenCalledWith(404);
+      expect(service.update).not.toHaveBeenCalled();
+    });
+
+    it('returns 422 when service.update throws an Error', async () => {
+      service.findById.mockResolvedValue({ id: 5, usuario: { id: 1 } });
       service.update.mockRejectedValue(new Error('Cannot update sample of a completed pasada'));
 
       const req = makeReq({
         params: { id: '5' },
-        body: { pesoNeto: 48 },
+        body: { observacion: 'nota' },
       });
       const { mock } = makeRes();
 

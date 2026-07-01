@@ -68,7 +68,6 @@ export class SesionService {
     if (
       session.usuarioId !== null &&
       session.ultimaActividadAt &&
-      (session.usuarioRol === UsuarioRol.OPERARIO || session.usuarioRol === UsuarioRol.JEFE) &&
       Date.now() - session.ultimaActividadAt.getTime() > INACTIVITY_MS
     ) {
       session.usuarioId = null;

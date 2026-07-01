@@ -121,33 +121,7 @@ export class MuestraService {
     em.persist(muestra);
     await em.flush();
 
-    // 6. If OK sample is registered, check if the Pasada is now complete
-    if (pasada && estadoValidacion === MuestraEstadoValidacion.OK) {
-      let entirePasadaComplete = true;
-      for (const r of allRutas) {
-        const count = await em.count(Muestra, {
-          pasada: pasadaId,
-          etapa: r.etapa.id,
-          estadoValidacion: MuestraEstadoValidacion.OK,
-        });
-        if (count < r.cantidadMuestrasRequeridas) {
-          entirePasadaComplete = false;
-          break;
-        }
-      }
-
-      if (entirePasadaComplete) {
-        pasada.estado = PasadaEstado.COMPLETA;
-        pasada.horaCierre = new Date();
-        await em.flush();
-
-        const session = sesionService.obtenerSesion(lineaProduccionId);
-        if (session && session.pasadaId === pasada.id) {
-          sesionService.actualizarPasada(lineaProduccionId, null);
-        }
-      }
-    }
-
+    // 6. Return the new sample. Pasada completion is now triggered explicitly by the user from the frontend.
     return muestra;
   }
 

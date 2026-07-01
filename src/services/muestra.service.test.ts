@@ -323,15 +323,15 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       );
       expect(mEtapa2.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
 
-      // Since Etapa 2 is the last stage and requires 1 sample, the entire Pasada must transition to complete
+      // Since auto-completion is removed, the Pasada remains EN_CURSO
       const em = orm.em.fork();
       const updatedPasada = await em.findOneOrFail(Pasada, pasada.id);
-      expect(updatedPasada.estado).toBe(PasadaEstado.COMPLETA);
-      expect(updatedPasada.horaCierre).toBeInstanceOf(Date);
+      expect(updatedPasada.estado).toBe(PasadaEstado.EN_CURSO);
+      expect(updatedPasada.horaCierre).toBeNull();
 
-      // The in-memory session should clear the active pasadaId
+      // The in-memory session should still hold the active pasadaId
       const session = sesionService.obtenerSesion(testLine.id);
-      expect(session!.pasadaId).toBeNull();
+      expect(session!.pasadaId).toBe(pasada.id);
     }));
 
     it('T-15: registrarMuestra throws when user does not have puedeTomarMuestrasLibres', () => runInContext(async () => {
@@ -481,6 +481,9 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       const m1 = await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
       await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
       await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa2.id, testLine.id, 70.000, pasada.id);
+
+      // Explicitly complete the pasada since auto-complete was removed
+      await pasadaService.completarPasada(pasada.id);
 
       // The pasada is now completed
       const em = orm.em.fork();
