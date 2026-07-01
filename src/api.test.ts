@@ -1173,14 +1173,15 @@ describe('Muestras HTTP Integration', () => {
 
   // ── PUT /api/muestras/:id ──────────────────────────────────────────────────
 
-  it('PUT /api/muestras/:id — 200 on success', async () => {
-    const muestra = { id: 7, pesoNeto: 150, activo: true };
+  it('PUT /api/muestras/:id — 200 on success (owner operario)', async () => {
+    // update handler: findById (findOne) returns muestra with usuario.id matching token id=3
+    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 3 } };
     mockEm.findOne.mockResolvedValue(muestra);
     mockEm.flush.mockResolvedValue(undefined);
 
     const res = await request(app)
       .put('/api/muestras/7')
-      .set('Authorization', `Bearer ${operarioToken()}`)
+      .set('Authorization', `Bearer ${operarioToken()}`) // id=3 matches muestra.usuario.id
       .send({ pesoNeto: 175 });
 
     expect(res.status).toBe(200);
