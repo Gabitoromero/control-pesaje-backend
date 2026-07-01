@@ -5,7 +5,7 @@ import { sesionService } from '../services/sesion.service.js';
 export function createLineaProduccionHandlers(service: LineaProduccionService): { list: RequestHandler } {
   const list: RequestHandler = async (req, res) => {
     try {
-      const currentUser = (req as any).user;
+      const currentUser = req.user;
       const items = await service.findAll();
       const data = items.map(linea => {
         const sesion = sesionService.obtenerSesion(linea.id);
