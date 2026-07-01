@@ -65,6 +65,7 @@ export interface Muestra {
   lineaProduccionId: number;
   articuloId?: number;
   timestamp: string | Date;
+  observacion?: string;
 }
 
 // ─── Articulo-Ruta pivot ─────────────────────────────────────────────────────
