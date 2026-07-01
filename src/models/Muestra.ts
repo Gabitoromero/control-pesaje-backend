@@ -46,6 +46,4 @@ export class Muestra {
   @Property({ type: 'datetime' })
   timestamp: Date = new Date();
 
-  @Property({ type: 'boolean', default: true })
-  activo: boolean = true;
 }

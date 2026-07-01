@@ -1,4 +1,4 @@
-import { BaseService } from './base.service.js';
+import { RequestContext } from '@mikro-orm/core';
 import { Muestra, MuestraEstadoValidacion } from '../models/Muestra.js';
 import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
@@ -9,9 +9,11 @@ import { Etapa } from '../models/Etapa.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { sesionService } from './sesion.service.js';
 
-export class MuestraService extends BaseService<Muestra> {
-  constructor() {
-    super(Muestra);
+export class MuestraService {
+  private getEm() {
+    const em = RequestContext.getEntityManager();
+    if (!em) throw new Error('No EntityManager in RequestContext');
+    return em;
   }
 
   async registrarMuestra(
@@ -89,7 +91,6 @@ export class MuestraService extends BaseService<Muestra> {
             pasada: pasadaId,
             etapa: r.etapa.id,
             estadoValidacion: MuestraEstadoValidacion.OK,
-            activo: true,
           });
           if (count < r.cantidadMuestrasRequeridas) {
             throw new Error(`Preceding stage '${r.etapa.id}' is not complete (progress: ${count}/${r.cantidadMuestrasRequeridas})`);
@@ -116,7 +117,6 @@ export class MuestraService extends BaseService<Muestra> {
     muestra.estadoValidacion = estadoValidacion;
     muestra.observacion = observacion;
     muestra.timestamp = new Date();
-    muestra.activo = true;
 
     em.persist(muestra);
     await em.flush();
@@ -129,7 +129,6 @@ export class MuestraService extends BaseService<Muestra> {
           pasada: pasadaId,
           etapa: r.etapa.id,
           estadoValidacion: MuestraEstadoValidacion.OK,
-          activo: true,
         });
         if (count < r.cantidadMuestrasRequeridas) {
           entirePasadaComplete = false;
@@ -152,7 +151,15 @@ export class MuestraService extends BaseService<Muestra> {
     return muestra;
   }
 
-  override async update(id: number, data: Partial<Muestra>): Promise<Muestra | null> {
+  async findAll(): Promise<Muestra[]> {
+    return this.getEm().find(Muestra, {});
+  }
+
+  async findById(id: number): Promise<Muestra | null> {
+    return this.getEm().findOne(Muestra, { id });
+  }
+
+  async update(id: number, data: Partial<Muestra>): Promise<Muestra | null> {
     const em = this.getEm();
     const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada'] });
     if (!muestra) return null;
@@ -161,19 +168,9 @@ export class MuestraService extends BaseService<Muestra> {
       throw new Error('Cannot update sample of a completed or aborted pasada');
     }
 
-    return super.update(id, data);
-  }
-
-  override async softDelete(id: number): Promise<boolean> {
-    const em = this.getEm();
-    const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada'] });
-    if (!muestra) return false;
-
-    if (muestra.pasada && (muestra.pasada.estado === PasadaEstado.COMPLETA || muestra.pasada.estado === PasadaEstado.ABORTADA)) {
-      throw new Error('Cannot delete sample of a completed or aborted pasada');
-    }
-
-    return super.softDelete(id);
+    Object.assign(muestra, data);
+    await em.flush();
+    return muestra;
   }
 
   /**
@@ -183,8 +180,13 @@ export class MuestraService extends BaseService<Muestra> {
    */
   async hardDelete(id: number): Promise<boolean> {
     const em = this.getEm();
-    const muestra = await em.findOne(Muestra, { id });
+    const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada'] });
     if (!muestra) return false;
+
+    if (muestra.pasada && (muestra.pasada.estado === PasadaEstado.COMPLETA || muestra.pasada.estado === PasadaEstado.ABORTADA)) {
+      throw new Error('Cannot delete sample of a completed or aborted pasada');
+    }
+
     await em.remove(muestra);
     await em.flush();
     return true;

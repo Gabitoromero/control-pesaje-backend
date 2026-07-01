@@ -446,8 +446,8 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       expect(m.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
     }));
 
-    // T-11: Soft-deleted samples (activo=false) are NOT counted in stage completion
-    it('T-11: soft-deleted samples (activo=false) do not count toward stage completion', () => runInContext(async () => {
+    // T-11: hard-deleted samples do not count toward stage completion
+    it('T-11: hard-deleted samples do not count toward stage completion', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
@@ -455,20 +455,15 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       const m1 = await muestraService.registrarMuestra(
         testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id
       );
-      await muestraService.registrarMuestra(
+      const m2 = await muestraService.registrarMuestra(
         testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id
       );
 
-      // Soft-delete both OK samples so activo=false
-      const em = orm.em.fork();
-      const samples = await em.find(Muestra, { pasada: pasada.id, etapa: testEtapa1.id });
-      for (const s of samples) {
-        s.activo = false;
-      }
-      await em.flush();
+      // Hard-delete both OK samples
+      await muestraService.hardDelete(m1.id);
+      await muestraService.hardDelete(m2.id);
 
-      // Now trying to register stage 2 should fail because all stage-1 samples are soft-deleted
-      // (the em.count with activo:true sees 0, not 2)
+      // Now trying to register stage 2 should fail because all stage-1 samples are deleted
       await expect(
         muestraService.registrarMuestra(
           testUser.id, testArticle.id, testEtapa2.id, testLine.id, 70.000, pasada.id
@@ -507,7 +502,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       ).rejects.toThrow('Cannot update sample of a completed or aborted pasada');
 
       await expect(
-        muestraService.softDelete(m1.id)
+        muestraService.hardDelete(m1.id)
       ).rejects.toThrow('Cannot delete sample of a completed or aborted pasada');
     }));
 

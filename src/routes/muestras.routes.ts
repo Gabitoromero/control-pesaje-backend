@@ -13,9 +13,7 @@ const service = new MuestraService();
 // Handlers from the custom factory (registrar, list, getOne, update, hardDelete)
 const { registrar, list, getOne, update, hardDelete } = createMuestraHandlers(service);
 
-// Inherit listInactive from the base CRUD factory (no custom equivalent needed)
-const { listInactive } = createCrudHandlers(service);
-
+// No listInactive since Muestra is hard-delete only
 // All standard roles can access muestras (ownership/role checks are inside handlers)
 const operatorRoles = [UsuarioRol.ADMINISTRADOR, UsuarioRol.JEFE, UsuarioRol.OPERARIO];
 
@@ -23,7 +21,6 @@ const operatorRoles = [UsuarioRol.ADMINISTRADOR, UsuarioRol.JEFE, UsuarioRol.OPE
 router.use(authenticateJWT);
 
 router.get('/', list);
-router.get('/inactive', listInactive);
 router.get('/:id', getOne);
 router.post('/', requireRoles(operatorRoles), validateBody(MuestraRegistrarSchema), registrar);
 router.put('/:id', requireRoles(operatorRoles), validateBody(MuestraUpdateSchema), update);
