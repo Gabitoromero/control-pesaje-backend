@@ -52,25 +52,16 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
 
   const list: RequestHandler = async (req, res) => {
     try {
-      const all = await service.findAllPopulated();
-
-      // Apply in-memory filters from query params (REQ-P2)
       const lineaId = req.query.lineaProduccionId ? Number(req.query.lineaProduccionId) : undefined;
       const articuloId = req.query.articuloId ? Number(req.query.articuloId) : undefined;
       const estado = req.query.estado as string | undefined;
 
-      const filtered = all.filter((pasada) => {
-        if (lineaId !== undefined && pasada.lineaProduccion?.id !== lineaId) {
-          return false;
-        }
-        if (articuloId !== undefined && pasada.articulo?.id !== articuloId) {
-          return false;
-        }
-        if (estado !== undefined && pasada.estado !== estado) {
-          return false;
-        }
-        return true;
-      });
+      const where: Record<string, unknown> = {};
+      if (lineaId !== undefined) where.lineaProduccion = lineaId;
+      if (articuloId !== undefined) where.articulo = articuloId;
+      if (estado !== undefined) where.estado = estado;
+
+      const filtered = await service.findAllPopulated(where);
 
       res.json({ success: true, data: filtered });
     } catch {

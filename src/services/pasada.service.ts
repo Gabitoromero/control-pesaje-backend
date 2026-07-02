@@ -13,12 +13,10 @@ export class PasadaService extends BaseService<Pasada> {
     super(Pasada);
   }
 
-  async findAllPopulated(): Promise<Pasada[]> {
+  async findAllPopulated(where?: Record<string, unknown>): Promise<Pasada[]> {
     return this.getEm().find(
       Pasada,
-      { activo: true },
-      // populate is cast as any to bypass strictly typed keys if necessary,
-      // though MikroORM usually accepts them if they exist in the schema.
+      { activo: true, ...where },
       { populate: ['usuario', 'lineaProduccion', 'articulo'] as const }
     );
   }

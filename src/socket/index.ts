@@ -5,15 +5,26 @@ import { deviceAuthMiddleware, tabletJwtMiddleware } from './auth.middleware.js'
 import { registerBalanzaHandlers } from './balanza.handler.js';
 import { sesionService } from '../services/sesion.service.js';
 
+let ioInstance: Server | null = null;
+
+export const getIo = (): Server => {
+  if (!ioInstance) {
+    throw new Error('Socket.io not initialized');
+  }
+  return ioInstance;
+};
+
 /**
  * Initializes the Socket.IO server bound to the given HTTP server.
  * Must be called after http.createServer(app) and before httpServer.listen().
  */
 export const initSocket = (httpServer: http.Server, orm: MikroORM): Server => {
-  const io = new Server(httpServer, {
+  ioInstance = new Server(httpServer, {
     cors: { origin: '*' },
     transports: ['websocket', 'polling'],
   });
+
+  const io = ioInstance;
 
   io.use(deviceAuthMiddleware);
   io.use(tabletJwtMiddleware);

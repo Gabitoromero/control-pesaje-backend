@@ -125,8 +125,8 @@ export class MuestraService {
     return muestra;
   }
 
-  async findAll(): Promise<Muestra[]> {
-    return this.getEm().find(Muestra, {});
+  async findAll(where?: Record<string, unknown>): Promise<Muestra[]> {
+    return this.getEm().find(Muestra, where ?? {});
   }
 
   async findById(id: number): Promise<Muestra | null> {

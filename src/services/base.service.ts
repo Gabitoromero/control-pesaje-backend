@@ -17,8 +17,8 @@ export abstract class BaseService<T extends { id: number; activo: boolean }> {
     return em;
   }
 
-  async findAll(): Promise<T[]> {
-    return this.getEm().find(this.entityClass, { activo: true } as unknown as FilterQuery<T>);
+  async findAll(where?: Record<string, unknown>): Promise<T[]> {
+    return this.getEm().find(this.entityClass, { activo: true, ...where } as unknown as FilterQuery<T>);
   }
 
   async findAllInactive(): Promise<T[]> {

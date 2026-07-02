@@ -121,7 +121,6 @@ describe('createMuestraHandlers', () => {
     it('returns filtered results by pasadaId', async () => {
       const muestras = [
         { id: 1, pasada: { id: 5 }, lineaProduccion: { id: 2 }, etapa: { id: 3 } },
-        { id: 2, pasada: { id: 6 }, lineaProduccion: { id: 2 }, etapa: { id: 3 } },
       ];
       service.findAll.mockResolvedValue(muestras);
 
@@ -130,15 +129,15 @@ describe('createMuestraHandlers', () => {
 
       await handlers.list(req, mock as unknown as Response, vi.fn());
 
+      expect(service.findAll).toHaveBeenCalledWith({ pasada: 5 });
       expect(mock.json).toHaveBeenCalledWith({
         success: true,
-        data: [muestras[0]], // only pasada.id === 5
+        data: muestras,
       });
     });
 
     it('returns filtered results by lineaProduccionId', async () => {
       const muestras = [
-        { id: 1, pasada: { id: 5 }, lineaProduccion: { id: 2 }, etapa: { id: 3 } },
         { id: 2, pasada: { id: 6 }, lineaProduccion: { id: 7 }, etapa: { id: 3 } },
       ];
       service.findAll.mockResolvedValue(muestras);
@@ -148,15 +147,15 @@ describe('createMuestraHandlers', () => {
 
       await handlers.list(req, mock as unknown as Response, vi.fn());
 
+      expect(service.findAll).toHaveBeenCalledWith({ lineaProduccion: 7 });
       expect(mock.json).toHaveBeenCalledWith({
         success: true,
-        data: [muestras[1]],
+        data: muestras,
       });
     });
 
     it('returns filtered results by etapaId', async () => {
       const muestras = [
-        { id: 1, pasada: { id: 5 }, lineaProduccion: { id: 2 }, etapa: { id: 3 } },
         { id: 2, pasada: { id: 6 }, lineaProduccion: { id: 7 }, etapa: { id: 9 } },
       ];
       service.findAll.mockResolvedValue(muestras);
@@ -166,9 +165,10 @@ describe('createMuestraHandlers', () => {
 
       await handlers.list(req, mock as unknown as Response, vi.fn());
 
+      expect(service.findAll).toHaveBeenCalledWith({ etapa: 9 });
       expect(mock.json).toHaveBeenCalledWith({
         success: true,
-        data: [muestras[1]],
+        data: muestras,
       });
     });
   });

@@ -104,19 +104,18 @@ describe('createPasadaHandlers', () => {
     it('returns filtered results from service.findAllPopulated()', async () => {
       const pasadas = [
         { id: 1, lineaProduccion: { id: 2 }, estado: 'en_curso', articulo: { id: 4 } },
-        { id: 2, lineaProduccion: { id: 3 }, estado: 'en_curso', articulo: { id: 5 } },
       ];
       (service as any).findAllPopulated = vi.fn().mockResolvedValue(pasadas);
 
-      // Filter by lineaProduccionId=2 — only the first should be returned
       const req = makeReq({ query: { lineaProduccionId: '2' } });
       const { mock } = makeRes();
 
       await handlers.list(req, mock as unknown as Response, vi.fn());
 
+      expect((service as any).findAllPopulated).toHaveBeenCalledWith({ lineaProduccion: 2 });
       expect(mock.json).toHaveBeenCalledWith({
         success: true,
-        data: [pasadas[0]],
+        data: pasadas,
       });
     });
 
@@ -129,6 +128,7 @@ describe('createPasadaHandlers', () => {
 
       await handlers.list(req, mock as unknown as Response, vi.fn());
 
+      expect((service as any).findAllPopulated).toHaveBeenCalledWith({});
       expect(mock.json).toHaveBeenCalledWith({ success: true, data: pasadas });
     });
   });

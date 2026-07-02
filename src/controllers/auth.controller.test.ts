@@ -20,7 +20,7 @@ vi.mock('@mikro-orm/core', () => {
       getEntityManager: vi.fn().mockReturnValue({
         findOne: vi.fn().mockImplementation((entity: any, query: any) => {
           if (entity.name === 'Usuario') {
-            return Promise.resolve({ nombre: 'Mock User' });
+            return Promise.resolve({ nombreUsuario: 'Mock User', legajo: '123' });
           }
           if (entity.name === 'LineaProduccion') {
             return Promise.resolve({ nombre: 'Mock Linea' });

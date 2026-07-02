@@ -61,25 +61,16 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
 
   const list: RequestHandler = async (req, res) => {
     try {
-      const all = await service.findAll();
-
-      // In-memory filters from query params (REQ-M2)
       const pasadaId = req.query.pasadaId ? Number(req.query.pasadaId) : undefined;
       const lineaId = req.query.lineaProduccionId ? Number(req.query.lineaProduccionId) : undefined;
       const etapaId = req.query.etapaId ? Number(req.query.etapaId) : undefined;
 
-      const filtered = all.filter((muestra) => {
-        if (pasadaId !== undefined && muestra.pasada?.id !== pasadaId) {
-          return false;
-        }
-        if (lineaId !== undefined && muestra.lineaProduccion?.id !== lineaId) {
-          return false;
-        }
-        if (etapaId !== undefined && muestra.etapa?.id !== etapaId) {
-          return false;
-        }
-        return true;
-      });
+      const where: Record<string, unknown> = {};
+      if (pasadaId !== undefined) where.pasada = pasadaId;
+      if (lineaId !== undefined) where.lineaProduccion = lineaId;
+      if (etapaId !== undefined) where.etapa = etapaId;
+
+      const filtered = await service.findAll(where);
 
       res.json({ success: true, data: filtered });
     } catch {

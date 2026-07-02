@@ -119,14 +119,26 @@ async function run() {
       activo: true,
     });
 
-    const etapaControlPeso1kg = em.create(Etapa, {
-      nombre: 'Control Peso 1Kg',
+    const etapaControlPeso5g = em.create(Etapa, {
+      nombre: 'Control Peso 5g',
       descripcion: 'Calibración de balanzas con peso neto en balanza de precisión',
       activo: true,
     });
 
-    const etapaControlPeso2kg = em.create(Etapa, {
-      nombre: 'Control Peso 2Kg',
+    const etapaControlPeso10g = em.create(Etapa, {
+      nombre: 'Control Peso 10g',
+      descripcion: 'Calibración de balanzas con peso neto en balanza de precisión',
+      activo: true,
+    });
+
+    const etapaControlPeso20g = em.create(Etapa, {
+      nombre: 'Control Peso 20g',
+      descripcion: 'Calibración de balanzas con peso neto en balanza de precisión',
+      activo: true,
+    });
+
+    const etapaControlPeso30g = em.create(Etapa, {
+      nombre: 'Control Peso 30g',
       descripcion: 'Calibración de balanzas con peso neto en balanza de precisión',
       activo: true,
     });
@@ -261,23 +273,44 @@ async function run() {
 
     em.create(RutaPasadaEtapa, {
       rutaPasada: rutaPesoFijo,
-      etapa: etapaControlPeso1kg,
+      etapa: etapaControlPeso5g,
       orden: 1,
-      pesoIdeal: 1.000,
-      pesoMinimo: 0.990,
-      pesoMaximo: 1.010,
+      pesoIdeal: 0.005,
+      pesoMinimo: 0.004,
+      pesoMaximo: 0.006,
+      cantidadMuestrasRequeridas: 5,
+    });
+
+      em.create(RutaPasadaEtapa, {
+      rutaPasada: rutaPesoFijo,
+      etapa: etapaControlPeso10g,
+      orden: 2,
+      pesoIdeal: 0.010,
+      pesoMinimo: 0.009,
+      pesoMaximo: 0.011,
       cantidadMuestrasRequeridas: 5,
     });
 
     em.create(RutaPasadaEtapa, {
       rutaPasada: rutaPesoFijo,
-      etapa: etapaControlPeso2kg,
-      orden: 2,
-      pesoIdeal: 2.000,
-      pesoMinimo: 1.990,
-      pesoMaximo: 2.010,
+      etapa: etapaControlPeso20g,
+      orden: 3,
+      pesoIdeal: 0.020,
+      pesoMinimo: 0.019,
+      pesoMaximo: 0.021,
       cantidadMuestrasRequeridas: 5,
     });
+
+    em.create(RutaPasadaEtapa, {
+      rutaPasada: rutaPesoFijo,
+      etapa: etapaControlPeso30g,
+      orden: 4,
+      pesoIdeal: 0.030,
+      pesoMinimo: 0.029,
+      pesoMaximo: 0.031,
+      cantidadMuestrasRequeridas: 5,
+    });
+
 
     // 6. Link Articles to Routes (ArticuloRutaPasada)
     console.log('[seed]: Linking articles to routes...');

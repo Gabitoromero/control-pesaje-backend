@@ -9,14 +9,14 @@ export function createLineaProduccionHandlers(service: LineaProduccionService): 
       const items = await service.findAll();
       const data = items.map(linea => {
         const sesion = sesionService.obtenerSesion(linea.id);
-        const ocupadaPorOtro = sesion && sesion.usuarioId !== null && sesion.usuarioId !== currentUser?.id;
+        const ocupada = sesion && sesion.usuarioId !== null;
         return {
           id: linea.id,
           nombre: linea.nombre,
           numeroBalanza: linea.numeroBalanza,
           rutaPasadaActiva: linea.rutaPasadaActiva,
           activo: linea.activo,
-          estado: ocupadaPorOtro ? 'ocupada' : 'disponible',
+          estado: ocupada ? 'ocupada' : 'disponible',
         };
       });
       res.json({ success: true, data });
