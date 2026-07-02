@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { AuthService } from '../services/auth.service.js';
 import { sesionService } from '../services/sesion.service.js';
+import { getIo } from '../socket/index.js';
 import { UsuarioRol } from '../models/Usuario.js';
 
 const authService = new AuthService();
@@ -104,6 +105,13 @@ export const cerrarSesion: RequestHandler = async (req, res) => {
         return;
       }
       sesionService.cerrarSesion(lineaProduccionId);
+      console.log(`[AUTH] Session deleted from memory for line ${lineaProduccionId}. Emitting sesion-cerrada...`);
+      try {
+        const io = getIo();
+        io.to(`linea-${lineaProduccionId}`).emit('sesion-cerrada', { lineaProduccionId });
+      } catch (error) {
+        console.error('[AUTH] Failed to emit sesion-cerrada socket event', error);
+      }
     }
     
     res.status(200).json({
@@ -147,7 +155,8 @@ export const sesionActiva: RequestHandler = async (req, res) => {
 export const todasSesionesActivas: RequestHandler = async (req, res) => {
   try {
     const activeSessions = sesionService.obtenerTodasLasSesiones();
-    const em = (req as any).em || await import('@mikro-orm/core').then(m => m.RequestContext.getEntityManager());
+    const core = await import('@mikro-orm/core');
+    const em = core.RequestContext.getEntityManager();
     if (!em) throw new Error('No EntityManager in RequestContext');
 
     const UsuarioEntity = await import('../models/Usuario.js').then(m => m.Usuario);
