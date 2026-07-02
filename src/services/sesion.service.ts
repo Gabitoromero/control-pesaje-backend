@@ -9,6 +9,16 @@ export interface SesionActiva {
   ultimaActividadAt: Date | null;
 }
 
+export interface SesionEnriquecida {
+  lineaId: number;
+  lineaNombre: string;
+  usuarioId: number | null;
+  usuarioNombre: string;
+  legajo: string;
+  fechaInicio: string;
+  expiraEn: string | null;
+}
+
 export type IniciarSesionResult =
   | { ok: true; session: SesionActiva }
   | { ok: false; conflict: { lineaProduccionId: number } };
@@ -137,6 +147,45 @@ export class SesionService {
     this.lineSessions.clear();
     this.failedAttempts.clear();
     this.lockExpires.clear();
+  }
+
+  async enriquecerSesiones(): Promise<SesionEnriquecida[]> {
+    const activeSessions = this.obtenerTodasLasSesiones();
+    const core = await import('@mikro-orm/core');
+    const em = core.RequestContext.getEntityManager();
+    if (!em) throw new Error('No EntityManager in RequestContext');
+
+    const UsuarioEntity = await import('../models/Usuario.js').then(m => m.Usuario);
+    const LineaProduccionEntity = await import('../models/LineaProduccion.js').then(m => m.LineaProduccion);
+
+    return await Promise.all(
+      activeSessions.map(async (session) => {
+        let usuarioNombre = 'Unknown';
+        let lineaNombre = 'Unknown';
+        let legajo = '-';
+
+        if (session.usuarioId) {
+          const usuario = await em.findOne(UsuarioEntity, { id: session.usuarioId });
+          if (usuario) {
+            usuarioNombre = usuario.nombreUsuario;
+            legajo = usuario.legajo;
+          }
+        }
+
+        const linea = await em.findOne(LineaProduccionEntity, { id: session.lineaProduccionId });
+        if (linea) lineaNombre = linea.nombre;
+
+        return {
+          lineaId: session.lineaProduccionId,
+          lineaNombre,
+          usuarioId: session.usuarioId,
+          usuarioNombre,
+          legajo,
+          fechaInicio: session.connectedAt.toISOString(),
+          expiraEn: session.ultimaActividadAt ? new Date(session.ultimaActividadAt.getTime() + 5 * 60 * 1000).toISOString() : null,
+        };
+      })
+    );
   }
 }
 

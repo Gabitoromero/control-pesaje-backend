@@ -2,14 +2,13 @@ import type { RequestHandler } from 'express';
 import { AuthService } from '../services/auth.service.js';
 import { sesionService } from '../services/sesion.service.js';
 import { getIo } from '../socket/index.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { LoginSchema, SesionLineaSchema, ActividadSchema, CerrarSesionSchema } from '../utils/schemas.js';
 
 const authService = new AuthService();
 
 export const login: RequestHandler = async (req, res) => {
-  const { legajo, pin } = req.body as { legajo: string; pin: string };
-
   try {
+    const { legajo, pin } = LoginSchema.parse(req.body);
     if (sesionService.estaBloqueada(legajo)) {
       res.status(429).json({
         success: false,
@@ -34,9 +33,8 @@ export const login: RequestHandler = async (req, res) => {
 };
 
 export const sesionLinea: RequestHandler = async (req, res) => {
-  const { lineaProduccionId } = req.body as { lineaProduccionId: number };
-
   try {
+    const { lineaProduccionId } = SesionLineaSchema.parse(req.body);
     if (!req.user) {
       res.status(401).json({ success: false, error: { message: 'Not authenticated' } });
       return;
@@ -67,9 +65,8 @@ export const sesionLinea: RequestHandler = async (req, res) => {
 };
 
 export const actividad: RequestHandler = async (req, res) => {
-  const { lineaProduccionId } = req.body as { lineaProduccionId: number };
-
   try {
+    const { lineaProduccionId } = ActividadSchema.parse(req.body);
     if (!req.user) {
       res.status(401).json({ success: false, error: { message: 'Not authenticated' } });
       return;
@@ -92,9 +89,8 @@ export const actividad: RequestHandler = async (req, res) => {
 };
 
 export const cerrarSesion: RequestHandler = async (req, res) => {
-  const { lineaProduccionId } = req.body as { lineaProduccionId?: number };
-
   try {
+    const { lineaProduccionId } = CerrarSesionSchema.parse(req.body);
     if (lineaProduccionId !== undefined) {
       const session = sesionService.obtenerSesion(lineaProduccionId);
       if (!session) {
@@ -154,44 +150,7 @@ export const sesionActiva: RequestHandler = async (req, res) => {
 
 export const todasSesionesActivas: RequestHandler = async (req, res) => {
   try {
-    const activeSessions = sesionService.obtenerTodasLasSesiones();
-    const core = await import('@mikro-orm/core');
-    const em = core.RequestContext.getEntityManager();
-    if (!em) throw new Error('No EntityManager in RequestContext');
-
-    const UsuarioEntity = await import('../models/Usuario.js').then(m => m.Usuario);
-    const LineaProduccionEntity = await import('../models/LineaProduccion.js').then(m => m.LineaProduccion);
-
-    const enrichedSessions = await Promise.all(
-      activeSessions.map(async (session) => {
-        let usuarioNombre = 'Unknown';
-        let lineaNombre = 'Unknown';
-
-        let legajo = '-';
-
-        if (session.usuarioId) {
-          const usuario = await em.findOne(UsuarioEntity, { id: session.usuarioId });
-          if (usuario) {
-            usuarioNombre = usuario.nombreUsuario;
-            legajo = usuario.legajo;
-          }
-        }
-
-        const linea = await em.findOne(LineaProduccionEntity, { id: session.lineaProduccionId });
-        if (linea) lineaNombre = linea.nombre;
-
-        return {
-          lineaId: session.lineaProduccionId,
-          lineaNombre,
-          usuarioId: session.usuarioId,
-          usuarioNombre,
-          legajo,
-          fechaInicio: session.connectedAt.toISOString(),
-          expiraEn: session.ultimaActividadAt ? new Date(session.ultimaActividadAt.getTime() + 5 * 60 * 1000).toISOString() : null,
-        };
-      })
-    );
-
+    const enrichedSessions = await sesionService.enriquecerSesiones();
     res.status(200).json({ success: true, data: enrichedSessions });
   } catch (error) {
     console.error('Error fetching sesiones activas:', error);
