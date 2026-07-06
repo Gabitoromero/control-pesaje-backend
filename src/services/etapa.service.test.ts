@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EtapaService } from './etapa.service.js';
+import { ValidationError } from '../utils/errors.js';
 
 // ─── Mock EntityManager ───────────────────────────────────────────────────────
 
@@ -26,6 +27,26 @@ describe('EtapaService.softDelete', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     service = new EtapaService();
+  });
+
+  describe('create', () => {
+    it('throws ValidationError if stage with the same nombre already exists', async () => {
+      mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Test', activo: true });
+      await expect(service.create({ nombre: 'Test' } as any)).rejects.toThrow(ValidationError);
+      
+      mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Test', activo: true });
+      await expect(service.create({ nombre: 'Test' } as any)).rejects.toThrow(/Ya existe una etapa con el nombre 'Test'/);
+    });
+  });
+
+  describe('update', () => {
+    it('throws ValidationError if another stage with the same nombre already exists', async () => {
+      mockEm.findOne.mockResolvedValueOnce({ id: 3, nombre: 'Test', activo: true });
+      await expect(service.update(1, { nombre: 'Test' } as any)).rejects.toThrow(ValidationError);
+      
+      mockEm.findOne.mockResolvedValueOnce({ id: 3, nombre: 'Test', activo: true });
+      await expect(service.update(1, { nombre: 'Test' } as any)).rejects.toThrow(/Ya existe una etapa con el nombre 'Test'/);
+    });
   });
 
   it('A) throws RestrictError when stage is referenced by an active route pivot', async () => {

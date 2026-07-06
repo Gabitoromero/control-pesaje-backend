@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RutaPasadaService } from './ruta-pasada.service.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
+import { ValidationError } from '../utils/errors.js';
 
 // Mock EntityManager
 const mockEm = {
@@ -33,6 +34,14 @@ describe('RutaPasadaService', () => {
   });
 
   describe('create', () => {
+    it('throws ValidationError if ruta with the same nombre already exists', async () => {
+      mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Test', activo: true });
+      await expect(service.create({ nombre: 'Test' } as any)).rejects.toThrow(ValidationError);
+      
+      mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Test', activo: true });
+      await expect(service.create({ nombre: 'Test' } as any)).rejects.toThrow(/Ya existe una ruta con el nombre 'Test'/);
+    });
+
     it('creates RutaPasada and its nested etapas within a transaction', async () => {
       const payload = {
         nombre: 'Ruta 1',
@@ -59,6 +68,14 @@ describe('RutaPasadaService', () => {
   });
 
   describe('update', () => {
+    it('throws ValidationError if another ruta with the same nombre already exists', async () => {
+      mockEm.findOne.mockResolvedValueOnce({ id: 3, nombre: 'Test', activo: true });
+      await expect(service.update(1, { nombre: 'Test' } as any)).rejects.toThrow(ValidationError);
+      
+      mockEm.findOne.mockResolvedValueOnce({ id: 3, nombre: 'Test', activo: true });
+      await expect(service.update(1, { nombre: 'Test' } as any)).rejects.toThrow(/Ya existe una ruta con el nombre 'Test'/);
+    });
+
     it('updates RutaPasada and reconciles its nested etapas within a transaction', async () => {
       const payload = {
         nombre: 'Ruta 1 Updated',
@@ -177,6 +194,7 @@ describe('RutaPasadaService', () => {
 
   describe('create', () => {
     it('rejects duplicate orden values — throws before opening transaction', async () => {
+      mockEm.findOne.mockResolvedValue(null);
       const payload = {
         nombre: 'Ruta con orden duplicado',
         etapas: [

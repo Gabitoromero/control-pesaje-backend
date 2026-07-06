@@ -1,4 +1,4 @@
-import { Entity, OneToMany, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, OneToMany, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
 import { Collection, type EntityName } from '@mikro-orm/core';
 import type { RutaPasadaEtapa } from './RutaPasadaEtapa.js';
 
@@ -7,6 +7,7 @@ export class RutaPasada {
   @PrimaryKey({ type: 'number', autoincrement: true })
   id!: number;
 
+  @Unique()
   @Property({ type: 'string', length: 100 })
   nombre!: string;
 

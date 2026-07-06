@@ -41,6 +41,14 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
 
   override async create(data: RequiredEntityData<RutaPasada>): Promise<RutaPasada> {
     const em = this.getEm();
+    
+    if (data.nombre) {
+      const existing = await em.findOne(RutaPasada, { nombre: data.nombre });
+      if (existing) {
+        throw new ValidationError(`Ya existe una ruta con el nombre '${data.nombre}'`);
+      }
+    }
+
     const { etapas: etapasInput, ...rutaData } = data as RequiredEntityData<RutaPasada> & { etapas?: RutaPasadaEtapaInput[] };
     if (etapasInput) this.assertUniqueOrden(etapasInput);
 
@@ -62,6 +70,14 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
 
   override async update(id: number, data: Partial<RutaPasada>): Promise<RutaPasada | null> {
     const em = this.getEm();
+    
+    if (data.nombre) {
+      const existing = await em.findOne(RutaPasada, { nombre: data.nombre });
+      if (existing && existing.id !== id) {
+        throw new ValidationError(`Ya existe una ruta con el nombre '${data.nombre}'`);
+      }
+    }
+
     const { etapas: etapasInput, ...rutaData } = data as Partial<RutaPasada> & { etapas?: RutaPasadaEtapaInput[] };
     if (etapasInput) this.assertUniqueOrden(etapasInput);
 
