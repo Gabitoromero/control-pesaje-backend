@@ -33,4 +33,6 @@ export class Usuario {
 
   @Property({ type: 'json', columnType: 'jsonb', nullable: true })
   datosAdicionales?: UsuarioMetadata;
+  @Property({ type: 'boolean', default: false })
+  esSistema: boolean = false;
 }

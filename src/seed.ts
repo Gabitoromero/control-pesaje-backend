@@ -9,7 +9,6 @@ import { ArticuloRutaPasada } from './models/ArticuloRutaPasada.js';
 import { RutaPasadaEtapa } from './models/RutaPasadaEtapa.js';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
-import { ru } from 'zod/locales';
 
 dotenv.config();
 
@@ -43,6 +42,7 @@ async function run() {
       rol: UsuarioRol.ADMINISTRADOR,
       puedeTomarMuestrasLibres: true,
       activo: true,
+      esSistema: true,
     });
 
     const jefe = em.create(Usuario, {
