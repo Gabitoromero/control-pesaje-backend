@@ -23,7 +23,7 @@ export class UsuarioService extends BaseService<Usuario> {
    */
   override async create(data: RequiredEntityData<Usuario>): Promise<Usuario> {
     if (data.legajo) {
-      await this.checkUniqueLegajo(data.legajo);
+      await this.checkUniqueLegajo(data.legajo as string);
     }
     const input = data as unknown as UsuarioInput;
     const mapped = await this.mapCredentials(input);
@@ -39,7 +39,7 @@ export class UsuarioService extends BaseService<Usuario> {
     }
 
     if (data.legajo) {
-      await this.checkUniqueLegajo(data.legajo, id);
+      await this.checkUniqueLegajo(data.legajo as string, id);
     }
     const input = data as unknown as UsuarioInput;
     const mapped = await this.mapCredentials(input);

@@ -53,6 +53,7 @@ async function run() {
       rol: UsuarioRol.JEFE,
       puedeTomarMuestrasLibres: true,
       activo: true,
+      esSistema: false,
     });
 
     // 3 operarios with PINs
@@ -68,6 +69,7 @@ async function run() {
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: true,
       activo: true,
+      esSistema: false,
       datosAdicionales: null,
     });
 
@@ -79,6 +81,7 @@ async function run() {
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: false,
       activo: true,
+      esSistema: false,
       datosAdicionales: null,
     });
 
@@ -90,6 +93,7 @@ async function run() {
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: false,
       activo: true,
+      esSistema: false,
       datosAdicionales: null,
     });
 
