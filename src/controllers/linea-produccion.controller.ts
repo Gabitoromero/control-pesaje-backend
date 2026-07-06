@@ -21,7 +21,7 @@ export function createLineaProduccionHandlers(service: LineaProduccionService): 
       });
       res.json({ success: true, data });
     } catch {
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 

@@ -28,7 +28,7 @@ const list: RequestHandler = async (req, res) => {
     const items = await service.findAll(parsed.data);
     res.json({ success: true, data: items });
   } catch {
-    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };
 
@@ -37,12 +37,12 @@ const getOne: RequestHandler = async (req, res) => {
   try {
     const item = await service.findOne(id);
     if (!item) {
-      res.status(404).json({ success: false, error: { message: 'Not found' } });
+      res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
       return;
     }
     res.json({ success: true, data: item });
   } catch {
-    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };
 
@@ -55,7 +55,7 @@ const create: RequestHandler = async (req, res) => {
       res.status(400).json({ success: false, error: { message: 'A record with that value already exists' } });
       return;
     }
-    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };
 
@@ -64,12 +64,12 @@ const remove: RequestHandler = async (req, res) => {
   try {
     const deleted = await service.remove(id);
     if (!deleted) {
-      res.status(404).json({ success: false, error: { message: 'Not found' } });
+      res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
       return;
     }
     res.json({ success: true, data: { id } });
   } catch {
-    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };
 

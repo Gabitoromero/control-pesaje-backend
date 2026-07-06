@@ -46,7 +46,7 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
         res.status(422).json({ success: false, error: { message: err.message } });
         return;
       }
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -65,7 +65,7 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
 
       res.json({ success: true, data: filtered });
     } catch {
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -74,12 +74,12 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
     try {
       const pasada = await service.findById(id);
       if (!pasada) {
-        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
       res.json({ success: true, data: pasada });
     } catch {
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -93,13 +93,13 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
         // Load the pasada to check ownership (REQ-P4: owner OPERARIO only)
         const pasada = await service.findById(id);
         if (!pasada) {
-          res.status(404).json({ success: false, error: { message: 'Not found' } });
+          res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
           return;
         }
 
         const ownerId = pasada.usuario?.id;
         if (ownerId !== userId) {
-          res.status(403).json({ success: false, error: { message: 'Only the pasada owner can complete it' } });
+          res.status(403).json({ success: false, error: { message: 'Solo el creador de la pasada puede completarla' } });
           return;
         }
 
@@ -111,21 +111,21 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
       if (action === 'abortar') {
         // Validate motivoCierre is present (Zod already runs, but guard defensively)
         if (!motivoCierre || motivoCierre.trim().length === 0) {
-          res.status(422).json({ success: false, error: { message: 'motivoCierre is required to abort a pasada' } });
+          res.status(422).json({ success: false, error: { message: 'El motivoCierre es requerido para abortar una pasada' } });
           return;
         }
 
         // Role check: only JEFE or ADMINISTRADOR can abort a pasada (REQ-P5)
         const canAbortar = req.user!.rol === UsuarioRol.JEFE || req.user!.rol === UsuarioRol.ADMINISTRADOR;
         if (!canAbortar) {
-          res.status(403).json({ success: false, error: { message: 'Only JEFE or ADMINISTRADOR can abort a pasada' } });
+          res.status(403).json({ success: false, error: { message: 'Solo un Jefe o Administrador puede abortar una pasada' } });
           return;
         }
 
         // Load pasada to verify it exists before aborting
         const pasada = await service.findById(id);
         if (!pasada) {
-          res.status(404).json({ success: false, error: { message: 'Not found' } });
+          res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
           return;
         }
 
@@ -137,7 +137,7 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
       // Generic field update — no action provided
       const updated = await service.update(id, rest);
       if (!updated) {
-        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
       res.json({ success: true, data: updated });
@@ -147,7 +147,7 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
         res.status(422).json({ success: false, error: { message: err.message } });
         return;
       }
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 

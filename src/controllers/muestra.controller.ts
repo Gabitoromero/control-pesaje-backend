@@ -55,7 +55,7 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
         res.status(422).json({ success: false, error: { message: err.message } });
         return;
       }
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -74,7 +74,7 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
 
       res.json({ success: true, data: filtered });
     } catch {
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -83,12 +83,12 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
     try {
       const muestra = await service.findById(id);
       if (!muestra) {
-        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
       res.json({ success: true, data: muestra });
     } catch {
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -101,7 +101,7 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
       // Load the muestra to verify ownership before updating (mirrors hardDelete)
       const muestra = await service.findById(id);
       if (!muestra) {
-        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
 
@@ -111,13 +111,13 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
       const isOwner = ownerId === userId;
 
       if (!isPrivileged && !isOwner) {
-        res.status(403).json({ success: false, error: { message: 'Insufficient permissions to update this muestra' } });
+        res.status(403).json({ success: false, error: { message: 'Permisos insuficientes para actualizar esta muestra' } });
         return;
       }
 
       const updated = await service.update(id, req.body);
       if (!updated) {
-        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
       res.json({ success: true, data: updated });
@@ -126,7 +126,7 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
         res.status(422).json({ success: false, error: { message: err.message } });
         return;
       }
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -139,7 +139,7 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
       // Load the muestra to verify ownership before deleting
       const muestra = await service.findById(id);
       if (!muestra) {
-        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
 
@@ -149,20 +149,20 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
       const isOwner = ownerId === userId;
 
       if (!isPrivileged && !isOwner) {
-        res.status(403).json({ success: false, error: { message: 'Insufficient permissions to delete this muestra' } });
+        res.status(403).json({ success: false, error: { message: 'Permisos insuficientes para eliminar esta muestra' } });
         return;
       }
 
       const deleted = await service.hardDelete(id);
       if (!deleted) {
         // Race condition: row disappeared between findById and hardDelete
-        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
 
       res.status(204).send();
     } catch {
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 

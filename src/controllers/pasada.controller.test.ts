@@ -83,7 +83,7 @@ describe('createPasadaHandlers', () => {
     });
 
     it('returns 422 when service throws an Error', async () => {
-      service.iniciarPasada.mockRejectedValue(new Error('No active session'));
+      service.iniciarPasada.mockRejectedValue(new Error('No hay sesión activa'));
 
       const req = makeReq({ body: { lineaProduccionId: 1, articuloId: 2 } });
       const { mock } = makeRes();
@@ -93,7 +93,7 @@ describe('createPasadaHandlers', () => {
       expect(mock.status).toHaveBeenCalledWith(422);
       expect(mock.json).toHaveBeenCalledWith({
         success: false,
-        error: { message: 'No active session' },
+        error: { message: 'No hay sesión activa' },
       });
     });
   });
@@ -160,7 +160,7 @@ describe('createPasadaHandlers', () => {
       expect(mock.status).toHaveBeenCalledWith(404);
       expect(mock.json).toHaveBeenCalledWith({
         success: false,
-        error: { message: 'Not found' },
+        error: { message: 'Registro no encontrado' },
       });
     });
   });
@@ -255,7 +255,7 @@ describe('createPasadaHandlers', () => {
     });
 
     it('returns 422 when service throws an Error', async () => {
-      service.update.mockRejectedValue(new Error('Cannot update closed pasada'));
+      service.update.mockRejectedValue(new Error('No se puede actualizar una pasada cerrada'));
 
       const req = makeReq({
         params: { id: '3' },
@@ -268,7 +268,7 @@ describe('createPasadaHandlers', () => {
       expect(mock.status).toHaveBeenCalledWith(422);
       expect(mock.json).toHaveBeenCalledWith({
         success: false,
-        error: { message: 'Cannot update closed pasada' },
+        error: { message: 'No se puede actualizar una pasada cerrada' },
       });
     });
   });

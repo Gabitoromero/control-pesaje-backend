@@ -12,7 +12,7 @@ export const login: RequestHandler = async (req, res) => {
     if (sesionService.estaBloqueada(legajo)) {
       res.status(429).json({
         success: false,
-        error: { message: 'Too many consecutive failed attempts. Blocked for 5 minutes.' }
+        error: { message: 'Demasiados intentos fallidos. Bloqueado por 5 minutos.' }
       });
       return;
     }
@@ -21,14 +21,14 @@ export const login: RequestHandler = async (req, res) => {
 
     if (!token) {
       sesionService.registrarIntentoFallido(legajo);
-      res.status(401).json({ success: false, error: { message: 'Invalid credentials or inactive user' } });
+      res.status(401).json({ success: false, error: { message: 'Credenciales inválidas o usuario inactivo' } });
       return;
     }
 
     sesionService.resetearIntentos(legajo);
     res.json({ success: true, data: { token } });
   } catch {
-    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };
 
@@ -60,7 +60,7 @@ export const sesionLinea: RequestHandler = async (req, res) => {
       }
     });
   } catch {
-    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };
 
@@ -84,7 +84,7 @@ export const actividad: RequestHandler = async (req, res) => {
       data: { ultimaActividadAt: session.ultimaActividadAt?.toISOString() }
     });
   } catch {
-    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };
 
@@ -115,7 +115,7 @@ export const cerrarSesion: RequestHandler = async (req, res) => {
       data: { message: 'Session closed successfully' }
     });
   } catch {
-    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };
 
@@ -144,7 +144,7 @@ export const sesionActiva: RequestHandler = async (req, res) => {
       }
     });
   } catch {
-    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };
 
@@ -154,6 +154,6 @@ export const todasSesionesActivas: RequestHandler = async (req, res) => {
     res.status(200).json({ success: true, data: enrichedSessions });
   } catch (error) {
     console.error('Error fetching sesiones activas:', error);
-    res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };

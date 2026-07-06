@@ -98,7 +98,7 @@ describe('createMuestraHandlers', () => {
     });
 
     it('returns 422 when service throws an Error', async () => {
-      service.registrarMuestra.mockRejectedValue(new Error('No active session'));
+      service.registrarMuestra.mockRejectedValue(new Error('No hay sesión activa'));
 
       const req = makeReq({
         body: { etapaId: 1, lineaProduccionId: 2, pesoNeto: 50 },
@@ -110,7 +110,7 @@ describe('createMuestraHandlers', () => {
       expect(mock.status).toHaveBeenCalledWith(422);
       expect(mock.json).toHaveBeenCalledWith({
         success: false,
-        error: { message: 'No active session' },
+        error: { message: 'No hay sesión activa' },
       });
     });
   });
@@ -200,7 +200,7 @@ describe('createMuestraHandlers', () => {
       expect(mock.status).toHaveBeenCalledWith(404);
       expect(mock.json).toHaveBeenCalledWith({
         success: false,
-        error: { message: 'Not found' },
+        error: { message: 'Registro no encontrado' },
       });
     });
   });
