@@ -24,7 +24,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
       const items = await service.findAll();
       res.json({ success: true, data: items });
     } catch (err) {
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -33,7 +33,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
       const items = await service.findAllInactive();
       res.json({ success: true, data: items });
     } catch (err) {
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -42,12 +42,12 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
     try {
       const item = await service.findById(id);
       if (!item) {
-        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
       res.json({ success: true, data: item });
     } catch (err) {
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -64,7 +64,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
         res.status(400).json({ success: false, error: { message: err.message } });
         return;
       }
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -73,7 +73,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
     try {
       const entity = await service.update(id, req.body);
       if (!entity) {
-        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
       res.json({ success: true, data: entity });
@@ -87,7 +87,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
         return;
       }
       console.error('[update error]', err);
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
@@ -96,7 +96,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
     try {
       const deleted = await service.softDelete(id);
       if (!deleted) {
-        res.status(404).json({ success: false, error: { message: 'Not found' } });
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
       res.json({ success: true, data: { id } });
@@ -109,7 +109,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
         res.status(400).json({ success: false, error: { message: err.message } });
         return;
       }
-      res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
 
