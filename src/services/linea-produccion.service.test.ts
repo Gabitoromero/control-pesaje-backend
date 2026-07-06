@@ -29,7 +29,20 @@ describe('LineaProduccionService', () => {
   });
 
   describe('create validations', () => {
+    it('throws ValidationError when nombre already exists', async () => {
+      mockEm.findOne.mockImplementationOnce(async () => ({ id: 2, nombre: 'Linea 1' }));
+
+      await expect(
+        service.create({
+          nombre: 'Linea 1',
+          numeroBalanza: 1,
+        } as any)
+      ).rejects.toThrow(ValidationError);
+      expect(mockEm.findOne).toHaveBeenCalledOnce();
+    });
+
     it('succeeds when rutaPasadaActiva is null/undefined', async () => {
+      mockEm.findOne.mockResolvedValue(null);
       mockEm.create.mockReturnValue({ id: 1 });
       mockEm.flush.mockResolvedValue(undefined);
 
@@ -40,11 +53,13 @@ describe('LineaProduccionService', () => {
       } as any);
 
       expect(result).toBeDefined();
-      expect(mockEm.findOne).not.toHaveBeenCalled();
     });
 
     it('throws ValidationError when rutaPasadaActiva does not exist or is inactive', async () => {
-      mockEm.findOne.mockResolvedValue(null);
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity.name === 'LineaProduccion') return null;
+        return null;
+      });
 
       await expect(
         service.create({
@@ -54,7 +69,7 @@ describe('LineaProduccionService', () => {
         } as any)
       ).rejects.toThrow(ValidationError);
 
-      expect(mockEm.findOne).toHaveBeenCalledOnce();
+      expect(mockEm.findOne).toHaveBeenCalledTimes(2);
     });
 
     it('throws ValidationError when rutaPasadaActiva has 0 stages', async () => {
@@ -63,7 +78,10 @@ describe('LineaProduccionService', () => {
         activo: true,
         etapas: { length: 0 },
       };
-      mockEm.findOne.mockResolvedValue(mockRoute);
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity.name === 'LineaProduccion') return null;
+        return mockRoute;
+      });
 
       await expect(
         service.create({
@@ -73,7 +91,7 @@ describe('LineaProduccionService', () => {
         } as any)
       ).rejects.toThrow('No se puede asignar una ruta sin etapas a una línea de producción');
 
-      expect(mockEm.findOne).toHaveBeenCalledOnce();
+      expect(mockEm.findOne).toHaveBeenCalledTimes(2);
     });
 
     it('succeeds when rutaPasadaActiva is active and has >= 1 stage', async () => {
@@ -82,7 +100,10 @@ describe('LineaProduccionService', () => {
         activo: true,
         etapas: { length: 1 },
       };
-      mockEm.findOne.mockResolvedValue(mockRoute);
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity.name === 'LineaProduccion') return null;
+        return mockRoute;
+      });
       mockEm.create.mockReturnValue({ id: 1, rutaPasadaActiva: mockRoute });
       mockEm.flush.mockResolvedValue(undefined);
 
@@ -93,11 +114,21 @@ describe('LineaProduccionService', () => {
       } as any);
 
       expect(result).toBeDefined();
-      expect(mockEm.findOne).toHaveBeenCalledOnce();
+      expect(mockEm.findOne).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('update validations', () => {
+    it('throws ValidationError when updating to an existing nombre', async () => {
+      // the duplicate entity has id: 2
+      mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Linea Duplicada' });
+
+      await expect(
+        service.update(1, {
+          nombre: 'Linea Duplicada',
+        } as any)
+      ).rejects.toThrow(ValidationError);
+    });
     it('throws ValidationError when updated rutaPasadaActiva has 0 stages', async () => {
       const mockRoute = {
         id: 2,

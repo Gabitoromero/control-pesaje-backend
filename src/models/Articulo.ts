@@ -1,6 +1,7 @@
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
 
 @Entity({ tableName: 'articulo' })
+@Unique({ properties: ['nombre', 'marca'] })
 export class Articulo {
   @PrimaryKey({ type: 'number', autoincrement: true })
   id!: number;

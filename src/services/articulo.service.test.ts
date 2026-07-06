@@ -20,6 +20,46 @@ vi.mock('@mikro-orm/core', () => ({
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+describe('ArticuloService.create validations', () => {
+  let service: ArticuloService;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new ArticuloService();
+  });
+
+  it('throws ValidationError when nombre and marca are duplicated', async () => {
+    mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'A1', marca: 'M1' });
+
+    await expect(
+      service.create({
+        nombre: 'A1',
+        marca: 'M1',
+      } as any)
+    ).rejects.toThrow(/already exists/);
+  });
+});
+
+describe('ArticuloService.update validations', () => {
+  let service: ArticuloService;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new ArticuloService();
+  });
+
+  it('throws ValidationError when updated to existing nombre and marca', async () => {
+    // first call gets current entity
+    mockEm.findOne.mockResolvedValueOnce({ id: 1, nombre: 'Old', marca: 'M1' });
+    // second call finds duplicate
+    mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'A1', marca: 'M1' });
+
+    await expect(
+      service.update(1, {
+        nombre: 'A1',
+      } as any)
+    ).rejects.toThrow(/already exists/);
+  });
+});
+
 describe('ArticuloService.softDelete', () => {
   let service: ArticuloService;
 

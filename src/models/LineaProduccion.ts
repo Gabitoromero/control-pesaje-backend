@@ -6,6 +6,7 @@ export class LineaProduccion {
   @PrimaryKey({ type: 'number', autoincrement: true })
   id!: number;
 
+  @Unique()
   @Property({ type: 'string', length: 100 })
   nombre!: string;
 

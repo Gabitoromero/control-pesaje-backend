@@ -25,6 +25,12 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
   }
 
   override async create(data: RequiredEntityData<LineaProduccion>): Promise<LineaProduccion> {
+    if (data.nombre) {
+      const existing = await this.getEm().findOne(LineaProduccion, { nombre: data.nombre });
+      if (existing) {
+        throw new ValidationError(`LineaProduccion with nombre '${data.nombre}' already exists`);
+      }
+    }
     if (data.rutaPasadaActiva !== undefined && data.rutaPasadaActiva !== null) {
       await this.validateRutaPasadaActiva(data.rutaPasadaActiva);
     }
@@ -32,8 +38,16 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
   }
 
   override async update(id: number, data: Partial<LineaProduccion>): Promise<LineaProduccion | null> {
+    const em = this.getEm();
+
+    if (data.nombre) {
+      const existing = await em.findOne(LineaProduccion, { nombre: data.nombre });
+      if (existing && existing.id !== id) {
+        throw new ValidationError(`LineaProduccion with nombre '${data.nombre}' already exists`);
+      }
+    }
+
     if (data.rutaPasadaActiva !== undefined) {
-      const em = this.getEm();
       const linea = await em.findOne(LineaProduccion, { id });
       
       if (linea) {
