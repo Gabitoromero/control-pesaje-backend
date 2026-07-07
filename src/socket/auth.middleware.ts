@@ -6,6 +6,7 @@ import type { JWTPayload } from '../middlewares/auth.middleware.js';
 declare module 'socket.io' {
   interface SocketData {
     isDevice?: boolean;
+    hardwareId?: string;
     user?: JWTPayload;
     lineaId?: number;
   }
@@ -14,9 +15,9 @@ declare module 'socket.io' {
 /**
  * Socket.IO handshake middleware — device authentication gate.
  *
- * Devices (Raspberry Pi): validate socket.handshake.auth.deviceSecret
- *   against DEVICE_SECRET env var. Sets socket.data.isDevice = true on success.
- *   Fails closed if DEVICE_SECRET is unset.
+ * Devices (Raspberry Pi): validate socket.handshake.auth.hardwareId
+ *   against a UUID format. Sets socket.data.isDevice = true and 
+ *   socket.data.hardwareId on success.
  *
  * All other connections (tablets) pass through unauthenticated.
  * JWT validation does NOT occur at the socket layer.
@@ -27,20 +28,20 @@ export const deviceAuthMiddleware = (
 ): void => {
   const auth = socket.handshake.auth as Record<string, unknown> | undefined;
 
-  const expectedSecret = process.env.DEVICE_SECRET;
-  const providedSecret = auth?.deviceSecret;
+  const providedHardwareId = auth?.hardwareId;
 
-  if (typeof providedSecret === 'string') {
-    // Device secret was supplied — evaluate it (fail-closed if env var unset)
-    if (expectedSecret && providedSecret === expectedSecret) {
+  if (typeof providedHardwareId === 'string') {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(providedHardwareId)) {
       socket.data.isDevice = true;
+      socket.data.hardwareId = providedHardwareId;
       return next();
     }
-    // Wrong secret or DEVICE_SECRET not configured → reject immediately
+    // Invalid UUID format
     return next(new Error('unauthorized'));
   }
 
-  // No deviceSecret provided — tablet path, pass through unauthenticated
+  // No hardwareId provided — tablet path, pass through unauthenticated
   return next();
 };
 

@@ -99,5 +99,17 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
       throw new ValidationError('No se puede asignar una ruta sin etapas a una línea de producción');
     }
   }
+
+  async assignDevice(id: number, hardwareId: string | null): Promise<LineaProduccion | null> {
+    const em = this.getEm();
+    if (hardwareId !== null) {
+      const existing = await em.findOne(LineaProduccion, { hardwareId });
+      if (existing && existing.id !== id) {
+        throw new ValidationError(`El dispositivo con UUID '${hardwareId}' ya está asignado a otra línea`);
+      }
+    }
+    
+    return super.update(id, { hardwareId } as Partial<LineaProduccion>);
+  }
 }
 

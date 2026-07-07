@@ -16,26 +16,26 @@ describe('deviceAuthMiddleware', () => {
 
   beforeEach(() => {
     next = vi.fn();
-    process.env.DEVICE_SECRET = DEVICE_SECRET;
   });
 
   afterEach(() => {
     vi.clearAllMocks();
-    delete process.env.DEVICE_SECRET;
   });
 
   // ---- Device secret path ----
 
-  it('allows connection when deviceSecret matches DEVICE_SECRET', () => {
-    const socket = makeSocket({ deviceSecret: DEVICE_SECRET });
+  it('allows connection and sets isDevice when hardwareId is a valid UUID', () => {
+    const validUuid = '123e4567-e89b-12d3-a456-426614174000';
+    const socket = makeSocket({ hardwareId: validUuid });
     deviceAuthMiddleware(socket as Socket, next);
     expect(next).toHaveBeenCalledOnce();
     expect(next).toHaveBeenCalledWith();
     expect((socket.data as Record<string, unknown>).isDevice).toBe(true);
+    expect((socket.data as Record<string, unknown>).hardwareId).toBe(validUuid);
   });
 
-  it('rejects connection when deviceSecret is wrong', () => {
-    const socket = makeSocket({ deviceSecret: 'wrong-secret' });
+  it('rejects connection when hardwareId is an invalid UUID format', () => {
+    const socket = makeSocket({ hardwareId: 'not-a-uuid' });
     deviceAuthMiddleware(socket as Socket, next);
     expect(next).toHaveBeenCalledOnce();
     expect(next.mock.calls[0][0]).toBeInstanceOf(Error);
@@ -58,20 +58,10 @@ describe('deviceAuthMiddleware', () => {
     expect((socket.data as Record<string, unknown>).isDevice).toBeFalsy();
   });
 
-  it('does not set isDevice when deviceSecret is wrong', () => {
-    const socket = makeSocket({ deviceSecret: 'wrong-secret' });
+  it('does not set isDevice when hardwareId is an invalid string', () => {
+    const socket = makeSocket({ hardwareId: 'invalid' });
     deviceAuthMiddleware(socket as Socket, next);
     expect((socket.data as Record<string, unknown>).isDevice).toBeFalsy();
-    expect(next.mock.calls[0][0]).toBeInstanceOf(Error);
-  });
-
-  // ---- DEVICE_SECRET unset ----
-
-  it('rejects connection via deviceSecret when DEVICE_SECRET is unset (fail-closed)', () => {
-    delete process.env.DEVICE_SECRET;
-    const socket = makeSocket({ deviceSecret: 'any-value' });
-    deviceAuthMiddleware(socket as Socket, next);
-    expect(next).toHaveBeenCalledOnce();
     expect(next.mock.calls[0][0]).toBeInstanceOf(Error);
   });
 });
@@ -172,18 +162,16 @@ describe('middleware chain (deviceAuthMiddleware → tabletJwtMiddleware)', () =
 
   beforeEach(() => {
     next = vi.fn();
-    process.env.DEVICE_SECRET = DEVICE_SECRET;
     process.env.JWT_SECRET = JWT_SECRET;
   });
 
   afterEach(() => {
     vi.clearAllMocks();
-    delete process.env.DEVICE_SECRET;
     delete process.env.JWT_SECRET;
   });
 
   it('device socket: passes deviceAuthMiddleware then tabletJwtMiddleware short-circuits without touching user', () => {
-    const socket = makeSocket({ deviceSecret: DEVICE_SECRET });
+    const socket = makeSocket({ hardwareId: '123e4567-e89b-12d3-a456-426614174000' });
     // Run device middleware first — sets isDevice = true
     deviceAuthMiddleware(socket as Socket, (err) => {
       if (err) throw err;
@@ -199,7 +187,7 @@ describe('middleware chain (deviceAuthMiddleware → tabletJwtMiddleware)', () =
 
   it('tablet without token: is rejected by tabletJwtMiddleware', () => {
     const socket = makeSocket({});
-    // Device middleware passes through (no deviceSecret)
+    // Device middleware passes through (no hardwareId)
     deviceAuthMiddleware(socket as Socket, (err) => {
       if (err) throw err;
     });

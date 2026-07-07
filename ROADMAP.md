@@ -3,8 +3,8 @@
 ## Estado actual
 `[x] Fase I — Setup de infraestructura`
 `[x] Fase II — API Core`
-`[ ] Fase III — Integración Raspberry Pi`
-`[ ] Fase IV — Lógica de negocio avanzada (En progreso — Planificando 2FA)`
+`[x] Fase III — Integración Raspberry Pi`
+`[x] Fase IV — Lógica de negocio avanzada`
 
 ---
 
@@ -39,25 +39,25 @@
 
 ### Fase III — Integración Raspberry Pi
 **Estimado:** 50 horas  
-**Estado:** ⬜ Pendiente
+**Estado:** ✅ Completado
 
-- [ ] Script de captura en Raspberry Pi
-- [ ] Protocolo de envío al servidor
-- [ ] Recepción en tiempo real en el servidor
-- [ ] Descarte de datos en modo puesta a punto (sin sesión activa)
+- [x] Script de captura en Raspberry Pi
+- [x] Protocolo de envío al servidor
+- [x] Recepción en tiempo real en el servidor
+- [x] Descarte de datos en modo puesta a punto (sin sesión activa)
 
 ---
 
 ### Fase IV — Lógica de negocio avanzada
 **Estimado:** 30 horas  
-**Estado:** ⬜ Pendiente
+**Estado:** ✅ Completado
 
-- [ ] Control de sesiones concurrentes (1 sesión por operario)
-- [ ] Lógica de pasadas simultáneas por línea
-- [ ] Flujo de muestras fuera de rango (solicitar más muestras)
-- [ ] Lógica de puesta a punto (detección por ausencia de sesión)
-- [ ] Control al azar (sin pasada asociada)
-- [ ] Baja lógica de todas las entidades
+- [x] Control de sesiones concurrentes (1 sesión por operario)
+- [x] Lógica de pasadas simultáneas por línea
+- [x] Flujo de muestras fuera de rango (solicitar más muestras)
+- [x] Lógica de puesta a punto (detección por ausencia de sesión)
+- [x] Control al azar (sin pasada asociada)
+- [x] Baja lógica de todas las entidades
 
 ---
 

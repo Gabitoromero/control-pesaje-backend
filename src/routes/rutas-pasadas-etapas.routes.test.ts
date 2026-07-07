@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import request from 'supertest';
 import type { Express } from 'express';
 import { MikroORM } from '@mikro-orm/postgresql';
+import { UniqueConstraintViolationException } from '@mikro-orm/core';
 import jwt from 'jsonwebtoken';
 import { initApp } from '../app.js';
 import { UsuarioRol } from '../models/Usuario.js';
@@ -173,5 +174,108 @@ describe('GET /api/rutas-pasadas-etapas/inactive', () => {
       .set('Authorization', `Bearer ${adminToken()}`);
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe('GET /api/rutas-pasadas-etapas — error paths', () => {
+  it('returns 400 when rutaPasadaId query param is invalid', async () => {
+    const res = await request(app)
+      .get('/api/rutas-pasadas-etapas?rutaPasadaId=notanumber')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toBe('Invalid rutaPasadaId');
+  });
+
+  it('returns 500 on unexpected service error during list', async () => {
+    mockEm.find.mockRejectedValue(new Error('DB down'));
+
+    const res = await request(app)
+      .get('/api/rutas-pasadas-etapas')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(500);
+    expect(res.body.success).toBe(false);
+  });
+});
+
+describe('GET /api/rutas-pasadas-etapas/:id', () => {
+  it('returns a single pivot record', async () => {
+    const pivot = { id: 1, orden: 1, etapa: { id: 2, nombre: 'Envasado' } };
+    mockEm.findOne.mockResolvedValue(pivot);
+
+    const res = await request(app)
+      .get('/api/rutas-pasadas-etapas/1')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toEqual(pivot);
+  });
+
+  it('returns 404 when record not found', async () => {
+    mockEm.findOne.mockResolvedValue(null);
+
+    const res = await request(app)
+      .get('/api/rutas-pasadas-etapas/999')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('returns 500 on unexpected service error', async () => {
+    mockEm.findOne.mockRejectedValue(new Error('DB down'));
+
+    const res = await request(app)
+      .get('/api/rutas-pasadas-etapas/1')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(500);
+    expect(res.body.success).toBe(false);
+  });
+});
+
+describe('POST /api/rutas-pasadas-etapas — error paths', () => {
+  it('returns 400 when UniqueConstraintViolationException occurs', async () => {
+    mockEm.create.mockImplementation(() => {
+      throw new UniqueConstraintViolationException(new Error('duplicate'));
+    });
+
+    const res = await request(app)
+      .post('/api/rutas-pasadas-etapas')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ rutaPasada: 1, etapa: 2, orden: 1, pesoIdeal: 70, pesoMinimo: 65, pesoMaximo: 75, cantidadMuestrasRequeridas: 3 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('returns 500 on unexpected service error', async () => {
+    mockEm.create.mockImplementation(() => {
+      throw new Error('Unexpected');
+    });
+
+    const res = await request(app)
+      .post('/api/rutas-pasadas-etapas')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ rutaPasada: 1, etapa: 2, orden: 1, pesoIdeal: 70, pesoMinimo: 65, pesoMaximo: 75, cantidadMuestrasRequeridas: 3 });
+
+    expect(res.status).toBe(500);
+    expect(res.body.success).toBe(false);
+  });
+});
+
+describe('DELETE /api/rutas-pasadas-etapas/:id — error paths', () => {
+  it('returns 500 on unexpected service error', async () => {
+    mockEm.findOne.mockRejectedValue(new Error('DB down'));
+
+    const res = await request(app)
+      .delete('/api/rutas-pasadas-etapas/1')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(500);
+    expect(res.body.success).toBe(false);
   });
 });

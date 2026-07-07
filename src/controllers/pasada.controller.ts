@@ -46,7 +46,7 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
         res.status(422).json({ success: false, error: { message: err.message } });
         return;
       }
-      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor al iniciar la pasada' } });
     }
   };
 
@@ -65,7 +65,7 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
 
       res.json({ success: true, data: filtered });
     } catch {
-      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor al listar las pasadas' } });
     }
   };
 
@@ -79,7 +79,7 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
       }
       res.json({ success: true, data: pasada });
     } catch {
-      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor al obtener la pasada' } });
     }
   };
 
@@ -147,7 +147,7 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
         res.status(422).json({ success: false, error: { message: err.message } });
         return;
       }
-      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor al actualizar la pasada' } });
     }
   };
 

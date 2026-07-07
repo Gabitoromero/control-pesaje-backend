@@ -19,4 +19,8 @@ export class LineaProduccion {
 
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
+
+  @Property({ type: 'uuid', nullable: true })
+  @Unique()
+  hardwareId?: string | null;
 }

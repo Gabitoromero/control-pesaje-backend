@@ -152,4 +152,47 @@ describe('AuthService.login', () => {
     const result = await service.login('no-existe', '1234');
     expect(result).toBeNull();
   });
+
+  it('throws when JWT_SECRET is not configured', async () => {
+    delete process.env.JWT_SECRET;
+    const pinHash = await bcrypt.hash('1234', 10);
+    mockEm.findOne.mockResolvedValue({
+      id: 1,
+      nombreUsuario: 'admin',
+      legajo: 'ADMIN01',
+      rol: UsuarioRol.ADMINISTRADOR,
+      activo: true,
+      pinHash,
+      puedeTomarMuestrasLibres: true
+    });
+
+    await expect(service.login('ADMIN01', '1234')).rejects.toThrow('JWT_SECRET not configured');
+  });
+});
+
+describe('AuthService.findLineaById', () => {
+  let service: AuthService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new AuthService();
+  });
+
+  it('returns LineaProduccion when found', async () => {
+    const linea = { id: 1, nombre: 'Línea 1', activo: true };
+    mockEm.findOne.mockResolvedValue(linea);
+
+    const result = await service.findLineaById(1);
+
+    expect(result).toEqual(linea);
+    expect(mockEm.findOne).toHaveBeenCalledWith(expect.any(Function), { id: 1 });
+  });
+
+  it('returns null when not found', async () => {
+    mockEm.findOne.mockResolvedValue(null);
+
+    const result = await service.findLineaById(999);
+
+    expect(result).toBeNull();
+  });
 });

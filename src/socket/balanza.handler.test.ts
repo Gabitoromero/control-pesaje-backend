@@ -39,6 +39,7 @@ const makeMockIo = (): Partial<Server> => {
   const emitMock = vi.fn();
   const toMock = vi.fn().mockReturnValue({ emit: emitMock });
   return {
+    emit: vi.fn(),
     to: toMock,
     _toEmit: emitMock,
   } as unknown as Partial<Server>;
@@ -83,6 +84,47 @@ describe('registerBalanzaHandlers', () => {
     orm = makeMockOrm();
     sesionService = makeMockSesionService();
     vi.clearAllMocks();
+  });
+
+  describe('device connection assignment', () => {
+    it('assigns device to line based on hardwareId and emits balanza-status', async () => {
+      const lineaFixture = { id: 5, activo: true };
+      const mockOrm = makeMockOrm(lineaFixture);
+      const deviceSocket = makeMockSocket({
+        id: 'socket-123',
+        data: { isDevice: true, hardwareId: 'hw-123' } as Socket['data'],
+      });
+
+      registerBalanzaHandlers(io as Server, deviceSocket as Socket, mockOrm as unknown as MikroORM, sesionService);
+      
+      // Wait for async assignment
+      await new Promise(process.nextTick);
+
+      expect(mockOrm.em.fork).toHaveBeenCalled();
+      expect(deviceSocket.join).toHaveBeenCalledWith('linea-5');
+      expect((deviceSocket.data as Record<string, unknown>).lineaId).toBe(5);
+      expect(deviceRegistryService.registerDevice).toHaveBeenCalledWith('socket-123', 5);
+      
+      expect(io.to).toHaveBeenCalledWith('linea-5');
+      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
+      expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: true });
+    });
+
+    it('assigns device to unassigned-devices if hardwareId is not mapped to an active line', async () => {
+      const mockOrm = makeMockOrm(null);
+      const deviceSocket = makeMockSocket({
+        id: 'socket-123',
+        data: { isDevice: true, hardwareId: 'hw-999' } as Socket['data'],
+      });
+
+      registerBalanzaHandlers(io as Server, deviceSocket as Socket, mockOrm as unknown as MikroORM, sesionService);
+      
+      // Wait for async assignment
+      await new Promise(process.nextTick);
+
+      expect(deviceSocket.join).toHaveBeenCalledWith('unassigned-devices');
+      expect(io.emit).toHaveBeenCalledWith('unknown-device-connected', { hardwareId: 'hw-999' });
+    });
   });
 
   describe('join-linea', () => {
@@ -174,20 +216,16 @@ describe('registerBalanzaHandlers', () => {
       expect(unauthSocket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.any(String) }));
     });
 
-    it('emits balanza-status true to room when a device joins', async () => {
-      const lineaFixture = { id: 5, activo: true };
-      const mockOrm = makeMockOrm(lineaFixture);
+    it('emits error when a device attempts to manually join a line', async () => {
       const deviceSocket = makeMockSocket({
         data: { isDevice: true } as Socket['data'],
       });
-      registerBalanzaHandlers(io as Server, deviceSocket as Socket, mockOrm as unknown as MikroORM, sesionService);
+      registerBalanzaHandlers(io as Server, deviceSocket as Socket, orm as unknown as MikroORM, sesionService);
       const handler = getHandler(deviceSocket, 'join-linea');
 
       await handler(5);
 
-      expect(io.to).toHaveBeenCalledWith('linea-5');
-      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
-      expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: true });
+      expect(deviceSocket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: 'Devices cannot join lines manually' }));
     });
 
     it('emits balanza-status to tablet socket based on deviceRegistryService when a tablet joins', async () => {
@@ -243,7 +281,7 @@ describe('registerBalanzaHandlers', () => {
       expect((socket.data as Record<string, unknown>).lineaId).toBe(7);
     });
 
-    it('emits balanza-status false to room when a device leaves', () => {
+    it('emits error when a device attempts to manually leave a line', () => {
       (socket.data as Record<string, unknown>).lineaId = 5;
       (socket.data as Record<string, unknown>).isDevice = true;
       registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
@@ -251,9 +289,7 @@ describe('registerBalanzaHandlers', () => {
 
       handler(5);
 
-      expect(io.to).toHaveBeenCalledWith('linea-5');
-      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
-      expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: false });
+      expect(socket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: 'Devices cannot leave lines manually' }));
     });
   });
 

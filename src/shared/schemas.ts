@@ -56,6 +56,7 @@ export const EtapaUpdateSchema = EtapaCreateSchema.partial();
 export const LineaProduccionCreateSchema = z.object({
   nombre: z.string().min(1),
   numeroBalanza: z.number().int().positive(),
+  hardwareId: z.string().uuid().nullable().optional(),
   rutaPasadaActiva: z.number().int().positive().nullable().optional(),
   activo: z.boolean().optional(),
 });
@@ -128,4 +129,8 @@ export const MuestraRegistrarSchema = z.object({
 export const MuestraUpdateSchema = z.object({
   pesoNeto: z.number().positive().optional(),
   observacion: z.string().min(1).nullable().optional(),
+});
+
+export const LineaProduccionAssignDeviceSchema = z.object({
+  hardwareId: z.string().uuid(),
 });

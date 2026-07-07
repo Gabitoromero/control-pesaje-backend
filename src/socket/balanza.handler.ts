@@ -17,9 +17,32 @@ export const registerBalanzaHandlers = (
   orm: MikroORM,
   sesionService: SesionService,
 ): void => {
+  if (socket.data.isDevice && socket.data.hardwareId) {
+    const hardwareId = socket.data.hardwareId;
+    const assignDevice = async () => {
+      const em = orm.em.fork();
+      const linea = await em.findOne(LineaProduccion, { hardwareId, activo: true });
+      if (linea) {
+        socket.join(`linea-${linea.id}`);
+        socket.data.lineaId = linea.id;
+        deviceRegistryService.registerDevice(socket.id, linea.id);
+        io.to(`linea-${linea.id}`).emit('balanza-status', { isConnected: true });
+      } else {
+        socket.join('unassigned-devices');
+        io.emit('unknown-device-connected', { hardwareId });
+      }
+    };
+    assignDevice().catch(console.error);
+  }
+
   socket.on('join-linea', async (lineaId: number) => {
     if (!Number.isInteger(lineaId) || lineaId <= 0) {
       socket.emit('error', { message: 'Invalid lineaId: must be a positive integer' });
+      return;
+    }
+
+    if (socket.data.isDevice) {
+      socket.emit('error', { message: 'Devices cannot join lines manually' });
       return;
     }
 
@@ -40,24 +63,19 @@ export const registerBalanzaHandlers = (
     socket.join(`linea-${lineaId}`);
     socket.data.lineaId = lineaId;
 
-    if (socket.data.isDevice) {
-      deviceRegistryService.registerDevice(socket.id, lineaId);
-      io.to(`linea-${lineaId}`).emit('balanza-status', { isConnected: true });
-    } else {
-      const hasDevice = deviceRegistryService.hasDeviceForLinea(lineaId);
-      socket.emit('balanza-status', { isConnected: hasDevice });
-    }
+    const hasDevice = deviceRegistryService.hasDeviceForLinea(lineaId);
+    socket.emit('balanza-status', { isConnected: hasDevice });
   });
 
   socket.on('leave-linea', (lineaId: number) => {
+    if (socket.data.isDevice) {
+      socket.emit('error', { message: 'Devices cannot leave lines manually' });
+      return;
+    }
+
     socket.leave(`linea-${lineaId}`);
     if (socket.data.lineaId === lineaId) {
       socket.data.lineaId = undefined;
-    }
-    
-    if (socket.data.isDevice) {
-      deviceRegistryService.removeDevice(socket.id);
-      io.to(`linea-${lineaId}`).emit('balanza-status', { isConnected: false });
     }
   });
 
