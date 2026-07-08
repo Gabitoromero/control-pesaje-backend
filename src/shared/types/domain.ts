@@ -145,6 +145,8 @@ export interface Pasada {
   horaInicio?: string;
   horaCierre?: string;
   numero?: number;
+  motivoCierre?: string;
+  observacionCierre?: string;
   // Nested relations the backend populates on eager load
   articulo?: ArticuloDetalle;
   usuario?: UsuarioDetalle;
