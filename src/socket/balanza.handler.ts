@@ -1,8 +1,18 @@
+import { z } from 'zod';
 import type { Server, Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
 import type { SesionService } from '../services/sesion.service.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
+
+/** Payload validation schemas for the balanza real-time channel. */
+const joinLineaSchema = z.number().int().positive();
+const balanzaDataSchema = z.object({ pesoNeto: z.number().finite() });
+
+/** Payload emitted by devices on `balanza-data`. */
+interface BalanzaDataPayload {
+  pesoNeto: number;
+}
 
 /**
  * Registers domain event handlers for the balanza (scale) real-time channel.
@@ -18,7 +28,7 @@ export const registerBalanzaHandlers = (
   sesionService: SesionService,
 ): void => {
   socket.on('join-linea', async (lineaId: number) => {
-    if (!Number.isInteger(lineaId) || lineaId <= 0) {
+    if (!joinLineaSchema.safeParse(lineaId).success) {
       socket.emit('error', { message: 'Invalid lineaId: must be a positive integer' });
       return;
     }
@@ -40,16 +50,15 @@ export const registerBalanzaHandlers = (
     socket.join(`linea-${lineaId}`);
     socket.data.lineaId = lineaId;
 
-    if (socket.data.isDevice) {
-      deviceRegistryService.registerDevice(socket.id, lineaId);
-      io.to(`linea-${lineaId}`).emit('balanza-status', { isConnected: true });
-    } else {
-      const hasDevice = deviceRegistryService.hasDeviceForLinea(lineaId);
-      socket.emit('balanza-status', { isConnected: hasDevice });
-    }
+    const hasDevice = deviceRegistryService.hasDeviceForLinea(lineaId);
+    socket.emit('balanza-status', { isConnected: hasDevice });
   });
 
   socket.on('leave-linea', (lineaId: number) => {
+    if (!joinLineaSchema.safeParse(lineaId).success) {
+      return;
+    }
+
     socket.leave(`linea-${lineaId}`);
     if (socket.data.lineaId === lineaId) {
       socket.data.lineaId = undefined;
@@ -71,13 +80,13 @@ export const registerBalanzaHandlers = (
     }
   });
 
-  socket.on('balanza-data', (payload: { pesoNeto: number }) => {
+  socket.on('balanza-data', (payload: BalanzaDataPayload) => {
     if (!socket.data.isDevice) {
       socket.emit('error', { message: 'Forbidden: only devices can emit balanza-data' });
       return;
     }
 
-    if (!Number.isFinite(payload?.pesoNeto)) {
+    if (!balanzaDataSchema.safeParse(payload).success) {
       socket.emit('error', { message: 'Invalid pesoNeto: must be a finite number' });
       return;
     }

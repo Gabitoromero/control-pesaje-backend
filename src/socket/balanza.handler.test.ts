@@ -174,22 +174,6 @@ describe('registerBalanzaHandlers', () => {
       expect(unauthSocket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.any(String) }));
     });
 
-    it('emits balanza-status true to room when a device joins', async () => {
-      const lineaFixture = { id: 5, activo: true };
-      const mockOrm = makeMockOrm(lineaFixture);
-      const deviceSocket = makeMockSocket({
-        data: { isDevice: true } as Socket['data'],
-      });
-      registerBalanzaHandlers(io as Server, deviceSocket as Socket, mockOrm as unknown as MikroORM, sesionService);
-      const handler = getHandler(deviceSocket, 'join-linea');
-
-      await handler(5);
-
-      expect(io.to).toHaveBeenCalledWith('linea-5');
-      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
-      expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: true });
-    });
-
     it('emits balanza-status to tablet socket based on deviceRegistryService when a tablet joins', async () => {
       const lineaFixture = { id: 5, activo: true };
       const mockOrm = makeMockOrm(lineaFixture);
