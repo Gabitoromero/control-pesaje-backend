@@ -1,4 +1,4 @@
-import type { RequestHandler, Request } from 'express';
+import type { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import { UsuarioRol } from '../models/Usuario.js';
 
