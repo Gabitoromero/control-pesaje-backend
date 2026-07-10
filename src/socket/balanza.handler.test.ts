@@ -207,6 +207,15 @@ describe('registerBalanzaHandlers', () => {
       expect(socket.leave).toHaveBeenCalledWith('linea-5');
     });
 
+    it('does not leave the room when lineaId is not a positive integer', () => {
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+      const handler = getHandler(socket, 'leave-linea');
+
+      handler(-1);
+
+      expect(socket.leave).not.toHaveBeenCalled();
+    });
+
     it('clears socket.data.lineaId when it matches', () => {
       (socket.data as Record<string, unknown>).lineaId = 5;
       registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);

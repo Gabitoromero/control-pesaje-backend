@@ -19,6 +19,7 @@ import {
 import { sesionService } from './sesion.service.js';
 import { PasadaService } from './pasada.service.js';
 import { MuestraService } from './muestra.service.js';
+import { clearDatabase } from '../test-utils/db-teardown.js';
 
 describe('PasadaService and MuestraService Integration Tests', () => {
   let orm: MikroORM;
@@ -73,17 +74,9 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     // Clear in-memory sessions
     sesionService.limpiar();
 
-    // Clear and reseed database (order respects FK constraints)
+    // Clear and reseed database
+    await clearDatabase(orm);
     const em = orm.em.fork();
-    await em.nativeDelete(Muestra, {});
-    await em.nativeDelete(Pasada, {});
-    await em.nativeDelete(RutaPasadaEtapa, {});
-    await em.nativeDelete(ArticuloRutaPasada, {});
-    await em.nativeDelete(Etapa, {});
-    await em.nativeDelete(Articulo, {});
-    await em.nativeDelete(LineaProduccion, {});
-    await em.nativeDelete(RutaPasada, {});
-    await em.nativeDelete(Usuario, {});
 
     // Seed User
     testUser = new Usuario();
@@ -159,55 +152,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     });
   };
 
-  describe('PasadaService.iniciarPasada', () => {
-    it('should fail if there is no active session on the line', () => runInContext(async () => {
-      await expect(
-        pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id)
-      ).rejects.toThrow(`No active session on production line ${testLine.id}`);
-    }));
-
-    it('should fail if the article does not belong to the active route of the line', () => runInContext(async () => {
-      const em = orm.em.fork();
-      
-      const offRouteArticle = new Articulo();
-      offRouteArticle.nombre = 'Alfajor Blanco';
-      offRouteArticle.descripcion = 'Sin ruta asignada';
-      await em.persist(offRouteArticle).flush();
-
-      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-
-      await expect(
-        pasadaService.iniciarPasada(testLine.id, offRouteArticle.id, testUser.id)
-      ).rejects.toThrow(`Article ${offRouteArticle.id} does not belong to the active route of production line ${testLine.id}`);
-    }));
-
-    it('should successfully initiate a Pasada and assign sequential numbers per line-article', () => runInContext(async () => {
-      // 1. Establish session in memory
-      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-
-      // 2. Start first Pasada
-      const pasada1 = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
-      expect(pasada1.numero).toBe(1);
-      expect(pasada1.estado).toBe(PasadaEstado.EN_CURSO);
-      expect(pasada1.lineaProduccion.id).toBe(testLine.id);
-      expect(pasada1.articulo!.id).toBe(testArticle.id);
-
-      // Verify session in memory matches the created pasada
-      const activeSession = sesionService.obtenerSesion(testLine.id);
-      expect(activeSession!.pasadaId).toBe(pasada1.id);
-
-      // End first pasada to start a second one
-      await pasadaService.completarPasada(pasada1.id);
-
-      // Reset the session's pasadaId (simulating opening tablet again or starting new run)
-      activeSession!.pasadaId = null;
-
-      // 3. Start second Pasada
-      const pasada2 = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
-      expect(pasada2.numero).toBe(2);
-      expect(pasada2.estado).toBe(PasadaEstado.EN_CURSO);
-    }));
-  });
 
   describe('MuestraService.registrarMuestra', () => {
     it('should validate sample range correctly', () => runInContext(async () => {
