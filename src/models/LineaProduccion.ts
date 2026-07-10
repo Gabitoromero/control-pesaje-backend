@@ -14,6 +14,10 @@ export class LineaProduccion {
   @Property({ type: 'number' })
   numeroBalanza!: number;
 
+  @Unique()
+  @Property({ type: 'string', length: 255, nullable: true })
+  hardwareId?: string;
+
   @ManyToOne(() => RutaPasada, { deleteRule: 'restrict', nullable: true })
   rutaPasadaActiva?: RutaPasada;
 
