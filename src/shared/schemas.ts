@@ -62,6 +62,10 @@ export const LineaProduccionCreateSchema = z.object({
 
 export const LineaProduccionUpdateSchema = LineaProduccionCreateSchema.partial();
 
+export const LineaProduccionDeviceSchema = z.object({
+  hardwareId: z.string().uuid(),
+});
+
 // ─── RutaPasada ───────────────────────────────────────────────────────────────
 
 export const RutaPasadaCreateSchema = z.object({
