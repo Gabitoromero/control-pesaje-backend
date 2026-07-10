@@ -63,11 +63,6 @@ export const registerBalanzaHandlers = (
     if (socket.data.lineaId === lineaId) {
       socket.data.lineaId = undefined;
     }
-    
-    if (socket.data.isDevice) {
-      deviceRegistryService.removeDevice(socket.id);
-      io.to(`linea-${lineaId}`).emit('balanza-status', { isConnected: false });
-    }
   });
 
   socket.on('disconnect', () => {

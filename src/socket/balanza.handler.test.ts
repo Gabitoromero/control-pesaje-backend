@@ -227,18 +227,6 @@ describe('registerBalanzaHandlers', () => {
       expect((socket.data as Record<string, unknown>).lineaId).toBe(7);
     });
 
-    it('emits balanza-status false to room when a device leaves', () => {
-      (socket.data as Record<string, unknown>).lineaId = 5;
-      (socket.data as Record<string, unknown>).isDevice = true;
-      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
-      const handler = getHandler(socket, 'leave-linea');
-
-      handler(5);
-
-      expect(io.to).toHaveBeenCalledWith('linea-5');
-      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
-      expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: false });
-    });
   });
 
   describe('disconnect', () => {
