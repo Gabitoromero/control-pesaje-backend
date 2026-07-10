@@ -3,6 +3,8 @@ import { RequestContext, UniqueConstraintViolationException } from '@mikro-orm/c
 import { LineaProduccionService } from '../services/linea-produccion.service.js';
 import { sesionService } from '../services/sesion.service.js';
 import { assignHardwareIdToLinea } from '../services/device-pairing.service.js';
+import { disconnectDeviceByHardwareId } from '../socket/device-pairing.handler.js';
+import { getIo } from '../socket/index.js';
 
 export function createLineaProduccionHandlers(
   service: LineaProduccionService
@@ -39,6 +41,16 @@ export function createLineaProduccionHandlers(
         res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
+
+      // Best-effort side-effect: force the device to reconnect so it re-pairs
+      // to its new línea immediately. Must never fail the HTTP response — the
+      // REST assignment already succeeded, which is what the client cares about.
+      try {
+        disconnectDeviceByHardwareId(getIo(), hardwareId);
+      } catch (err) {
+        console.error('[assignDevice] failed to disconnect device socket', err);
+      }
+
       res.json({ success: true, data: linea });
     } catch (err) {
       if (err instanceof UniqueConstraintViolationException) {

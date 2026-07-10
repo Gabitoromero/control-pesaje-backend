@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Server, Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
-import { handleDeviceConnection } from './device-pairing.handler.js';
+import { handleDeviceConnection, disconnectDeviceByHardwareId } from './device-pairing.handler.js';
 import { findLineaByHardwareId } from '../services/device-pairing.service.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 
@@ -101,5 +101,62 @@ describe('handleDeviceConnection', () => {
     expect(findLineaByHardwareId).not.toHaveBeenCalled();
     expect(socket.join).not.toHaveBeenCalled();
     expect(io.to).not.toHaveBeenCalled();
+  });
+});
+
+describe('disconnectDeviceByHardwareId', () => {
+  const makeIoWithSockets = (sockets: Array<Partial<Socket>>): Partial<Server> => {
+    const socketsMap = new Map(sockets.map((s, i) => [s.id ?? `socket-${i}`, s]));
+    return {
+      sockets: { sockets: socketsMap } as unknown as Server['sockets'],
+    } as Partial<Server>;
+  };
+
+  it('finds and disconnects the matching device socket', () => {
+    const disconnect = vi.fn();
+    const deviceSocket: Partial<Socket> = {
+      id: 'socket-1',
+      data: { isDevice: true, hardwareId: 'uuid-1' } as Socket['data'],
+      disconnect,
+    };
+    const io = makeIoWithSockets([deviceSocket]);
+
+    disconnectDeviceByHardwareId(io as Server, 'uuid-1');
+
+    expect(disconnect).toHaveBeenCalledWith(true);
+  });
+
+  it('does not disconnect a non-device socket even if some field happens to match', () => {
+    const disconnect = vi.fn();
+    const tabletSocket: Partial<Socket> = {
+      id: 'socket-1',
+      data: { isDevice: false, hardwareId: 'uuid-1' } as Socket['data'],
+      disconnect,
+    };
+    const io = makeIoWithSockets([tabletSocket]);
+
+    disconnectDeviceByHardwareId(io as Server, 'uuid-1');
+
+    expect(disconnect).not.toHaveBeenCalled();
+  });
+
+  it('does not disconnect a device socket with a different hardwareId', () => {
+    const disconnect = vi.fn();
+    const deviceSocket: Partial<Socket> = {
+      id: 'socket-1',
+      data: { isDevice: true, hardwareId: 'uuid-other' } as Socket['data'],
+      disconnect,
+    };
+    const io = makeIoWithSockets([deviceSocket]);
+
+    disconnectDeviceByHardwareId(io as Server, 'uuid-1');
+
+    expect(disconnect).not.toHaveBeenCalled();
+  });
+
+  it('does nothing (no throw) when no matching socket is connected at all', () => {
+    const io = makeIoWithSockets([]);
+
+    expect(() => disconnectDeviceByHardwareId(io as Server, 'uuid-1')).not.toThrow();
   });
 });

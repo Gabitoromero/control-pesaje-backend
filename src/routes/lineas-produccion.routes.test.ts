@@ -14,6 +14,8 @@ import { MikroORM } from '@mikro-orm/postgresql';
 import jwt from 'jsonwebtoken';
 import { initApp } from '../app.js';
 import { UsuarioRol } from '../models/Usuario.js';
+import * as socketIndex from '../socket/index.js';
+import * as devicePairingHandler from '../socket/device-pairing.handler.js';
 
 // ─── JWT helpers ─────────────────────────────────────────────────────────────
 
@@ -147,5 +149,53 @@ describe('PUT /api/lineas-produccion/:id/device', () => {
     expect(res.status).toBe(403);
     expect(res.body.success).toBe(false);
     expect(mockEm.transactional).not.toHaveBeenCalled();
+  });
+
+  describe('hot reassignment: force-disconnect on successful reassignment', () => {
+    it('calls disconnectDeviceByHardwareId with the reassigned hardwareId on success', async () => {
+      const target = { id: 1, nombre: 'Linea 1', hardwareId: undefined };
+      mockEm.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(null);
+      mockEm.flush.mockResolvedValue(undefined);
+      const fakeIo = { fake: true };
+      vi.spyOn(socketIndex, 'getIo').mockReturnValue(fakeIo as never);
+      const disconnectSpy = vi
+        .spyOn(devicePairingHandler, 'disconnectDeviceByHardwareId')
+        .mockImplementation(() => undefined);
+
+      const res = await request(app)
+        .put('/api/lineas-produccion/1/device')
+        .set('Authorization', `Bearer ${jefeToken()}`)
+        .send({ hardwareId: VALID_UUID });
+
+      expect(res.status).toBe(200);
+      expect(disconnectSpy).toHaveBeenCalledWith(fakeIo, VALID_UUID);
+
+      disconnectSpy.mockRestore();
+      vi.spyOn(socketIndex, 'getIo').mockRestore();
+    });
+
+    it('still returns 200 with the updated línea when the disconnect helper throws', async () => {
+      const target = { id: 1, nombre: 'Linea 1', hardwareId: undefined };
+      mockEm.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(null);
+      mockEm.flush.mockResolvedValue(undefined);
+      vi.spyOn(socketIndex, 'getIo').mockImplementation(() => {
+        throw new Error('Socket.io not initialized');
+      });
+
+      const res = await request(app)
+        .put('/api/lineas-produccion/1/device')
+        .set('Authorization', `Bearer ${jefeToken()}`)
+        .send({ hardwareId: VALID_UUID });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.hardwareId).toBe(VALID_UUID);
+
+      vi.spyOn(socketIndex, 'getIo').mockRestore();
+    });
   });
 });

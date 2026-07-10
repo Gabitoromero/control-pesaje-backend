@@ -42,3 +42,24 @@ export const handleDeviceConnection = async (
   deviceRegistryService.registerDevice(socket.id, linea.id);
   io.to(`linea-${linea.id}`).emit('balanza-status', { isConnected: true });
 };
+
+/**
+ * Force-disconnects the currently connected device socket for a given
+ * hardwareId, if any. Used right after a hardwareId is reassigned to a
+ * different línea (via PUT /lineas-produccion/:id/device): disconnecting
+ * simulates a network drop, which the Raspberry Pi client's automatic
+ * reconnection logic will recover from — reconnecting re-runs the auth
+ * middlewares and `handleDeviceConnection`, which re-pairs the device to its
+ * NEW línea (the DB mapping has already been updated by then).
+ *
+ * Does nothing (no throw) when no matching device socket is connected —
+ * this is a normal case, not an error.
+ */
+export const disconnectDeviceByHardwareId = (io: Server, hardwareId: string): void => {
+  for (const socket of io.sockets.sockets.values()) {
+    if (socket.data.isDevice && socket.data.hardwareId === hardwareId) {
+      socket.disconnect(true);
+      return;
+    }
+  }
+};
