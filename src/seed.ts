@@ -357,18 +357,21 @@ async function run() {
       nombre: 'Línea A',
       rutaPasadaActiva: rutaPostresChicos,
       activo: true,
+      updatedAt: new Date(),
     });
 
     em.create(LineaProduccion, {
       nombre: 'Línea B',
       rutaPasadaActiva: rutaPostresFamiliares,
       activo: true,
+      updatedAt: new Date(),
     });
 
     em.create(LineaProduccion, {
       nombre: 'Línea C',
       rutaPasadaActiva: undefined,
       activo: true,
+      updatedAt: new Date(),
     });
 
     // 8. Create Dispositivos (persistent hardware registry) — demoable
