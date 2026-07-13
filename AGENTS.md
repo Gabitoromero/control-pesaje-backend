@@ -11,6 +11,7 @@ Este archivo es la fuente de verdad para el desarrollo del backend de **Control 
   - **Controllers:** Orquestación de la lógica de negocio y respuesta HTTP.
   - **Views:** En este backend, las "Views" se refieren a los DTOs de respuesta JSON.
 - **Tiempo Real:** WebSockets (Socket.io) o SSE para la comunicación bidireccional con Raspberry Pi y Tablets.
+- **`emitDecoratorMetadata: false` (tsconfig.json):** deliberado, no un descuido. Entidades con relación bidireccional (ej. `LineaProduccion` ↔ `Dispositivo`, ambas se importan mutuamente) rompen en runtime con `ReferenceError: Cannot access '<Entidad>' before initialization` si está en `true`, porque TS emite `Reflect.metadata("design:type", ...)` referenciando la clase como valor en el momento en que se carga el módulo, y en un import circular de ESM esa clase puede seguir en TDZ. Es seguro desactivarlo porque los decoradores de MikroORM ya reciben el tipo explícito (`@Property({ type: 'string' })`) o vía `() => Entidad` perezoso — no dependen de la metadata que emite TS. Si en el futuro se agrega una librería basada en reflexión de tipos (DI estilo NestJS, `class-validator`), este flag hay que revisarlo.
 
 ## 2. Convención de Idiomas (Regla de Oro)
 - **Infraestructura y Código Técnico:** Inglés (ej: `controller`, `service`, `request`, `error`, `interface`, `middleware`).
