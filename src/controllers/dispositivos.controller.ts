@@ -3,6 +3,8 @@ import { RequestContext } from '@mikro-orm/core';
 import { Dispositivo } from '../models/Dispositivo.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 import { DispositivoCreateSchema, DispositivoUpdateSchema } from '../shared/schemas.js';
+import { disconnectDeviceByHardwareId } from '../socket/device-pairing.handler.js';
+import { getIo } from '../socket/index.js';
 
 export const getDispositivosConectados = async (req: Request, res: Response): Promise<void> => {
   const em = RequestContext.getEntityManager();
@@ -118,6 +120,17 @@ export const deleteDispositivo = async (req: Request, res: Response): Promise<vo
       res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
       return;
     }
+
+    // Best-effort side-effect: force the device to reconnect so it re-runs
+    // the pairing handshake from scratch (re-emitting `unknown-device-connected`
+    // if still unregistered). Must never fail the HTTP response — the
+    // deletion already succeeded, which is what the client cares about.
+    try {
+      disconnectDeviceByHardwareId(getIo(), String(hardwareId));
+    } catch (err) {
+      console.error('[deleteDispositivo] failed to disconnect device socket', err);
+    }
+
     res.json({ success: true, data: { hardwareId } });
   } catch (err) {
     console.error('[deleteDispositivo error]', err);

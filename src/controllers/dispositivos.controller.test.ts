@@ -7,6 +7,16 @@ vi.mock('../services/device-registry.service.js', () => ({
   },
 }));
 
+const fakeIo = { fake: true };
+
+vi.mock('../socket/index.js', () => ({
+  getIo: vi.fn(() => fakeIo),
+}));
+
+vi.mock('../socket/device-pairing.handler.js', () => ({
+  disconnectDeviceByHardwareId: vi.fn(),
+}));
+
 const mockEm = {
   find: vi.fn(),
   nativeDelete: vi.fn(),
@@ -25,6 +35,8 @@ vi.mock('@mikro-orm/core', async (importOriginal) => {
 
 const { getDispositivosConectados, deleteDispositivo } = await import('./dispositivos.controller.js');
 const { deviceRegistryService } = await import('../services/device-registry.service.js');
+const { getIo } = await import('../socket/index.js');
+const { disconnectDeviceByHardwareId } = await import('../socket/device-pairing.handler.js');
 
 const makeRes = (): Response =>
   ({
@@ -141,6 +153,42 @@ describe('Dispositivos Controller', () => {
         success: false,
         error: { message: 'Registro no encontrado' },
       });
+    });
+
+    it('deleting a connected device calls disconnectDeviceByHardwareId to force re-pairing, without affecting the HTTP response', async () => {
+      mockEm.nativeDelete.mockResolvedValue(1);
+      const req = { params: { id: 'hw-connected' } } as unknown as Request;
+      const res = makeRes();
+
+      await deleteDispositivo(req, res);
+
+      expect(disconnectDeviceByHardwareId).toHaveBeenCalledWith(fakeIo, 'hw-connected');
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: { hardwareId: 'hw-connected' } });
+    });
+
+    it('deleting a device that is not currently connected still calls disconnectDeviceByHardwareId (no-op), no throw', async () => {
+      mockEm.nativeDelete.mockResolvedValue(1);
+      const req = { params: { id: 'hw-offline' } } as unknown as Request;
+      const res = makeRes();
+
+      await expect(deleteDispositivo(req, res)).resolves.not.toThrow();
+
+      expect(disconnectDeviceByHardwareId).toHaveBeenCalledWith(fakeIo, 'hw-offline');
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: { hardwareId: 'hw-offline' } });
+    });
+
+    it('still returns success when the disconnect helper throws unexpectedly', async () => {
+      mockEm.nativeDelete.mockResolvedValue(1);
+      vi.mocked(getIo).mockImplementationOnce(() => {
+        throw new Error('Socket.io not initialized');
+      });
+      const req = { params: { id: 'hw-error' } } as unknown as Request;
+      const res = makeRes();
+
+      await deleteDispositivo(req, res);
+
+      expect(res.status).not.toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: { hardwareId: 'hw-error' } });
     });
   });
 });
