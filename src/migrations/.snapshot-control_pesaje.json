@@ -1,0 +1,1668 @@
+{
+  "name": "public",
+  "namespaces": [
+    "public"
+  ],
+  "tables": [
+    {
+      "name": "articulo",
+      "schema": "public",
+      "columns": {
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "true",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "boolean"
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "id": {
+          "name": "id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "marca": {
+          "name": "marca",
+          "type": "varchar(100)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 100,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "varchar(100)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": 100,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "nombre",
+            "marca"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "articulo_nombre_marca_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "articulo_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {},
+      "comment": null
+    },
+    {
+      "name": "articulo_ruta_pasada",
+      "schema": "public",
+      "columns": {
+        "articulo_id": {
+          "name": "articulo_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "id": {
+          "name": "id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "ruta_pasada_id": {
+          "name": "ruta_pasada_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "articulo_id",
+            "ruta_pasada_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "articulo_ruta_pasada_articulo_id_ruta_pasada_id_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "articulo_ruta_pasada_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {
+        "articulo_ruta_pasada_articulo_id_foreign": {
+          "columnNames": [
+            "articulo_id"
+          ],
+          "constraintName": "articulo_ruta_pasada_articulo_id_foreign",
+          "localTableName": "public.articulo_ruta_pasada",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.articulo",
+          "deleteRule": "restrict"
+        },
+        "articulo_ruta_pasada_ruta_pasada_id_foreign": {
+          "columnNames": [
+            "ruta_pasada_id"
+          ],
+          "constraintName": "articulo_ruta_pasada_ruta_pasada_id_foreign",
+          "localTableName": "public.articulo_ruta_pasada",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.ruta_pasada",
+          "deleteRule": "restrict"
+        }
+      },
+      "comment": null
+    },
+    {
+      "name": "dispositivo",
+      "schema": "public",
+      "columns": {
+        "hardware_id": {
+          "name": "hardware_id",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "varchar(100)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 100,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "ultima_conexion_at": {
+          "name": "ultima_conexion_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "hardware_id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "dispositivo_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {},
+      "comment": null
+    },
+    {
+      "name": "etapa",
+      "schema": "public",
+      "columns": {
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "true",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "boolean"
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "id": {
+          "name": "id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "varchar(100)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": 100,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "nombre"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "etapa_nombre_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "etapa_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {},
+      "comment": null
+    },
+    {
+      "name": "linea_produccion",
+      "schema": "public",
+      "columns": {
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "true",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "boolean"
+        },
+        "dispositivo_hardware_id": {
+          "name": "dispositivo_hardware_id",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": true,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "id": {
+          "name": "id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "varchar(100)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": 100,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "ruta_pasada_activa_id": {
+          "name": "ruta_pasada_activa_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "dispositivo_hardware_id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "linea_produccion_dispositivo_hardware_id_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "nombre"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "linea_produccion_nombre_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "linea_produccion_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {
+        "linea_produccion_dispositivo_hardware_id_foreign": {
+          "columnNames": [
+            "dispositivo_hardware_id"
+          ],
+          "constraintName": "linea_produccion_dispositivo_hardware_id_foreign",
+          "localTableName": "public.linea_produccion",
+          "referencedColumnNames": [
+            "hardware_id"
+          ],
+          "referencedTableName": "public.dispositivo",
+          "deleteRule": "set null"
+        },
+        "linea_produccion_ruta_pasada_activa_id_foreign": {
+          "columnNames": [
+            "ruta_pasada_activa_id"
+          ],
+          "constraintName": "linea_produccion_ruta_pasada_activa_id_foreign",
+          "localTableName": "public.linea_produccion",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.ruta_pasada",
+          "deleteRule": "restrict"
+        }
+      },
+      "comment": null
+    },
+    {
+      "name": "muestra",
+      "schema": "public",
+      "columns": {
+        "articulo_id": {
+          "name": "articulo_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "estado_validacion": {
+          "name": "estado_validacion",
+          "type": "muestra_estado_validacion_enum",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "ok",
+            "fuera_de_rango"
+          ],
+          "mappedType": "unknown",
+          "nativeEnumName": "muestra_estado_validacion_enum"
+        },
+        "etapa_id": {
+          "name": "etapa_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "id": {
+          "name": "id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "linea_produccion_id": {
+          "name": "linea_produccion_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "pasada_id": {
+          "name": "pasada_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "peso_neto": {
+          "name": "peso_neto",
+          "type": "numeric(8,3)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": 8,
+          "scale": 3,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "decimal"
+        },
+        "ruta_pasada_id": {
+          "name": "ruta_pasada_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "muestra_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {
+        "muestra_articulo_id_foreign": {
+          "columnNames": [
+            "articulo_id"
+          ],
+          "constraintName": "muestra_articulo_id_foreign",
+          "localTableName": "public.muestra",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.articulo",
+          "deleteRule": "restrict"
+        },
+        "muestra_etapa_id_foreign": {
+          "columnNames": [
+            "etapa_id"
+          ],
+          "constraintName": "muestra_etapa_id_foreign",
+          "localTableName": "public.muestra",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.etapa",
+          "deleteRule": "restrict"
+        },
+        "muestra_linea_produccion_id_foreign": {
+          "columnNames": [
+            "linea_produccion_id"
+          ],
+          "constraintName": "muestra_linea_produccion_id_foreign",
+          "localTableName": "public.muestra",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.linea_produccion",
+          "deleteRule": "restrict"
+        },
+        "muestra_pasada_id_foreign": {
+          "columnNames": [
+            "pasada_id"
+          ],
+          "constraintName": "muestra_pasada_id_foreign",
+          "localTableName": "public.muestra",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.pasada",
+          "deleteRule": "restrict"
+        },
+        "muestra_ruta_pasada_id_foreign": {
+          "columnNames": [
+            "ruta_pasada_id"
+          ],
+          "constraintName": "muestra_ruta_pasada_id_foreign",
+          "localTableName": "public.muestra",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.ruta_pasada",
+          "deleteRule": "restrict"
+        },
+        "muestra_usuario_id_foreign": {
+          "columnNames": [
+            "usuario_id"
+          ],
+          "constraintName": "muestra_usuario_id_foreign",
+          "localTableName": "public.muestra",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.usuario",
+          "deleteRule": "restrict"
+        }
+      },
+      "comment": null
+    },
+    {
+      "name": "pasada",
+      "schema": "public",
+      "columns": {
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "true",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "boolean"
+        },
+        "articulo_id": {
+          "name": "articulo_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "estado": {
+          "name": "estado",
+          "type": "pasada_estado_enum",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "'en_curso'",
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "en_curso",
+            "completa",
+            "abortada"
+          ],
+          "mappedType": "unknown",
+          "nativeEnumName": "pasada_estado_enum"
+        },
+        "hora_cierre": {
+          "name": "hora_cierre",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "hora_inicio": {
+          "name": "hora_inicio",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "id": {
+          "name": "id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "linea_produccion_id": {
+          "name": "linea_produccion_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "motivo_cierre": {
+          "name": "motivo_cierre",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "numero": {
+          "name": "numero",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "observacion_cierre": {
+          "name": "observacion_cierre",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "ruta_pasada_id": {
+          "name": "ruta_pasada_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "pasada_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {
+        "pasada_articulo_id_foreign": {
+          "columnNames": [
+            "articulo_id"
+          ],
+          "constraintName": "pasada_articulo_id_foreign",
+          "localTableName": "public.pasada",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.articulo",
+          "deleteRule": "restrict"
+        },
+        "pasada_linea_produccion_id_foreign": {
+          "columnNames": [
+            "linea_produccion_id"
+          ],
+          "constraintName": "pasada_linea_produccion_id_foreign",
+          "localTableName": "public.pasada",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.linea_produccion",
+          "deleteRule": "restrict"
+        },
+        "pasada_ruta_pasada_id_foreign": {
+          "columnNames": [
+            "ruta_pasada_id"
+          ],
+          "constraintName": "pasada_ruta_pasada_id_foreign",
+          "localTableName": "public.pasada",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.ruta_pasada",
+          "deleteRule": "restrict"
+        },
+        "pasada_usuario_id_foreign": {
+          "columnNames": [
+            "usuario_id"
+          ],
+          "constraintName": "pasada_usuario_id_foreign",
+          "localTableName": "public.pasada",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.usuario",
+          "deleteRule": "restrict"
+        }
+      },
+      "comment": null
+    },
+    {
+      "name": "ruta_pasada",
+      "schema": "public",
+      "columns": {
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "true",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "boolean"
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "id": {
+          "name": "id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "varchar(100)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": 100,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "nombre"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "ruta_pasada_nombre_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "ruta_pasada_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {},
+      "comment": null
+    },
+    {
+      "name": "ruta_pasada_etapa",
+      "schema": "public",
+      "columns": {
+        "cantidad_muestras_requeridas": {
+          "name": "cantidad_muestras_requeridas",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "etapa_id": {
+          "name": "etapa_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "id": {
+          "name": "id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "orden": {
+          "name": "orden",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "peso_ideal": {
+          "name": "peso_ideal",
+          "type": "numeric(8,3)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": 8,
+          "scale": 3,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "decimal"
+        },
+        "peso_maximo": {
+          "name": "peso_maximo",
+          "type": "numeric(8,3)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": 8,
+          "scale": 3,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "decimal"
+        },
+        "peso_minimo": {
+          "name": "peso_minimo",
+          "type": "numeric(8,3)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": 8,
+          "scale": 3,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "decimal"
+        },
+        "ruta_pasada_id": {
+          "name": "ruta_pasada_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "ruta_pasada_etapa_pkey",
+          "primary": true,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "ruta_pasada_id",
+            "etapa_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "ruta_pasada_etapa_ruta_pasada_id_etapa_id_unique",
+          "primary": false,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {
+        "ruta_pasada_etapa_etapa_id_foreign": {
+          "columnNames": [
+            "etapa_id"
+          ],
+          "constraintName": "ruta_pasada_etapa_etapa_id_foreign",
+          "localTableName": "public.ruta_pasada_etapa",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.etapa",
+          "deleteRule": "restrict"
+        },
+        "ruta_pasada_etapa_ruta_pasada_id_foreign": {
+          "columnNames": [
+            "ruta_pasada_id"
+          ],
+          "constraintName": "ruta_pasada_etapa_ruta_pasada_id_foreign",
+          "localTableName": "public.ruta_pasada_etapa",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.ruta_pasada",
+          "deleteRule": "restrict"
+        }
+      },
+      "comment": null
+    },
+    {
+      "name": "usuario",
+      "schema": "public",
+      "columns": {
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "true",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "boolean"
+        },
+        "datos_adicionales": {
+          "name": "datos_adicionales",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "json"
+        },
+        "es_sistema": {
+          "name": "es_sistema",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "false",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "boolean"
+        },
+        "id": {
+          "name": "id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "legajo": {
+          "name": "legajo",
+          "type": "varchar(10)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": 10,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "nombre_apellido": {
+          "name": "nombre_apellido",
+          "type": "varchar(100)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 100,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "nombre_usuario": {
+          "name": "nombre_usuario",
+          "type": "varchar(50)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": 50,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "pin_hash": {
+          "name": "pin_hash",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "puede_tomar_muestras_libres": {
+          "name": "puede_tomar_muestras_libres",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "false",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "boolean"
+        },
+        "rol": {
+          "name": "rol",
+          "type": "usuario_rol_enum",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "operario",
+            "jefe",
+            "visualizacion",
+            "administrador"
+          ],
+          "mappedType": "unknown",
+          "nativeEnumName": "usuario_rol_enum"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "legajo"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "usuario_legajo_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "nombre_usuario"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "usuario_nombre_usuario_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "usuario_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {},
+      "comment": null
+    }
+  ],
+  "views": [],
+  "nativeEnums": {
+    "muestra_estado_validacion_enum": {
+      "name": "muestra_estado_validacion_enum",
+      "schema": "public",
+      "items": [
+        "ok",
+        "fuera_de_rango"
+      ]
+    },
+    "pasada_estado_enum": {
+      "name": "pasada_estado_enum",
+      "schema": "public",
+      "items": [
+        "en_curso",
+        "completa",
+        "abortada"
+      ]
+    },
+    "usuario_rol_enum": {
+      "name": "usuario_rol_enum",
+      "schema": "public",
+      "items": [
+        "operario",
+        "jefe",
+        "visualizacion",
+        "administrador"
+      ]
+    }
+  }
+}

@@ -61,7 +61,7 @@ describe('PasadaService Tests', () => {
 
     testLine = new LineaProduccion();
     testLine.nombre = 'Linea de Envasado 1';
-    testLine.numeroBalanza = 1;
+    testLine.activo = true;
     testLine.rutaPasadaActiva = testRutaPasada;
     await em.persist(testLine).flush();
 

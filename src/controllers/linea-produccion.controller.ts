@@ -5,6 +5,7 @@ import { sesionService } from '../services/sesion.service.js';
 import { assignHardwareIdToLinea } from '../services/device-pairing.service.js';
 import { disconnectDeviceByHardwareId } from '../socket/device-pairing.handler.js';
 import { getIo } from '../socket/index.js';
+import { LineaProduccionDeviceSchema } from '../shared/schemas.js';
 
 export function createLineaProduccionHandlers(
   service: LineaProduccionService
@@ -19,7 +20,6 @@ export function createLineaProduccionHandlers(
         return {
           id: linea.id,
           nombre: linea.nombre,
-          numeroBalanza: linea.numeroBalanza,
           rutaPasadaActiva: linea.rutaPasadaActiva,
           activo: linea.activo,
           estado: ocupada ? 'ocupada' : 'disponible',
@@ -33,11 +33,16 @@ export function createLineaProduccionHandlers(
 
   const assignDevice: RequestHandler = async (req, res) => {
     const id = Number(req.params.id);
-    const { hardwareId } = req.body as { hardwareId: string };
+    const parsedBody = LineaProduccionDeviceSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      res.status(400).json({ success: false, error: { message: 'ID de dispositivo inválido' } });
+      return;
+    }
+    const { hardwareId } = parsedBody.data;
     try {
       const em = RequestContext.getEntityManager()!;
-      const linea = await assignHardwareIdToLinea(em, id, hardwareId);
-      if (!linea) {
+      const result = await assignHardwareIdToLinea(em, id, hardwareId);
+      if (!result) {
         res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;
       }
@@ -51,10 +56,26 @@ export function createLineaProduccionHandlers(
         console.error('[assignDevice] failed to disconnect device socket', err);
       }
 
-      res.json({ success: true, data: linea });
+      const { linea, dispositivo } = result;
+      const data = {
+        id: linea.id,
+        nombre: linea.nombre,
+        rutaPasadaActiva: linea.rutaPasadaActiva,
+        activo: linea.activo,
+        dispositivo: {
+          hardwareId: dispositivo.hardwareId,
+          ultimaConexionAt: dispositivo.ultimaConexionAt ?? null,
+        },
+      };
+
+      res.json({ success: true, data });
     } catch (err) {
       if (err instanceof UniqueConstraintViolationException) {
         res.status(400).json({ success: false, error: { message: 'Ya existe un registro con ese valor' } });
+        return;
+      }
+      if (err instanceof Error && err.message && err.message.startsWith('Validation Error')) {
+        res.status(400).json({ success: false, error: { message: err.message.replace('Validation Error: ', '') } });
         return;
       }
       console.error('[assignDevice error]', err);

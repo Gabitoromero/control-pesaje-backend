@@ -1,5 +1,6 @@
-import { Entity, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
+import { Entity, ManyToOne, PrimaryKey, Property, Unique, OneToOne } from '@mikro-orm/decorators/legacy';
 import { RutaPasada } from './RutaPasada.js';
+import { Dispositivo } from './Dispositivo.js';
 
 @Entity({ tableName: 'linea_produccion' })
 export class LineaProduccion {
@@ -10,16 +11,11 @@ export class LineaProduccion {
   @Property({ type: 'string', length: 100 })
   nombre!: string;
 
-  @Unique()
-  @Property({ type: 'number' })
-  numeroBalanza!: number;
-
-  @Unique()
-  @Property({ type: 'string', length: 255, nullable: true })
-  hardwareId?: string;
-
   @ManyToOne(() => RutaPasada, { deleteRule: 'restrict', nullable: true })
   rutaPasadaActiva?: RutaPasada;
+
+  @OneToOne(() => Dispositivo, { nullable: true, joinColumn: 'dispositivo_hardware_id' })
+  dispositivo?: Dispositivo;
 
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;

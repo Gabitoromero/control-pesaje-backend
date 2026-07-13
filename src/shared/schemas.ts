@@ -55,7 +55,6 @@ export const EtapaUpdateSchema = EtapaCreateSchema.partial();
 
 export const LineaProduccionCreateSchema = z.object({
   nombre: z.string().min(1),
-  numeroBalanza: z.number().int().positive(),
   rutaPasadaActiva: z.number().int().positive().nullable().optional(),
   activo: z.boolean().optional(),
 });
@@ -64,6 +63,15 @@ export const LineaProduccionUpdateSchema = LineaProduccionCreateSchema.partial()
 
 export const LineaProduccionDeviceSchema = z.object({
   hardwareId: z.string().uuid(),
+});
+
+export const DispositivoCreateSchema = z.object({
+  hardwareId: z.string().min(1),
+  nombre: z.string().min(1).optional(),
+});
+
+export const DispositivoUpdateSchema = z.object({
+  nombre: z.string().min(1).optional(),
 });
 
 // ─── RutaPasada ───────────────────────────────────────────────────────────────

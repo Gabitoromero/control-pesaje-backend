@@ -140,11 +140,11 @@ describe('4.2 — Zod validation → HTTP 400', () => {
     expect(res.body.success).toBe(false);
   });
 
-  it('POST /api/lineas-produccion rejects invalid numeroBalanza type with 400', async () => {
+  it('POST /api/lineas-produccion rejects invalid activo type with 400', async () => {
     const res = await request(app)
       .post('/api/lineas-produccion')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ nombre: 'Linea 1', numeroBalanza: 'not-a-number' });
+      .send({ nombre: 'Linea 1', activo: 'not-a-boolean' });
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
@@ -244,20 +244,20 @@ describe('4.2b — nullable fields: PUT with descripcion:null returns 200, not 4
   });
 
   it('PUT /api/lineas-produccion/:id with rutaPasadaActivaId:null returns 200', async () => {
-    mockEm.findOne.mockResolvedValue({ id: 1, nombre: 'Linea 1', numeroBalanza: 1, rutaPasadaActivaId: 5, activo: true });
+    mockEm.findOne.mockResolvedValue({ id: 1, nombre: 'Linea 1', rutaPasadaActivaId: 5, activo: true });
     mockEm.flush.mockResolvedValue(undefined);
 
     const res = await request(app)
       .put('/api/lineas-produccion/1')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ nombre: 'Linea 1', numeroBalanza: 1, rutaPasadaActivaId: null });
+      .send({ nombre: 'Linea 1',  rutaPasadaActivaId: null });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
 
   it('PUT /api/lineas-produccion/:id with 0 stages route returns 400 validation error', async () => {
-    const mockLine = { id: 1, nombre: 'Linea 1', numeroBalanza: 1, activo: true };
+    const mockLine = { id: 1, nombre: 'Linea 1',  activo: true };
     const mockRoute = { id: 2, nombre: 'Ruta 2', activo: true, etapas: { length: 0 } };
 
     mockEm.findOne.mockImplementation(async (entityClass) => {
@@ -274,7 +274,7 @@ describe('4.2b — nullable fields: PUT with descripcion:null returns 200, not 4
     const res = await request(app)
       .put('/api/lineas-produccion/1')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ nombre: 'Linea 1', numeroBalanza: 1, rutaPasadaActiva: 2 });
+      .send({ nombre: 'Linea 1',  rutaPasadaActiva: 2 });
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);

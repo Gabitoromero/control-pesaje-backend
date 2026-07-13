@@ -154,7 +154,6 @@ describe('Domain Entities Integration Tests', () => {
 
     const linea = new LineaProduccion();
     linea.nombre = 'Línea de Envasado 1';
-    linea.numeroBalanza = 42;
 
     const articulo = new Articulo();
     articulo.nombre = 'Alfajor Triple';

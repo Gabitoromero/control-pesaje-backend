@@ -7,6 +7,7 @@ import { RutaPasada } from './models/RutaPasada.js';
 import { Articulo } from './models/Articulo.js';
 import { ArticuloRutaPasada } from './models/ArticuloRutaPasada.js';
 import { RutaPasadaEtapa } from './models/RutaPasadaEtapa.js';
+import { Dispositivo } from './models/Dispositivo.js';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 
@@ -187,8 +188,7 @@ async function run() {
     const articuloPesaFija = em.create(Articulo, {
       nombre: 'Pesa fija de calibración',
       descripcion: 'Pesa fija utilizada para calibrar balanzas',
-      marca: null,
-      activo: true,
+      activo: false,
     });
 
     // 4. Create Rutas
@@ -353,25 +353,40 @@ async function run() {
 
     // 7. Create LineasProduccion
     console.log('[seed]: Creating production lines...');
-    em.create(LineaProduccion, {
+    const lineaA = em.create(LineaProduccion, {
       nombre: 'Línea A',
-      numeroBalanza: 1,
       rutaPasadaActiva: rutaPostresChicos,
       activo: true,
     });
 
     em.create(LineaProduccion, {
       nombre: 'Línea B',
-      numeroBalanza: 2,
       rutaPasadaActiva: rutaPostresFamiliares,
       activo: true,
     });
 
     em.create(LineaProduccion, {
       nombre: 'Línea C',
-      numeroBalanza: 3,
       rutaPasadaActiva: undefined,
       activo: true,
+    });
+
+    // 8. Create Dispositivos (persistent hardware registry) — demoable
+    // without a live device connection: the paired one shows as
+    // 'Desconectado' (no live socket), the unpaired one has no línea nombre.
+    console.log('[seed]: Creating dispositivos...');
+    em.create(Dispositivo, {
+      hardwareId: 'rpi-linea-a-001',
+      nombre: 'Pi-2',
+      lineaProduccion: lineaA,
+      ultimaConexionAt: new Date(),
+    });
+
+    em.create(Dispositivo, {
+      hardwareId: 'rpi-unassigned-002',
+      nombre: 'Pi-3',
+      lineaProduccion: undefined,
+      ultimaConexionAt: null,
     });
 
     console.log('[seed]: Persisting seed to database...');

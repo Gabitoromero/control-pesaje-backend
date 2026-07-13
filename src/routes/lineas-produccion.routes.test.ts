@@ -78,11 +78,12 @@ beforeEach(() => {
 const VALID_UUID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 
 describe('PUT /api/lineas-produccion/:id/device', () => {
-  it('assigns hardwareId to the línea and returns it (no prior holder)', async () => {
-    const target = { id: 1, nombre: 'Linea 1', hardwareId: undefined };
+  it('assigns hardwareId to the línea and returns a DTO with nested dispositivo (no prior holder)', async () => {
+    const target = { id: 1, nombre: 'Linea 1' };
     mockEm.findOne
       .mockResolvedValueOnce(target) // findOne target by id
-      .mockResolvedValueOnce(null); // findOne previous holder by hardwareId
+      .mockResolvedValueOnce(null); // findOne existing Dispositivo by hardwareId
+    mockEm.create.mockImplementation((_entity: unknown, data: Record<string, unknown>) => data);
     mockEm.flush.mockResolvedValue(undefined);
 
     const res = await request(app)
@@ -92,16 +93,20 @@ describe('PUT /api/lineas-produccion/:id/device', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.hardwareId).toBe(VALID_UUID);
+    expect(res.body.data.hardwareId).toBeUndefined();
+    expect(res.body.data.dispositivo).toEqual(
+      expect.objectContaining({ hardwareId: VALID_UUID })
+    );
     expect(mockEm.transactional).toHaveBeenCalledOnce();
   });
 
-  it('atomically reassigns hardwareId from línea A to línea B', async () => {
-    const target = { id: 2, nombre: 'Linea B', hardwareId: undefined };
-    const previous = { id: 1, nombre: 'Linea A', hardwareId: VALID_UUID };
+  it('rejects reassignment of hardwareId from línea A to línea B with 400', async () => {
+    const target = { id: 2, nombre: 'Linea B' };
+    const previousDispositivo = { id: 10, hardwareId: VALID_UUID, lineaProduccion: { id: 1 } };
     mockEm.findOne
+      .mockReset() // Reset to clear leftover mocks
       .mockResolvedValueOnce(target) // target by id
-      .mockResolvedValueOnce(previous); // previous holder by hardwareId
+      .mockResolvedValueOnce(previousDispositivo); // existing Dispositivo by hardwareId
     mockEm.flush.mockResolvedValue(undefined);
 
     const res = await request(app)
@@ -109,12 +114,8 @@ describe('PUT /api/lineas-produccion/:id/device', () => {
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ hardwareId: VALID_UUID });
 
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.id).toBe(2);
-    expect(res.body.data.hardwareId).toBe(VALID_UUID);
-    expect(previous.hardwareId).toBeUndefined();
-    expect(mockEm.flush).toHaveBeenCalledTimes(2);
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
   });
 
   it('returns 400 when hardwareId is not a valid UUID', async () => {
@@ -129,7 +130,7 @@ describe('PUT /api/lineas-produccion/:id/device', () => {
   });
 
   it('returns 404 when the línea does not exist', async () => {
-    mockEm.findOne.mockResolvedValueOnce(null); // target not found
+    mockEm.findOne.mockReset().mockResolvedValueOnce(null); // target not found
 
     const res = await request(app)
       .put('/api/lineas-produccion/999/device')
@@ -153,10 +154,11 @@ describe('PUT /api/lineas-produccion/:id/device', () => {
 
   describe('hot reassignment: force-disconnect on successful reassignment', () => {
     it('calls disconnectDeviceByHardwareId with the reassigned hardwareId on success', async () => {
-      const target = { id: 1, nombre: 'Linea 1', hardwareId: undefined };
+      const target = { id: 1, nombre: 'Linea 1' };
       mockEm.findOne
         .mockResolvedValueOnce(target)
-        .mockResolvedValueOnce(null);
+        .mockResolvedValueOnce(null); // existing Dispositivo by hardwareId
+      mockEm.create.mockImplementation((_entity: unknown, data: Record<string, unknown>) => data);
       mockEm.flush.mockResolvedValue(undefined);
       const fakeIo = { fake: true };
       vi.spyOn(socketIndex, 'getIo').mockReturnValue(fakeIo as never);
@@ -177,10 +179,11 @@ describe('PUT /api/lineas-produccion/:id/device', () => {
     });
 
     it('still returns 200 with the updated línea when the disconnect helper throws', async () => {
-      const target = { id: 1, nombre: 'Linea 1', hardwareId: undefined };
+      const target = { id: 1, nombre: 'Linea 1' };
       mockEm.findOne
         .mockResolvedValueOnce(target)
-        .mockResolvedValueOnce(null);
+        .mockResolvedValueOnce(null); // existing Dispositivo by hardwareId
+      mockEm.create.mockImplementation((_entity: unknown, data: Record<string, unknown>) => data);
       mockEm.flush.mockResolvedValue(undefined);
       vi.spyOn(socketIndex, 'getIo').mockImplementation(() => {
         throw new Error('Socket.io not initialized');
@@ -193,9 +196,11 @@ describe('PUT /api/lineas-produccion/:id/device', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.hardwareId).toBe(VALID_UUID);
+      expect(res.body.data.hardwareId).toBeUndefined();
+      expect(res.body.data.dispositivo.hardwareId).toBe(VALID_UUID);
 
       vi.spyOn(socketIndex, 'getIo').mockRestore();
     });
+
   });
 });

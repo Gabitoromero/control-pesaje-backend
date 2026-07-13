@@ -95,8 +95,8 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
     // Seed Line with active route
     testLine = new LineaProduccion();
+    testLine.activo = true;
     testLine.nombre = 'Linea de Envasado 1';
-    testLine.numeroBalanza = 1;
     testLine.rutaPasadaActiva = testRutaPasada;
     await em.persist(testLine).flush();
 
@@ -330,8 +330,8 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     it('should throw when registering a random sample on a line without rutaPasadaActiva', () => runInContext(async () => {
       const em = orm.em.fork();
       const lineaSinRuta = new LineaProduccion();
-      lineaSinRuta.nombre = 'Linea Sin Ruta Activa';
-      lineaSinRuta.numeroBalanza = 99;
+      lineaSinRuta.activo = true;
+      lineaSinRuta.nombre = 'Linea sin ruta';
       await em.persist(lineaSinRuta).flush();
 
       sesionService.iniciarSesion(lineaSinRuta.id, testUser.id, UsuarioRol.OPERARIO);

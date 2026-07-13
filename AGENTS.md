@@ -22,6 +22,7 @@ Este archivo es la fuente de verdad para el desarrollo del backend de **Control 
 1. **Orquestador de Contexto:** El servidor decide si procesa o descarta un peso. Si la `LineaProduccion` no tiene una sesión de `Usuario` activa, el dato de la Raspberry se **descarta**.
 2. **Baja Lógica:** Está terminantemente prohibido usar `DELETE` físico. Todas las entidades deben usar baja lógica (ej. propiedad `activo: boolean`). **Excepciones explícitas por decisión de producto:**
    - `Muestra`: usa borrado físico (`hardDelete`) — no requiere trazabilidad histórica y no tiene entidades hijas dependientes.
+   - `Dispositivo`: usa borrado físico (`hardDelete`) — el registro persistente de hardware debe poder "olvidarse" por completo en lugar de quedar listado para siempre.
    - `RutaPasadaEtapa` y `ArticuloRutaPasada` (tablas pivot): usan hard delete — un pivot representa una relación *actual*, no un log histórico. El campo `activo` en un pivot generaba registros zombie que bloqueaban el unique constraint al re-agregar una etapa/artículo. La configuración se preserva desactivando la ruta padre (`RutaPasada.activo = false`) sin tocar los pivots.
    - **Utilidades de Testing (`src/test-utils/`)**: Se permite borrado físico masivo (ej. `TRUNCATE CASCADE`) exclusivamente en scripts de teardown de base de datos entre tests.
 3. **Validación de Muestras:** Una muestra `fuera_de_rango` se registra por trazabilidad pero **no suma** para completar la cantidad de muestras requeridas de una etapa (definida en `RutaPasadaEtapa`).

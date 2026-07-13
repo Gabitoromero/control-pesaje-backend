@@ -23,7 +23,7 @@ Toda la documentación y diseño del sistema se encuentra en la raíz del backen
   * Estructura técnica y de infraestructura en **inglés** (controllers, services, middlewares, tests, etc.).
   * Nombres de entidades del dominio en **español** (ej. `Pasada`, `Muestra`, `RutaPasada`, `ArticuloRutaPasada`). Respetar siempre el glosario de `DICTIONARY.md`.
 * **Stack**: Node.js v20+, TypeScript, Express 5, MikroORM (PostgreSQL), Zod (validación).
-* **Baja Lógica**: Ninguna entidad se elimina físicamente de la base de datos. Se utiliza soft-delete (`activo: false`).
+* **Baja Lógica**: Ninguna entidad se elimina físicamente de la base de datos. Se utiliza soft-delete (`activo: false`). **Excepción documentada**: `Dispositivo` (registro persistente de hardware Raspberry Pi) se elimina físicamente vía `DELETE /dispositivos/:id`, ya que un hardware dado de baja debe poder "olvidarse" por completo en lugar de quedar listado para siempre como "Desconectado".
 
 ---
 

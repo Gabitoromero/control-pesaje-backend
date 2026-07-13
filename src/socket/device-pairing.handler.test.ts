@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Server, Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
 import { handleDeviceConnection, disconnectDeviceByHardwareId } from './device-pairing.handler.js';
-import { findLineaByHardwareId } from '../services/device-pairing.service.js';
+import { findDispositivoByHardwareId } from '../services/device-pairing.service.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 
 vi.mock('../services/device-registry.service.js', () => ({
@@ -15,11 +15,11 @@ vi.mock('../services/device-registry.service.js', () => ({
 }));
 
 vi.mock('../services/device-pairing.service.js', () => ({
-  findLineaByHardwareId: vi.fn(),
+  findDispositivoByHardwareId: vi.fn(),
 }));
 
 const makeMockOrm = (): Partial<MikroORM> => {
-  const em = { findOne: vi.fn() };
+  const em = { findOne: vi.fn(), flush: vi.fn() };
   return {
     em: { fork: vi.fn().mockReturnValue(em) } as unknown as MikroORM['em'],
   };
@@ -53,23 +53,66 @@ describe('handleDeviceConnection', () => {
 
   it('joins the paired línea room, sets lineaId, registers device, and emits balanza-status true when hardwareId resolves', async () => {
     const lineaFixture = { id: 5, activo: true };
-    vi.mocked(findLineaByHardwareId).mockResolvedValue(lineaFixture as never);
+    const dispositivoFixture = {
+      id: 1,
+      hardwareId: 'uuid-1',
+      lineaProduccion: lineaFixture,
+      ultimaConexionAt: undefined as Date | undefined,
+    };
+    vi.mocked(findDispositivoByHardwareId).mockResolvedValue(dispositivoFixture as never);
     const socket = makeMockSocket({ data: { isDevice: true, hardwareId: 'uuid-1' } as Socket['data'] });
 
     await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
 
     expect(orm.em!.fork).toHaveBeenCalledOnce();
-    expect(findLineaByHardwareId).toHaveBeenCalledWith(expect.anything(), 'uuid-1');
+    expect(findDispositivoByHardwareId).toHaveBeenCalledWith(expect.anything(), 'uuid-1');
     expect(socket.join).toHaveBeenCalledWith('linea-5');
     expect((socket.data as Record<string, unknown>).lineaId).toBe(5);
-    expect(deviceRegistryService.registerDevice).toHaveBeenCalledWith('socket-1', 5);
+    expect(deviceRegistryService.registerDevice).toHaveBeenCalledWith('socket-1', 5, 'uuid-1');
     expect(io.to).toHaveBeenCalledWith('linea-5');
     const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
     expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: true });
   });
 
-  it('emits unknown-device-connected only to the admin room when hardwareId does not resolve', async () => {
-    vi.mocked(findLineaByHardwareId).mockResolvedValue(null);
+  it('sets Dispositivo.ultimaConexionAt on the resolved Dispositivo row and flushes exactly once (single query)', async () => {
+    const lineaFixture = { id: 5, activo: true };
+    const dispositivoFixture = {
+      id: 1,
+      hardwareId: 'uuid-1',
+      lineaProduccion: lineaFixture,
+      ultimaConexionAt: undefined as Date | undefined,
+    };
+    vi.mocked(findDispositivoByHardwareId).mockResolvedValue(dispositivoFixture as never);
+    const em = orm.em!.fork() as unknown as { findOne: ReturnType<typeof vi.fn>; flush: ReturnType<typeof vi.fn> };
+    const socket = makeMockSocket({ data: { isDevice: true, hardwareId: 'uuid-1' } as Socket['data'] });
+
+    await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
+
+    expect(findDispositivoByHardwareId).toHaveBeenCalledOnce();
+    expect(em.findOne).not.toHaveBeenCalled();
+    expect(dispositivoFixture.ultimaConexionAt).toBeInstanceOf(Date);
+    expect(em.flush).toHaveBeenCalledOnce();
+  });
+
+  it('does not flush and does not join when no Dispositivo row exists for the resolved hardwareId', async () => {
+    vi.mocked(findDispositivoByHardwareId).mockResolvedValue(null);
+    const em = orm.em!.fork() as unknown as { findOne: ReturnType<typeof vi.fn>; flush: ReturnType<typeof vi.fn> };
+    const socket = makeMockSocket({ data: { isDevice: true, hardwareId: 'uuid-1' } as Socket['data'] });
+
+    await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
+
+    expect(socket.join).not.toHaveBeenCalled();
+    expect(em.flush).not.toHaveBeenCalled();
+  });
+
+  it('emits unknown-device-connected only to the admin room when hardwareId does not resolve to a línea', async () => {
+    const dispositivoFixture = {
+      id: 1,
+      hardwareId: 'unknown-uuid',
+      lineaProduccion: undefined,
+      ultimaConexionAt: undefined as Date | undefined,
+    };
+    vi.mocked(findDispositivoByHardwareId).mockResolvedValue(dispositivoFixture as never);
     const socket = makeMockSocket({ data: { isDevice: true, hardwareId: 'unknown-uuid' } as Socket['data'] });
 
     await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
@@ -81,13 +124,23 @@ describe('handleDeviceConnection', () => {
     expect(emitMock).toHaveBeenCalledWith('unknown-device-connected', { hardwareId: 'unknown-uuid' });
   });
 
+  it('emits unknown-device-connected when no Dispositivo row is found at all', async () => {
+    vi.mocked(findDispositivoByHardwareId).mockResolvedValue(null);
+    const socket = makeMockSocket({ data: { isDevice: true, hardwareId: 'unknown-uuid' } as Socket['data'] });
+
+    await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
+
+    expect(socket.join).not.toHaveBeenCalled();
+    expect(io.to).toHaveBeenCalledExactlyOnceWith('admin');
+  });
+
   it('does nothing when socket is not a device', async () => {
     const socket = makeMockSocket({ data: {} as Socket['data'] });
 
     await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
 
     expect(orm.em!.fork).not.toHaveBeenCalled();
-    expect(findLineaByHardwareId).not.toHaveBeenCalled();
+    expect(findDispositivoByHardwareId).not.toHaveBeenCalled();
     expect(socket.join).not.toHaveBeenCalled();
     expect(io.to).not.toHaveBeenCalled();
   });
@@ -98,7 +151,7 @@ describe('handleDeviceConnection', () => {
     await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
 
     expect(orm.em!.fork).not.toHaveBeenCalled();
-    expect(findLineaByHardwareId).not.toHaveBeenCalled();
+    expect(findDispositivoByHardwareId).not.toHaveBeenCalled();
     expect(socket.join).not.toHaveBeenCalled();
     expect(io.to).not.toHaveBeenCalled();
   });

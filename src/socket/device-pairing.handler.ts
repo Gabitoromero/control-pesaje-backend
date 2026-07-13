@@ -1,6 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
-import { findLineaByHardwareId } from '../services/device-pairing.service.js';
+import { findDispositivoByHardwareId } from '../services/device-pairing.service.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 
 /**
@@ -30,7 +30,10 @@ export const handleDeviceConnection = async (
   }
 
   const em = orm.em.fork();
-  const linea = await findLineaByHardwareId(em, hardwareId);
+  const dispositivo = await findDispositivoByHardwareId(em, hardwareId);
+  const linea = dispositivo?.lineaProduccion && dispositivo.lineaProduccion.activo
+    ? dispositivo.lineaProduccion
+    : null;
 
   if (!linea) {
     io.to('admin').emit('unknown-device-connected', { hardwareId });
@@ -39,7 +42,15 @@ export const handleDeviceConnection = async (
 
   socket.join(`linea-${linea.id}`);
   socket.data.lineaId = linea.id;
-  deviceRegistryService.registerDevice(socket.id, linea.id);
+  deviceRegistryService.registerDevice(socket.id, linea.id, hardwareId);
+
+  // Durable "last time we saw it connect" signal. Written once per successful
+  // pairing (not per balanza-data frame) to avoid hammering the DB — see
+  // sdd/dispositivo-registry/design. Reuses the Dispositivo row already
+  // loaded above (single query) instead of a second lookup.
+  dispositivo!.ultimaConexionAt = new Date();
+  await em.flush();
+
   io.to(`linea-${linea.id}`).emit('balanza-status', { isConnected: true });
 };
 
