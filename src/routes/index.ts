@@ -11,6 +11,8 @@ import pasadasRoutes from './pasadas.routes.js';
 import muestrasRoutes from './muestras.routes.js';
 import dispositivosRoutes from './dispositivos.routes.js';
 
+import dashboardRoutes from './dashboard.routes.js';
+
 const router: Router = Router();
 
 router.use('/auth', authRoutes);
@@ -24,5 +26,6 @@ router.use('/rutas-pasadas-articulos', rutasPasadasArticulosRoutes);
 router.use('/pasadas', pasadasRoutes);
 router.use('/muestras', muestrasRoutes);
 router.use('/dispositivos', dispositivosRoutes);
+router.use('/dashboard', dashboardRoutes);
 
 export default router;

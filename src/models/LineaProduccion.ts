@@ -19,4 +19,7 @@ export class LineaProduccion {
 
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
+
+  @Property({ type: 'datetime', onCreate: () => new Date(), onUpdate: () => new Date() })
+  updatedAt: Date = new Date();
 }

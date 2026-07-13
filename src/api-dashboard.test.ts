@@ -1,0 +1,156 @@
+import 'reflect-metadata';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
+import request from 'supertest';
+import type { Express } from 'express';
+import { initApp } from './app.js';
+import { UsuarioRol } from './models/Usuario.js';
+import jwt from 'jsonwebtoken';
+import { PasadaEstado } from './models/Pasada.js';
+
+const JWT_SECRET = 'test-secret-key-for-api-tests';
+const makeToken = (rol: UsuarioRol, id = 1) =>
+  jwt.sign({ id, nombreUsuario: 'testuser', rol }, JWT_SECRET);
+const adminToken = () => makeToken(UsuarioRol.ADMINISTRADOR);
+
+const mockEm = {
+  find: vi.fn(),
+  findOne: vi.fn(),
+  count: vi.fn(),
+};
+
+vi.mock('@mikro-orm/core', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@mikro-orm/core')>();
+  return {
+    ...original,
+    RequestContext: {
+      ...original.RequestContext,
+      create: (_em: any, next: () => void) => next(),
+      getEntityManager: () => mockEm,
+    },
+  };
+});
+
+let app: Express;
+
+beforeAll(async () => {
+  process.env.JWT_SECRET = JWT_SECRET;
+  const fakeOrm = { em: {} } as any;
+  app = await initApp(fakeOrm);
+});
+
+afterAll(() => {
+  vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('Dashboard Integration Tests', () => {
+  describe('GET /api/dashboard/lineas', () => {
+    it('returns lineas with rutaPasadaActiva', async () => {
+      mockEm.find.mockResolvedValue([
+        { id: 1, nombre: 'Linea 1', rutaPasadaActiva: { id: 10, nombre: 'Ruta 10' } }
+      ]);
+      const res = await request(app)
+        .get('/api/dashboard/lineas')
+        .set('Authorization', `Bearer ${adminToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toBeDefined();
+      expect(res.body.data[0].rutaPasadaActiva.nombre).toBe('Ruta 10');
+    });
+  });
+
+  describe('GET /api/dashboard/:lineaId/resumen', () => {
+    it('returns 404 when no active pasada', async () => {
+      mockEm.findOne.mockResolvedValue(null);
+      const res = await request(app)
+        .get('/api/dashboard/1/resumen')
+        .set('Authorization', `Bearer ${adminToken()}`);
+      expect(res.status).toBe(404);
+    });
+
+    it('returns active pasada and calculated tiempoTranscurrido', async () => {
+      const now = new Date();
+      const horaInicio = new Date(now.getTime() - 60000); // 1 minute ago
+      mockEm.findOne.mockResolvedValue({
+        id: 5,
+        estado: PasadaEstado.EN_CURSO,
+        horaInicio,
+      });
+      const res = await request(app)
+        .get('/api/dashboard/1/resumen')
+        .set('Authorization', `Bearer ${adminToken()}`);
+      
+      expect(res.status).toBe(200);
+      expect(res.body.data.pasadaEnCurso).toBeDefined();
+      expect(res.body.data.pasadaEnCurso.id).toBe(5);
+      expect(res.body.data.pasadaEnCurso.tiempoTranscurrido).toBeGreaterThanOrEqual(59000); // approx 60000 ms
+    });
+  });
+
+  describe('GET /api/dashboard/:lineaId/kpis', () => {
+    it('returns kpis for the line based on today samples', async () => {
+      mockEm.findOne.mockResolvedValue({ id: 5, horaInicio: new Date() });
+      mockEm.count.mockResolvedValue(150); // 150 samples today
+      const res = await request(app)
+        .get('/api/dashboard/1/kpis')
+        .set('Authorization', `Bearer ${adminToken()}`);
+      
+      expect(res.status).toBe(200);
+      expect(res.body.data.totalMuestras).toBe(150);
+    });
+  });
+
+  describe('GET /api/dashboard/:lineaId/etapas', () => {
+    it('returns etapas with aggregated data', async () => {
+      mockEm.findOne.mockResolvedValue({ id: 5, horaInicio: new Date(), rutaPasada: { id: 10 } });
+      mockEm.find.mockResolvedValueOnce([
+        {
+          etapa: { id: 1, nombre: 'Etapa 1' },
+          pesoMinimo: 90, pesoMaximo: 110, pesoIdeal: 100
+        }
+      ]); // mock configEtapas
+      mockEm.find.mockResolvedValueOnce([
+        {
+          pesoNeto: 100,
+          createdAt: new Date(),
+          etapa: { id: 1, nombre: 'Etapa 1' }
+        }
+      ]); // mock muestras
+      const res = await request(app)
+        .get('/api/dashboard/1/etapas')
+        .set('Authorization', `Bearer ${adminToken()}`);
+      
+      expect(res.status).toBe(200);
+      expect(res.body.data).toBeDefined();
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].ultimoPeso).toBe(100);
+      expect(res.body.data[0].porcentajeConforme).toBe(100);
+      expect(res.body.data[0].timeSeries.length).toBe(1);
+    });
+
+    it('handles edge case where active Pasada has no samples yet', async () => {
+      mockEm.findOne.mockResolvedValue({ id: 5, horaInicio: new Date(), rutaPasada: { id: 10 } });
+      mockEm.find.mockResolvedValueOnce([
+        {
+          etapa: { id: 1, nombre: 'Etapa 1' },
+          pesoMinimo: 90, pesoMaximo: 110, pesoIdeal: 100
+        }
+      ]); // mock configEtapas
+      mockEm.find.mockResolvedValueOnce([]); // empty muestras
+
+      const res = await request(app)
+        .get('/api/dashboard/1/etapas')
+        .set('Authorization', `Bearer ${adminToken()}`);
+      
+      expect(res.status).toBe(200);
+      expect(res.body.data).toBeDefined();
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].ultimoPeso).toBe(0);
+      expect(res.body.data[0].porcentajeConforme).toBe(0);
+      expect(res.body.data[0].timeSeries.length).toBe(0);
+    });
+  });
+});
