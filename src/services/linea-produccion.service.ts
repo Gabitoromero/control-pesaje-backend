@@ -5,7 +5,12 @@ import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { ValidationError } from '../utils/errors.js';
 import { RequiredEntityData } from '@mikro-orm/core';
 
-const LINEA_POPULATE = ['rutaPasadaActiva', 'rutaPasadaActiva.etapas', 'rutaPasadaActiva.etapas.etapa'] as const;
+const LINEA_POPULATE = [
+  'rutaPasadaActiva',
+  'rutaPasadaActiva.etapas',
+  'rutaPasadaActiva.etapas.etapa',
+  'dispositivo',
+] as const;
 
 export class LineaProduccionService extends BaseService<LineaProduccion> {
   constructor() {

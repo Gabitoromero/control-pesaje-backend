@@ -13,8 +13,8 @@ import { UsuarioRol } from '../models/Usuario.js';
 
 const router: Router = Router();
 const service = new LineaProduccionService();
-const { listInactive, getOne, create, update, remove } = createCrudHandlers(service);
-const { list, assignDevice } = createLineaProduccionHandlers(service);
+const { create, update, remove } = createCrudHandlers(service);
+const { list, listInactive, getOne, assignDevice } = createLineaProduccionHandlers(service);
 
 const writeRoles = [UsuarioRol.ADMINISTRADOR, UsuarioRol.JEFE];
 

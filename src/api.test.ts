@@ -552,7 +552,10 @@ describe('4.6 — GET /inactive routes', () => {
   }
 
   // T-07: valid JWT → 200 with inactive records returned
-  for (const { path, name } of inactiveEntities) {
+  // lineas-produccion is excluded here: unlike the other entities, it does
+  // NOT pass through the raw generic CRUD handler anymore — it projects a
+  // custom DTO (estado + dispositivo), covered by T-lineas-estado below.
+  for (const { path, name } of inactiveEntities.filter((e) => e.name !== 'lineas-produccion')) {
     it(`T-07: GET ${path} returns 200 with inactive records`, async () => {
       const inactive = [{ id: 1, nombre: `${name}-inactive`, activo: false }];
       mockEm.find.mockResolvedValue(inactive);
@@ -566,6 +569,21 @@ describe('4.6 — GET /inactive routes', () => {
       expect(res.body.data).toEqual(inactive);
     });
   }
+
+  it('T-07-lineas: GET /api/lineas-produccion/inactive returns 200 with a projected DTO for inactive records', async () => {
+    const inactive = [{ id: 1, nombre: 'lineas-produccion-inactive', activo: false, rutaPasadaActiva: undefined, dispositivo: undefined }];
+    mockEm.find.mockResolvedValue(inactive);
+
+    const res = await request(app)
+      .get('/api/lineas-produccion/inactive')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data[0]).toEqual(
+      expect.objectContaining({ id: 1, nombre: 'lineas-produccion-inactive', activo: false, dispositivo: null })
+    );
+  });
 
   // T-07 (deeper): assert findAllInactive calls em.find with { activo: false }
   it('T-07 (deep): GET /api/articulos/inactive calls em.find with { activo: false }', async () => {
@@ -614,9 +632,11 @@ describe('4.6 — GET /inactive routes', () => {
     expect(res.status).toBe(404);
   });
 
-  // T-lineas-no-estado: /api/lineas-produccion/inactive does NOT include estado key
-  it('T-lineas-no-estado: GET /api/lineas-produccion/inactive response objects have no estado key', async () => {
-    const inactive = [{ id: 5, nombre: 'Linea Inactiva', activo: false, numeroBalanza: 3 }];
+  // T-lineas-estado: /api/lineas-produccion/inactive now projects the same
+  // línea DTO as GET / (estado + dispositivo included) — see
+  // sdd/device-detection-ux-fixes design decision #2.
+  it('T-lineas-estado: GET /api/lineas-produccion/inactive response objects include estado and dispositivo', async () => {
+    const inactive = [{ id: 5, nombre: 'Linea Inactiva', activo: false, rutaPasadaActiva: undefined, dispositivo: undefined }];
     mockEm.find.mockResolvedValue(inactive);
 
     const res = await request(app)
@@ -626,7 +646,8 @@ describe('4.6 — GET /inactive routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0]).not.toHaveProperty('estado');
+    expect(res.body.data[0]).toHaveProperty('estado');
+    expect(res.body.data[0].dispositivo).toBeNull();
   });
 });
 

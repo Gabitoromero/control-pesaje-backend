@@ -177,7 +177,7 @@ describe('LineaProduccionService', () => {
 
       const result = await service.findById(1);
 
-      expect(mockEm.findOne).toHaveBeenCalledWith(expect.anything(), { id: 1 }, { populate: ['rutaPasadaActiva', 'rutaPasadaActiva.etapas', 'rutaPasadaActiva.etapas.etapa'] });
+      expect(mockEm.findOne).toHaveBeenCalledWith(expect.anything(), { id: 1 }, { populate: ['rutaPasadaActiva', 'rutaPasadaActiva.etapas', 'rutaPasadaActiva.etapas.etapa', 'dispositivo'] });
       expect(result).toBe(mockLinea);
     });
   });

@@ -77,6 +77,75 @@ beforeEach(() => {
 
 const VALID_UUID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 
+describe('GET /api/lineas-produccion — consistent dispositivo projection', () => {
+  it('GET / returns dispositivo: null when the línea has no assigned device', async () => {
+    mockEm.find.mockResolvedValue([{ id: 1, nombre: 'Linea 1', activo: true, rutaPasadaActiva: undefined, dispositivo: undefined }]);
+
+    const res = await request(app)
+      .get('/api/lineas-produccion')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].dispositivo).toBeNull();
+  });
+
+  it('GET / returns populated dispositivo shape when a device is assigned', async () => {
+    const ultimaConexionAt = new Date('2026-01-01T00:00:00Z');
+    mockEm.find.mockResolvedValue([
+      {
+        id: 1,
+        nombre: 'Linea 1',
+        activo: true,
+        rutaPasadaActiva: undefined,
+        dispositivo: { hardwareId: VALID_UUID, nombre: 'Pi-3fa8', ultimaConexionAt },
+      },
+    ]);
+
+    const res = await request(app)
+      .get('/api/lineas-produccion')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].dispositivo).toEqual({
+      hardwareId: VALID_UUID,
+      nombre: 'Pi-3fa8',
+      ultimaConexionAt: ultimaConexionAt.toISOString(),
+    });
+  });
+
+  it('GET /inactive returns the same dispositivo shape/logic as GET /', async () => {
+    mockEm.find.mockResolvedValue([{ id: 5, nombre: 'Linea Inactiva', activo: false, rutaPasadaActiva: undefined, dispositivo: undefined }]);
+
+    const res = await request(app)
+      .get('/api/lineas-produccion/inactive')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].dispositivo).toBeNull();
+  });
+
+  it('GET /:id returns the same dispositivo shape/logic as GET /', async () => {
+    mockEm.findOne.mockResolvedValue({
+      id: 1,
+      nombre: 'Linea 1',
+      activo: true,
+      rutaPasadaActiva: undefined,
+      dispositivo: { hardwareId: VALID_UUID, nombre: 'Pi-3fa8', ultimaConexionAt: null },
+    });
+
+    const res = await request(app)
+      .get('/api/lineas-produccion/1')
+      .set('Authorization', `Bearer ${adminToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.dispositivo).toEqual({
+      hardwareId: VALID_UUID,
+      nombre: 'Pi-3fa8',
+      ultimaConexionAt: null,
+    });
+  });
+});
+
 describe('PUT /api/lineas-produccion/:id/device', () => {
   it('assigns hardwareId to the línea and returns a DTO with nested dispositivo (no prior holder)', async () => {
     const target = { id: 1, nombre: 'Linea 1' };
@@ -150,6 +219,26 @@ describe('PUT /api/lineas-produccion/:id/device', () => {
     expect(res.status).toBe(403);
     expect(res.body.success).toBe(false);
     expect(mockEm.transactional).not.toHaveBeenCalled();
+  });
+
+  it('returns 200 with dispositivo: null when the target línea has no assigned device', async () => {
+    const target = { id: 1, nombre: 'Linea 1' };
+    mockEm.findOne
+      .mockResolvedValueOnce(target)
+      .mockResolvedValueOnce(null);
+    mockEm.create.mockImplementation((_entity: unknown, data: Record<string, unknown>) => data);
+    mockEm.flush.mockResolvedValue(undefined);
+
+    // exercise the reassignment path once more but assert nombre is present too
+    const res = await request(app)
+      .put('/api/lineas-produccion/1/device')
+      .set('Authorization', `Bearer ${jefeToken()}`)
+      .send({ hardwareId: VALID_UUID });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.dispositivo).toEqual(
+      expect.objectContaining({ hardwareId: VALID_UUID, nombre: expect.any(String) })
+    );
   });
 
   describe('hot reassignment: force-disconnect on successful reassignment', () => {

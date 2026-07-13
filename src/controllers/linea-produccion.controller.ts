@@ -6,26 +6,74 @@ import { assignHardwareIdToLinea } from '../services/device-pairing.service.js';
 import { disconnectDeviceByHardwareId } from '../socket/device-pairing.handler.js';
 import { getIo } from '../socket/index.js';
 import { LineaProduccionDeviceSchema } from '../shared/schemas.js';
+import { Dispositivo } from '../models/Dispositivo.js';
+import { LineaProduccion } from '../models/LineaProduccion.js';
+
+export interface DispositivoDto {
+  hardwareId: string;
+  nombre: string;
+  ultimaConexionAt: Date | null;
+}
+
+/**
+ * Shared projection for the assigned-device shape across every línea
+ * endpoint (list/listInactive/getOne/assignDevice). MUST be null (never
+ * undefined) when unassigned — see spec "Consistent dispositivo Projection".
+ */
+export function toDispositivoDto(dispositivo?: Dispositivo | null): DispositivoDto | null {
+  if (!dispositivo) return null;
+  return {
+    hardwareId: dispositivo.hardwareId,
+    nombre: dispositivo.nombre,
+    ultimaConexionAt: dispositivo.ultimaConexionAt ?? null,
+  };
+}
+
+function toLineaDto(linea: LineaProduccion) {
+  const sesion = sesionService.obtenerSesion(linea.id);
+  const ocupada = sesion && sesion.usuarioId !== null;
+  return {
+    id: linea.id,
+    nombre: linea.nombre,
+    rutaPasadaActiva: linea.rutaPasadaActiva,
+    activo: linea.activo,
+    estado: ocupada ? 'ocupada' : 'disponible',
+    dispositivo: toDispositivoDto(linea.dispositivo),
+  };
+}
 
 export function createLineaProduccionHandlers(
   service: LineaProduccionService
-): { list: RequestHandler; assignDevice: RequestHandler } {
-  const list: RequestHandler = async (req, res) => {
+): { list: RequestHandler; listInactive: RequestHandler; getOne: RequestHandler; assignDevice: RequestHandler } {
+  const list: RequestHandler = async (_req, res) => {
     try {
-      const currentUser = req.user;
       const items = await service.findAll();
-      const data = items.map(linea => {
-        const sesion = sesionService.obtenerSesion(linea.id);
-        const ocupada = sesion && sesion.usuarioId !== null;
-        return {
-          id: linea.id,
-          nombre: linea.nombre,
-          rutaPasadaActiva: linea.rutaPasadaActiva,
-          activo: linea.activo,
-          estado: ocupada ? 'ocupada' : 'disponible',
-        };
-      });
+      const data = items.map(toLineaDto);
       res.json({ success: true, data });
+    } catch {
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+    }
+  };
+
+  const listInactive: RequestHandler = async (_req, res) => {
+    try {
+      const items = await service.findAllInactive();
+      const data = items.map(toLineaDto);
+      res.json({ success: true, data });
+    } catch {
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+    }
+  };
+
+  const getOne: RequestHandler = async (req, res) => {
+    const id = Number(req.params.id);
+    try {
+      const item = await service.findById(id);
+      if (!item) {
+        res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
+        return;
+      }
+      res.json({ success: true, data: toLineaDto(item) });
     } catch {
       res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
@@ -62,10 +110,7 @@ export function createLineaProduccionHandlers(
         nombre: linea.nombre,
         rutaPasadaActiva: linea.rutaPasadaActiva,
         activo: linea.activo,
-        dispositivo: {
-          hardwareId: dispositivo.hardwareId,
-          ultimaConexionAt: dispositivo.ultimaConexionAt ?? null,
-        },
+        dispositivo: toDispositivoDto(dispositivo),
       };
 
       res.json({ success: true, data });
@@ -83,5 +128,5 @@ export function createLineaProduccionHandlers(
     }
   };
 
-  return { list, assignDevice };
+  return { list, listInactive, getOne, assignDevice };
 }
