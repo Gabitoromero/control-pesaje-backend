@@ -10,7 +10,7 @@ export const getLineas = async (req: Request, res: Response, next: NextFunction)
   try {
     const em = RequestContext.getEntityManager();
     if (!em) { res.status(500).json({ error: 'EntityManager not available' }); return; }
-    const lineas = await em.find(LineaProduccion, { activo: true }, { populate: ['rutaPasadaActiva'] });
+    const lineas = await em.find(LineaProduccion, { activo: true }, { populate: ['rutaPasadaActiva', 'dispositivo'] });
     res.status(200).json({ data: lineas });
   } catch (err) {
     next(err);
@@ -30,7 +30,20 @@ export const getResumen = async (req: Request, res: Response, next: NextFunction
     });
 
     if (!pasada) {
-      res.status(404).json({ error: 'No hay pasada activa para esta linea' });
+      const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
+
+      if (!linea?.rutaPasadaActiva) {
+        res.status(404).json({ error: 'No hay pasada activa para esta linea' });
+        return;
+      }
+
+      const conectadoEsperando = deviceRegistryService.hasDeviceForLinea(lineaId);
+      res.status(200).json({
+        data: {
+          conectado: conectadoEsperando,
+          pasadaEnCurso: null
+        }
+      });
       return;
     }
 
@@ -64,7 +77,21 @@ export const getKpis = async (req: Request, res: Response, next: NextFunction) =
     }, { populate: ['rutaPasada'] });
 
     if (!pasada) {
-      res.status(404).json({ error: 'No hay pasada activa para esta linea' });
+      const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
+
+      if (!linea?.rutaPasadaActiva) {
+        res.status(404).json({ error: 'No hay pasada activa para esta linea' });
+        return;
+      }
+
+      res.status(200).json({
+        data: {
+          muestrasTotales: 0,
+          fueraRango: 0,
+          pasadasFinalizadas: 0,
+          pasadasEnCurso: 0
+        }
+      });
       return;
     }
 
@@ -115,7 +142,14 @@ export const getEtapas = async (req: Request, res: Response, next: NextFunction)
     }, { populate: ['rutaPasada'] });
 
     if (!pasada) {
-      res.status(404).json({ error: 'No hay pasada activa para esta linea' });
+      const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
+
+      if (!linea?.rutaPasadaActiva) {
+        res.status(404).json({ error: 'No hay pasada activa para esta linea' });
+        return;
+      }
+
+      res.status(200).json({ data: [] });
       return;
     }
 
@@ -148,19 +182,19 @@ export const getEtapas = async (req: Request, res: Response, next: NextFunction)
     const result = configEtapas.map(ce => {
       const m = samplesByEtapa.get(ce.etapa.id) || [];
       
-      const ultimoPeso = m.length > 0 ? m[m.length - 1].pesoNeto : 0;
-      
+      const ultimoPeso = m.length > 0 ? Number(m[m.length - 1].pesoNeto) : 0;
+
       const conformeCount = m.filter(sm => sm.estadoValidacion === MuestraEstadoValidacion.OK).length;
       const porcentajeConforme = m.length > 0 ? (conformeCount / m.length) * 100 : 0;
-      
+
       return {
         etapa: ce.etapa,
-        pesoIdeal: ce.pesoIdeal,
-        pesoMinimo: ce.pesoMinimo,
-        pesoMaximo: ce.pesoMaximo,
+        pesoIdeal: Number(ce.pesoIdeal),
+        pesoMinimo: Number(ce.pesoMinimo),
+        pesoMaximo: Number(ce.pesoMaximo),
         ultimoPeso,
         porcentajeConforme,
-        timeSeries: m.map(sm => ({ peso: sm.pesoNeto, time: sm.timestamp }))
+        timeSeries: m.map(sm => ({ peso: Number(sm.pesoNeto), time: sm.timestamp }))
       };
     });
 

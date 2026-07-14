@@ -5,6 +5,8 @@ import { RequestContext } from '@mikro-orm/core';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 import { Muestra } from '../models/Muestra.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
+import { Pasada } from '../models/Pasada.js';
+import { LineaProduccion } from '../models/LineaProduccion.js';
 
 vi.mock('@mikro-orm/core', () => {
   return {
@@ -72,11 +74,31 @@ describe('dashboard.controller', () => {
       expect((captured.body as any).data.length).toBe(1);
       expect((captured.body as any).data[0].updatedAt).toEqual(now);
     });
+
+    it('populates rutaPasadaActiva and dispositivo', async () => {
+      const req = {} as Request;
+      const { mock: res } = makeRes();
+
+      mockEm.find.mockResolvedValue([]);
+
+      await getLineas(req, res, vi.fn());
+
+      expect(mockEm.find).toHaveBeenCalledWith(
+        LineaProduccion,
+        expect.anything(),
+        expect.objectContaining({ populate: expect.arrayContaining(['rutaPasadaActiva', 'dispositivo']) })
+      );
+    });
   });
 
   describe('getResumen', () => {
-    it('returns 404 if no active Pasada is found', async () => {
-      mockEm.findOne.mockResolvedValue(null);
+    it('returns 200 estado "esperando" if linea has rutaPasadaActiva but no Pasada EN_CURSO', async () => {
+      mockEm.findOne.mockImplementation((entity: any) => {
+        if (entity === Pasada) return Promise.resolve(null);
+        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 } });
+        return Promise.resolve(null);
+      });
+      (deviceRegistryService.hasDeviceForLinea as any).mockReturnValue(false);
 
       const req = { params: { lineaId: '1' } } as unknown as Request;
       const { captured, mock: res } = makeRes();
@@ -84,9 +106,32 @@ describe('dashboard.controller', () => {
       await getResumen(req, res, vi.fn());
 
       expect(mockEm.findOne).toHaveBeenCalledWith(
-        expect.anything(),
+        Pasada,
         expect.objectContaining({ lineaProduccion: 1, estado: 'en_curso', activo: true })
       );
+      expect(mockEm.findOne).toHaveBeenCalledWith(
+        LineaProduccion,
+        expect.objectContaining({ id: 1, activo: true })
+      );
+      expect(captured.statusCode).toBe(200);
+      expect((captured.body as any).data).toEqual({
+        conectado: false,
+        pasadaEnCurso: null
+      });
+    });
+
+    it('returns 404 if the linea has no rutaPasadaActiva at all', async () => {
+      mockEm.findOne.mockImplementation((entity: any) => {
+        if (entity === Pasada) return Promise.resolve(null);
+        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: null });
+        return Promise.resolve(null);
+      });
+
+      const req = { params: { lineaId: '1' } } as unknown as Request;
+      const { captured, mock: res } = makeRes();
+
+      await getResumen(req, res, vi.fn());
+
       expect(captured.statusCode).toBe(404);
       expect((captured.body as any).error).toBe('No hay pasada activa para esta linea');
     });
@@ -115,8 +160,33 @@ describe('dashboard.controller', () => {
   });
 
   describe('getKpis', () => {
-    it('returns 404 if no active Pasada is found', async () => {
-      mockEm.findOne.mockResolvedValue(null);
+    it('returns 200 estado "esperando" if linea has rutaPasadaActiva but no Pasada EN_CURSO', async () => {
+      mockEm.findOne.mockImplementation((entity: any) => {
+        if (entity === Pasada) return Promise.resolve(null);
+        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 } });
+        return Promise.resolve(null);
+      });
+
+      const req = { params: { lineaId: '1' } } as unknown as Request;
+      const { captured, mock: res } = makeRes();
+
+      await getKpis(req, res, vi.fn());
+
+      expect(captured.statusCode).toBe(200);
+      expect((captured.body as any).data).toEqual({
+        muestrasTotales: 0,
+        fueraRango: 0,
+        pasadasFinalizadas: 0,
+        pasadasEnCurso: 0
+      });
+    });
+
+    it('returns 404 if the linea has no rutaPasadaActiva at all', async () => {
+      mockEm.findOne.mockImplementation((entity: any) => {
+        if (entity === Pasada) return Promise.resolve(null);
+        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: null });
+        return Promise.resolve(null);
+      });
 
       const req = { params: { lineaId: '1' } } as unknown as Request;
       const { captured, mock: res } = makeRes();
@@ -176,8 +246,28 @@ describe('dashboard.controller', () => {
   });
 
   describe('getEtapas', () => {
-    it('returns 404 if no active Pasada is found', async () => {
-      mockEm.findOne.mockResolvedValue(null);
+    it('returns 200 empty data if linea has rutaPasadaActiva but no Pasada EN_CURSO', async () => {
+      mockEm.findOne.mockImplementation((entity: any) => {
+        if (entity === Pasada) return Promise.resolve(null);
+        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 } });
+        return Promise.resolve(null);
+      });
+
+      const req = { params: { lineaId: '1' } } as unknown as Request;
+      const { captured, mock: res } = makeRes();
+
+      await getEtapas(req, res, vi.fn());
+
+      expect(captured.statusCode).toBe(200);
+      expect((captured.body as any).data).toEqual([]);
+    });
+
+    it('returns 404 if the linea has no rutaPasadaActiva at all', async () => {
+      mockEm.findOne.mockImplementation((entity: any) => {
+        if (entity === Pasada) return Promise.resolve(null);
+        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: null });
+        return Promise.resolve(null);
+      });
 
       const req = { params: { lineaId: '1' } } as unknown as Request;
       const { captured, mock: res } = makeRes();
