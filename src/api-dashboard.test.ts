@@ -92,14 +92,19 @@ describe('Dashboard Integration Tests', () => {
 
   describe('GET /api/dashboard/:lineaId/kpis', () => {
     it('returns kpis for the line based on today samples', async () => {
-      mockEm.findOne.mockResolvedValue({ id: 5, horaInicio: new Date() });
-      mockEm.count.mockResolvedValue(150); // 150 samples today
+      mockEm.findOne.mockResolvedValue({ id: 5, horaInicio: new Date(), rutaPasada: { id: 1 } });
+      mockEm.find.mockResolvedValue([
+        { id: 1, etapa: { id: 1 }, pesoNeto: 100, estadoValidacion: 'ok', timestamp: new Date() },
+        { id: 2, etapa: { id: 1 }, pesoNeto: 85,  estadoValidacion: 'fuera_de_rango', timestamp: new Date() },
+      ]);
+      mockEm.count.mockResolvedValue(3);
       const res = await request(app)
         .get('/api/dashboard/1/kpis')
         .set('Authorization', `Bearer ${adminToken()}`);
       
       expect(res.status).toBe(200);
-      expect(res.body.data.totalMuestras).toBe(150);
+      expect(res.body.data.muestrasTotales).toBe(2);
+      expect(res.body.data.fueraRango).toBe(1);
     });
   });
 
@@ -115,7 +120,8 @@ describe('Dashboard Integration Tests', () => {
       mockEm.find.mockResolvedValueOnce([
         {
           pesoNeto: 100,
-          createdAt: new Date(),
+          timestamp: new Date(),
+          estadoValidacion: 'ok',
           etapa: { id: 1, nombre: 'Etapa 1' }
         }
       ]); // mock muestras

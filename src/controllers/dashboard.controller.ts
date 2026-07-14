@@ -9,19 +9,27 @@ import { deviceRegistryService } from '../services/device-registry.service.js';
 export const getLineas = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const em = RequestContext.getEntityManager();
-    if (!em) { res.status(500).json({ error: 'EntityManager not available' }); return; }
+    if (!em) { res.status(500).json({ success: false, error: { message: 'EntityManager not available' } }); return; }
     const lineas = await em.find(LineaProduccion, { activo: true }, { populate: ['rutaPasadaActiva', 'dispositivo'] });
-    res.status(200).json({ data: lineas });
+    const data = lineas.map(l => ({
+      id: l.id,
+      nombre: l.nombre,
+      activo: l.activo,
+      rutaPasadaActiva: l.rutaPasadaActiva ? { id: l.rutaPasadaActiva.id, nombre: l.rutaPasadaActiva.nombre } : null,
+      dispositivo: l.dispositivo ? { id: l.dispositivo.id } : null,
+    }));
+    res.status(200).json({ success: true, data });
   } catch (err) {
     next(err);
   }
 };
 
+
 export const getResumen = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const lineaId = Number(req.params.lineaId);
     const em = RequestContext.getEntityManager();
-    if (!em) { res.status(500).json({ error: 'EntityManager not available' }); return; }
+    if (!em) { res.status(500).json({ success: false, error: { message: 'EntityManager not available' } }); return; }
 
     const pasada = await em.findOne(Pasada, {
       lineaProduccion: lineaId,
@@ -33,12 +41,13 @@ export const getResumen = async (req: Request, res: Response, next: NextFunction
       const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
 
       if (!linea?.rutaPasadaActiva) {
-        res.status(404).json({ error: 'No hay pasada activa para esta linea' });
+        res.status(404).json({ success: false, error: { message: 'No hay pasada activa para esta linea' } });
         return;
       }
 
       const conectadoEsperando = deviceRegistryService.hasDeviceForLinea(lineaId);
       res.status(200).json({
+        success: true,
         data: {
           conectado: conectadoEsperando,
           pasadaEnCurso: null
@@ -51,10 +60,13 @@ export const getResumen = async (req: Request, res: Response, next: NextFunction
     const tiempoTranscurrido = new Date().getTime() - new Date(pasada.horaInicio).getTime();
 
     res.status(200).json({
+      success: true,
       data: {
         conectado,
         pasadaEnCurso: {
-          ...pasada,
+          id: pasada.id,
+          horaInicio: pasada.horaInicio,
+          estado: pasada.estado,
           tiempoTranscurrido
         }
       }
@@ -63,6 +75,7 @@ export const getResumen = async (req: Request, res: Response, next: NextFunction
     next(err);
   }
 };
+
 
 export const getKpis = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -80,11 +93,12 @@ export const getKpis = async (req: Request, res: Response, next: NextFunction) =
       const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
 
       if (!linea?.rutaPasadaActiva) {
-        res.status(404).json({ error: 'No hay pasada activa para esta linea' });
+        res.status(404).json({ success: false, error: { message: 'No hay pasada activa para esta linea' } });
         return;
       }
 
       res.status(200).json({
+        success: true,
         data: {
           muestrasTotales: 0,
           fueraRango: 0,
@@ -117,6 +131,7 @@ export const getKpis = async (req: Request, res: Response, next: NextFunction) =
     });
 
     res.status(200).json({
+      success: true,
       data: {
         muestrasTotales: muestras.length,
         fueraRango,
@@ -128,6 +143,7 @@ export const getKpis = async (req: Request, res: Response, next: NextFunction) =
     next(err);
   }
 };
+
 
 export const getEtapas = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -145,16 +161,16 @@ export const getEtapas = async (req: Request, res: Response, next: NextFunction)
       const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
 
       if (!linea?.rutaPasadaActiva) {
-        res.status(404).json({ error: 'No hay pasada activa para esta linea' });
+        res.status(404).json({ success: false, error: { message: 'No hay pasada activa para esta linea' } });
         return;
       }
 
-      res.status(200).json({ data: [] });
+      res.status(200).json({ success: true, data: [] });
       return;
     }
 
     if (!pasada.rutaPasada) {
-      res.status(200).json({ data: [] });
+      res.status(200).json({ success: true, data: [] });
       return;
     }
 
@@ -199,6 +215,7 @@ export const getEtapas = async (req: Request, res: Response, next: NextFunction)
     });
 
     res.status(200).json({
+      success: true,
       data: result
     });
   } catch (err) {

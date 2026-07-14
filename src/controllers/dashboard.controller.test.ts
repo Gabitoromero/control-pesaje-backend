@@ -72,7 +72,8 @@ describe('dashboard.controller', () => {
 
       expect(captured.statusCode).toBe(200);
       expect((captured.body as any).data.length).toBe(1);
-      expect((captured.body as any).data[0].updatedAt).toEqual(now);
+      expect((captured.body as any).data[0].id).toBe(1);
+      expect((captured.body as any).data[0].nombre).toBe('Linea 1');
     });
 
     it('populates rutaPasadaActiva and dispositivo', async () => {
@@ -133,7 +134,7 @@ describe('dashboard.controller', () => {
       await getResumen(req, res, vi.fn());
 
       expect(captured.statusCode).toBe(404);
-      expect((captured.body as any).error).toBe('No hay pasada activa para esta linea');
+      expect((captured.body as any).error.message).toBe('No hay pasada activa para esta linea');
     });
 
     it('returns resumen for active pasada', async () => {
@@ -228,11 +229,11 @@ describe('dashboard.controller', () => {
 
       expect(mockEm.find).toHaveBeenCalledWith(
         Muestra,
-        expect.objectContaining({
+        {
           pasada: 10,
-          createdAt: { $gte: timeZero }
-        }),
-        expect.anything()
+          timestamp: { $gte: timeZero }
+        },
+        { populate: ['etapa'] }
       );
       
       expect(captured.statusCode).toBe(200);
@@ -305,9 +306,9 @@ describe('dashboard.controller', () => {
         }
         if (entity === Muestra) {
           return Promise.resolve([
-            { id: 1, etapa: { id: 1 }, pesoNeto: 10, estadoValidacion: 'ok', createdAt: new Date() },
-            { id: 2, etapa: { id: 1 }, pesoNeto: 5, estadoValidacion: 'ok', createdAt: new Date() },  // pesoNeto out of range but estadoValidacion OK
-            { id: 3, etapa: { id: 1 }, pesoNeto: 9, estadoValidacion: 'ok', createdAt: new Date() },
+            { id: 1, etapa: { id: 1 }, pesoNeto: 10, estadoValidacion: 'ok', timestamp: new Date() },
+            { id: 2, etapa: { id: 1 }, pesoNeto: 5, estadoValidacion: 'ok', timestamp: new Date() },  // pesoNeto out of range but estadoValidacion OK
+            { id: 3, etapa: { id: 1 }, pesoNeto: 9, estadoValidacion: 'ok', timestamp: new Date() },
           ]);
         }
         return Promise.resolve([]);
@@ -320,11 +321,11 @@ describe('dashboard.controller', () => {
 
       expect(mockEm.find).toHaveBeenCalledWith(
         Muestra,
-        expect.objectContaining({
+        {
           pasada: 10,
-          createdAt: { $gte: timeZero }
-        }),
-        expect.anything()
+          timestamp: { $gte: timeZero }
+        },
+        { populate: ['etapa'] }
       );
       expect(captured.statusCode).toBe(200);
       expect((captured.body as any).data.length).toBe(1);
