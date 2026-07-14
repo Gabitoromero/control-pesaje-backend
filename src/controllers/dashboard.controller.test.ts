@@ -247,11 +247,20 @@ describe('dashboard.controller', () => {
   });
 
   describe('getEtapas', () => {
-    it('returns 200 empty data if linea has rutaPasadaActiva but no Pasada EN_CURSO', async () => {
+    it('returns configured stages with 0s if linea has rutaPasadaActiva but no Pasada EN_CURSO', async () => {
       mockEm.findOne.mockImplementation((entity: any) => {
         if (entity === Pasada) return Promise.resolve(null);
         if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 } });
         return Promise.resolve(null);
+      });
+      mockEm.find.mockImplementation((entity: any) => {
+        if (entity === RutaPasadaEtapa) {
+          return Promise.resolve([
+            { etapa: { id: 1, nombre: 'Etapa 1' }, pesoIdeal: 100, pesoMinimo: 90, pesoMaximo: 110 }
+          ]);
+        }
+        if (entity === Muestra) return Promise.resolve([]);
+        return Promise.resolve([]);
       });
 
       const req = { params: { lineaId: '1' } } as unknown as Request;
@@ -260,7 +269,17 @@ describe('dashboard.controller', () => {
       await getEtapas(req, res, vi.fn());
 
       expect(captured.statusCode).toBe(200);
-      expect((captured.body as any).data).toEqual([]);
+      expect((captured.body as any).data).toEqual([
+        {
+          etapa: { id: 1, nombre: 'Etapa 1' },
+          pesoIdeal: 100,
+          pesoMinimo: 90,
+          pesoMaximo: 110,
+          ultimoPeso: 0,
+          porcentajeConforme: 0,
+          timeSeries: []
+        }
+      ]);
     });
 
     it('returns 404 if the linea has no rutaPasadaActiva at all', async () => {

@@ -143,23 +143,25 @@ export const dashboardService = {
       { populate: ['rutaPasada'] }
     );
 
+    let rutaPasadaId: number;
+    let muestras: Muestra[] = [];
+
     if (!pasada) {
-      const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
+      const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true }, { populate: ['rutaPasadaActiva'] });
       if (!linea?.rutaPasadaActiva) return null;
-      return [];
+      rutaPasadaId = linea.rutaPasadaActiva.id;
+    } else {
+      if (!pasada.rutaPasada) return [];
+      rutaPasadaId = pasada.rutaPasada.id;
+      const timeZero = pasada.horaInicio;
+      muestras = await em.find(Muestra, {
+        pasada: pasada.id,
+        timestamp: { $gte: timeZero },
+      }, { populate: ['etapa'] });
     }
 
-    if (!pasada.rutaPasada) return [];
-
-    const timeZero = pasada.horaInicio;
-
     const configEtapas = await em.find(RutaPasadaEtapa, {
-      rutaPasada: pasada.rutaPasada.id,
-    }, { populate: ['etapa'] });
-
-    const muestras = await em.find(Muestra, {
-      pasada: pasada.id,
-      timestamp: { $gte: timeZero },
+      rutaPasada: rutaPasadaId,
     }, { populate: ['etapa'] });
 
     // Group samples by etapaId
