@@ -31,12 +31,12 @@ export class PasadaService extends BaseService<Pasada> {
     // Check if there is an active session for the line
     const session = sesionService.obtenerSesion(lineaProduccionId);
     if (!session) {
-      throw new Error(`No active session on production line ${lineaProduccionId}`);
+      throw new Error(`No hay una sesión activa en la línea de producción ${lineaProduccionId}`);
     }
 
     // Verify the session belongs to the initiating operator
     if (session.usuarioId !== usuarioId) {
-      throw new Error(`User ${usuarioId} does not have an active session on production line ${lineaProduccionId}`);
+      throw new Error(`El usuario ${usuarioId} no tiene una sesión activa en la línea de producción ${lineaProduccionId}`);
     }
 
     // Start database transaction
@@ -48,7 +48,7 @@ export class PasadaService extends BaseService<Pasada> {
         { lockMode: LockMode.PESSIMISTIC_WRITE, populate: ['rutaPasadaActiva'] }
       );
       if (!linea?.rutaPasadaActiva) {
-        throw new Error(`Cannot start pasada: no active route on production line ${lineaProduccionId}`);
+        throw new Error(`No se puede iniciar la pasada: no hay una ruta activa en la línea de producción ${lineaProduccionId}`);
       }
 
       const isOnRoute = await txEm.count(ArticuloRutaPasada, {
@@ -57,7 +57,7 @@ export class PasadaService extends BaseService<Pasada> {
       });
       if (isOnRoute === 0) {
         throw new Error(
-          `Article ${articuloId} does not belong to the active route of production line ${lineaProduccionId}`
+          `El artículo ${articuloId} no pertenece a la ruta activa de la línea de producción ${lineaProduccionId}`
         );
       }
 
@@ -108,7 +108,7 @@ export class PasadaService extends BaseService<Pasada> {
       }
 
       if (pasada.estado !== PasadaEstado.EN_CURSO) {
-        throw new Error(`Cannot complete pasada with ID ${id}: it is already in state '${pasada.estado}'`);
+        throw new Error(`No se puede completar la pasada con ID ${id}: ya está en estado '${pasada.estado}'`);
       }
 
       pasada.estado = PasadaEstado.COMPLETA;
@@ -128,7 +128,7 @@ export class PasadaService extends BaseService<Pasada> {
 
   async abortarPasada(id: number, motivoCierre: string): Promise<Pasada | null> {
     if (!motivoCierre || motivoCierre.trim() === '') {
-      throw new Error('Closure reason (motivoCierre) is required to abort a pasada');
+      throw new Error('Se requiere un motivo de cierre para abortar una pasada');
     }
 
     const em = this.getEm();
@@ -138,7 +138,7 @@ export class PasadaService extends BaseService<Pasada> {
       if (!pasada) return null;
 
       if (pasada.estado !== PasadaEstado.EN_CURSO) {
-        throw new Error(`Cannot abort pasada with ID ${id}: it is already in state '${pasada.estado}'`);
+        throw new Error(`No se puede abortar la pasada con ID ${id}: ya está en estado '${pasada.estado}'`);
       }
 
       pasada.estado = PasadaEstado.ABORTADA;
@@ -161,7 +161,7 @@ export class PasadaService extends BaseService<Pasada> {
     if (!pasada) return null;
 
     if (pasada.estado === PasadaEstado.COMPLETA || pasada.estado === PasadaEstado.ABORTADA) {
-      throw new Error('Cannot update a completed or aborted pasada');
+      throw new Error('No se puede actualizar una pasada completada o abortada');
     }
 
     return super.update(id, data);
@@ -172,7 +172,7 @@ export class PasadaService extends BaseService<Pasada> {
     if (!pasada) return false;
 
     if (pasada.estado === PasadaEstado.COMPLETA || pasada.estado === PasadaEstado.ABORTADA) {
-      throw new Error('Cannot delete a completed or aborted pasada');
+      throw new Error('No se puede eliminar una pasada completada o abortada');
     }
 
     return super.softDelete(id);
