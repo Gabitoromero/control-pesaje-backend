@@ -1,4 +1,5 @@
 import type { EntityManager } from '@mikro-orm/core';
+import { wrap } from '@mikro-orm/core';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { Dispositivo } from '../models/Dispositivo.js';
 
@@ -67,7 +68,7 @@ export async function unassignDeviceFromLinea(
   const linea = await em.findOne(LineaProduccion, { id: lineaId }, { populate: ['dispositivo'] });
   if (!linea) return null;
 
-  linea.dispositivo = null;
+  wrap(linea).assign({ dispositivo: null });
   await em.flush();
 
   return linea;
