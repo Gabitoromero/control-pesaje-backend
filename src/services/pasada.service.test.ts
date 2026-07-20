@@ -88,7 +88,7 @@ describe('PasadaService Tests', () => {
     it('should fail if there is no active session on the line', () => runInContext(async () => {
       await expect(
         pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id)
-      ).rejects.toThrow(`No active session on production line ${testLine.id}`);
+      ).rejects.toThrow(`No hay una sesión activa en la línea de producción ${testLine.id}`);
     }));
 
     it('should fail if the article does not belong to the active route of the line', () => runInContext(async () => {
@@ -102,7 +102,7 @@ describe('PasadaService Tests', () => {
 
       await expect(
         pasadaService.iniciarPasada(testLine.id, offRouteArticle.id, testUser.id)
-      ).rejects.toThrow(`Article ${offRouteArticle.id} does not belong to the active route of production line ${testLine.id}`);
+      ).rejects.toThrow(`El artículo ${offRouteArticle.id} no pertenece a la ruta activa de la línea de producción ${testLine.id}`);
     }));
 
     it('should successfully initiate a Pasada and assign sequential numbers per line-article', () => runInContext(async () => {
@@ -133,9 +133,9 @@ describe('PasadaService Tests', () => {
       await pasadaService.completarPasada(pasada.id);
       
       await expect(pasadaService.update(pasada.id, { numero: 99 }))
-        .rejects.toThrow('Cannot update a completed or aborted pasada');
+        .rejects.toThrow('No se puede actualizar una pasada completada o abortada');
       await expect(pasadaService.softDelete(pasada.id))
-        .rejects.toThrow('Cannot delete a completed or aborted pasada');
+        .rejects.toThrow('No se puede eliminar una pasada completada o abortada');
     }));
 
     it('should successfully abort a pasada and reject subsequent operations', () => runInContext(async () => {
@@ -149,9 +149,9 @@ describe('PasadaService Tests', () => {
       expect(session!.pasadaId).toBeNull();
       
       await expect(pasadaService.update(pasada.id, { numero: 12 }))
-        .rejects.toThrow('Cannot update a completed or aborted pasada');
+        .rejects.toThrow('No se puede actualizar una pasada completada o abortada');
       await expect(pasadaService.softDelete(pasada.id))
-        .rejects.toThrow('Cannot delete a completed or aborted pasada');
+        .rejects.toThrow('No se puede eliminar una pasada completada o abortada');
     }));
   });
 });

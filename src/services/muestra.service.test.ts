@@ -437,11 +437,11 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // 1. Block Pasada updates/deletes
       await expect(
         pasadaService.update(pasada.id, { numero: 99 })
-      ).rejects.toThrow('Cannot update a completed or aborted pasada');
+      ).rejects.toThrow('No se puede actualizar una pasada completada o abortada');
 
       await expect(
         pasadaService.softDelete(pasada.id)
-      ).rejects.toThrow('Cannot delete a completed or aborted pasada');
+      ).rejects.toThrow('No se puede eliminar una pasada completada o abortada');
 
       // 2. Block Muestra updates/deletes for completed Pasada
       await expect(
@@ -476,11 +476,11 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // Block updates/deletions on aborted pasada
       await expect(
         pasadaService.update(pasada.id, { numero: 12 })
-      ).rejects.toThrow('Cannot update a completed or aborted pasada');
+      ).rejects.toThrow('No se puede actualizar una pasada completada o abortada');
 
       await expect(
         pasadaService.softDelete(pasada.id)
-      ).rejects.toThrow('Cannot delete a completed or aborted pasada');
+      ).rejects.toThrow('No se puede eliminar una pasada completada o abortada');
     }));
   });
 });
