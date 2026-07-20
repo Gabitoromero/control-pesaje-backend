@@ -2,7 +2,7 @@ import type { RequestHandler } from 'express';
 import { RequestContext, UniqueConstraintViolationException } from '@mikro-orm/core';
 import { LineaProduccionService } from '../services/linea-produccion.service.js';
 import { sesionService } from '../services/sesion.service.js';
-import { assignHardwareIdToLinea } from '../services/device-pairing.service.js';
+import { assignHardwareIdToLinea, unassignDeviceFromLinea } from '../services/device-pairing.service.js';
 import { disconnectDeviceByHardwareId } from '../socket/device-pairing.handler.js';
 import { getIo } from '../socket/index.js';
 import { LineaProduccionDeviceSchema } from '../shared/schemas.js';
@@ -87,6 +87,24 @@ export function createLineaProduccionHandlers(
       return;
     }
     const { hardwareId } = parsedBody.data;
+
+    // Unassign device (hardwareId: null)
+    if (hardwareId === null) {
+      try {
+        const em = RequestContext.getEntityManager()!;
+        const linea = await unassignDeviceFromLinea(em, id);
+        if (!linea) {
+          res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
+          return;
+        }
+        res.json({ success: true, data: toLineaDto(linea) });
+      } catch (err) {
+        console.error('[unassignDevice error]', err);
+        res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+      }
+      return;
+    }
+
     try {
       const em = RequestContext.getEntityManager()!;
       const result = await assignHardwareIdToLinea(em, id, hardwareId);

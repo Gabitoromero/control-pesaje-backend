@@ -62,7 +62,7 @@ export const LineaProduccionCreateSchema = z.object({
 export const LineaProduccionUpdateSchema = LineaProduccionCreateSchema.partial();
 
 export const LineaProduccionDeviceSchema = z.object({
-  hardwareId: z.string().uuid(),
+  hardwareId: z.string().uuid().nullable(),
 });
 
 export const DispositivoCreateSchema = z.object({

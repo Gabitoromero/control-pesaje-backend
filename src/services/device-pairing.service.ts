@@ -59,3 +59,16 @@ export async function assignHardwareIdToLinea(
     return { linea: target, dispositivo };
   });
 }
+
+export async function unassignDeviceFromLinea(
+  em: EntityManager,
+  lineaId: number
+): Promise<LineaProduccion | null> {
+  const linea = await em.findOne(LineaProduccion, { id: lineaId }, { populate: ['dispositivo'] });
+  if (!linea) return null;
+
+  linea.dispositivo = null;
+  await em.flush();
+
+  return linea;
+}
