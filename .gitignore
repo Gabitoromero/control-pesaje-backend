@@ -3,6 +3,11 @@ dist
 .env
 .DS_Store
 *.log
+# Scratch debug scripts
+test-*.js
+test-*.ts
+test-*.cjs
+test-*.mjs
 coverage
 .gga
 .atl/

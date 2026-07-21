@@ -11,7 +11,7 @@ export interface LineaDto {
   nombre: string;
   activo: boolean;
   rutaPasadaActiva: { id: number; nombre: string } | null;
-  dispositivo: { id: number } | null;
+  dispositivo: { id: string } | null;
 }
 
 export interface PasadaEnCursoDto {
@@ -36,6 +36,8 @@ export interface KpisDto {
 export interface TimeSeriesPunto {
   peso: number;
   time: Date;
+  pasadaId: number | null;
+  estadoValidacion: MuestraEstadoValidacion;
 }
 
 export interface EtapaDto {
@@ -65,7 +67,7 @@ export const dashboardService = {
       rutaPasadaActiva: l.rutaPasadaActiva
         ? { id: l.rutaPasadaActiva.id, nombre: l.rutaPasadaActiva.nombre }
         : null,
-      dispositivo: l.dispositivo ? { id: l.dispositivo.id } : null,
+      dispositivo: l.dispositivo ? { id: l.dispositivo.hardwareId } : null,
     }));
   },
 
@@ -137,27 +139,27 @@ export const dashboardService = {
   },
 
   async getEtapas(em: EntityManager, lineaId: number): Promise<EtapaDto[] | null> {
-    const pasada = await em.findOne(
-      Pasada,
-      { lineaProduccion: lineaId, estado: PasadaEstado.EN_CURSO, activo: true },
-      { populate: ['rutaPasada'] }
+    const linea = await em.findOne(
+      LineaProduccion,
+      { id: lineaId, activo: true },
+      { populate: ['rutaPasadaActiva'] }
     );
+    if (!linea?.rutaPasadaActiva) return null;
 
-    let rutaPasadaId: number;
+    const rutaPasadaId = linea.rutaPasadaActiva.id;
+    const timeZero = linea.rutaAsignadaAt;
+
     let muestras: Muestra[] = [];
-
-    if (!pasada) {
-      const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true }, { populate: ['rutaPasadaActiva'] });
-      if (!linea?.rutaPasadaActiva) return null;
-      rutaPasadaId = linea.rutaPasadaActiva.id;
-    } else {
-      if (!pasada.rutaPasada) return [];
-      rutaPasadaId = pasada.rutaPasada.id;
-      const timeZero = pasada.horaInicio;
-      muestras = await em.find(Muestra, {
-        pasada: pasada.id,
-        timestamp: { $gte: timeZero },
-      }, { populate: ['etapa'] });
+    if (timeZero) {
+      muestras = await em.find(
+        Muestra,
+        {
+          lineaProduccion: lineaId,
+          rutaPasada: rutaPasadaId,
+          timestamp: { $gte: timeZero },
+        },
+        { populate: ['etapa', 'pasada'] }
+      );
     }
 
     const configEtapas = await em.find(RutaPasadaEtapa, {
@@ -191,7 +193,12 @@ export const dashboardService = {
         pesoMaximo: Number(ce.pesoMaximo),
         ultimoPeso,
         porcentajeConforme,
-        timeSeries: etapaMuestras.map(sm => ({ peso: Number(sm.pesoNeto), time: sm.timestamp })),
+        timeSeries: etapaMuestras.map(sm => ({ 
+          peso: Number(sm.pesoNeto), 
+          time: sm.timestamp,
+          pasadaId: sm.pasada?.id ?? null,
+          estadoValidacion: sm.estadoValidacion
+        })),
       };
     });
   },

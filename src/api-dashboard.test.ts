@@ -110,21 +110,22 @@ describe('Dashboard Integration Tests', () => {
 
   describe('GET /api/dashboard/:lineaId/etapas', () => {
     it('returns etapas with aggregated data', async () => {
-      mockEm.findOne.mockResolvedValue({ id: 5, horaInicio: new Date(), rutaPasada: { id: 10 } });
+      mockEm.findOne.mockResolvedValue({ id: 1, rutaAsignadaAt: new Date(), rutaPasadaActiva: { id: 10 } });
+      mockEm.find.mockResolvedValueOnce([
+        {
+          pesoNeto: 100,
+          timestamp: new Date(),
+          estadoValidacion: 'ok',
+          etapa: { id: 1, nombre: 'Etapa 1' },
+          pasada: { id: 42 }
+        }
+      ]); // mock muestras
       mockEm.find.mockResolvedValueOnce([
         {
           etapa: { id: 1, nombre: 'Etapa 1' },
           pesoMinimo: 90, pesoMaximo: 110, pesoIdeal: 100
         }
       ]); // mock configEtapas
-      mockEm.find.mockResolvedValueOnce([
-        {
-          pesoNeto: 100,
-          timestamp: new Date(),
-          estadoValidacion: 'ok',
-          etapa: { id: 1, nombre: 'Etapa 1' }
-        }
-      ]); // mock muestras
       const res = await request(app)
         .get('/api/dashboard/1/etapas')
         .set('Authorization', `Bearer ${adminToken()}`);
@@ -135,17 +136,19 @@ describe('Dashboard Integration Tests', () => {
       expect(res.body.data[0].ultimoPeso).toBe(100);
       expect(res.body.data[0].porcentajeConforme).toBe(100);
       expect(res.body.data[0].timeSeries.length).toBe(1);
+      expect(res.body.data[0].timeSeries[0].pasadaId).toBe(42);
+      expect(res.body.data[0].timeSeries[0].estadoValidacion).toBe('ok');
     });
 
-    it('handles edge case where active Pasada has no samples yet', async () => {
-      mockEm.findOne.mockResolvedValue({ id: 5, horaInicio: new Date(), rutaPasada: { id: 10 } });
+    it('handles edge case where active linea has no samples yet', async () => {
+      mockEm.findOne.mockResolvedValue({ id: 1, rutaAsignadaAt: new Date(), rutaPasadaActiva: { id: 10 } });
+      mockEm.find.mockResolvedValueOnce([]); // empty muestras
       mockEm.find.mockResolvedValueOnce([
         {
           etapa: { id: 1, nombre: 'Etapa 1' },
           pesoMinimo: 90, pesoMaximo: 110, pesoIdeal: 100
         }
       ]); // mock configEtapas
-      mockEm.find.mockResolvedValueOnce([]); // empty muestras
 
       const res = await request(app)
         .get('/api/dashboard/1/etapas')

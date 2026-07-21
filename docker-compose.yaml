@@ -9,6 +9,8 @@ services:
       POSTGRES_USER: pesaje_admin
       POSTGRES_PASSWORD: balanzas_control_2026_pwd!
       POSTGRES_DB: control_pesaje
+      PGTZ: America/Argentina/Buenos_Aires
+      TZ: America/Argentina/Buenos_Aires
     ports:
       - "5433:5432"
     healthcheck:
@@ -41,6 +43,7 @@ services:
       - DB_PASSWORD=balanzas_control_2026_pwd!
       - DB_NAME=control_pesaje
       - JWT_SECRET=super_secret_jwt_key_2026_two_layer
+      - TZ=America/Argentina/Buenos_Aires
     depends_on:
       postgres:
         condition: service_healthy

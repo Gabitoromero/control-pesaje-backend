@@ -247,10 +247,10 @@ describe('dashboard.controller', () => {
   });
 
   describe('getEtapas', () => {
-    it('returns configured stages with 0s if linea has rutaPasadaActiva but no Pasada EN_CURSO', async () => {
+    it('returns configured stages with 0s if linea has rutaPasadaActiva but no muestras', async () => {
+      const timeZero = new Date('2026-07-13T10:00:00.000Z');
       mockEm.findOne.mockImplementation((entity: any) => {
-        if (entity === Pasada) return Promise.resolve(null);
-        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 } });
+        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 }, rutaAsignadaAt: timeZero });
         return Promise.resolve(null);
       });
       mockEm.find.mockImplementation((entity: any) => {
@@ -284,7 +284,6 @@ describe('dashboard.controller', () => {
 
     it('returns 404 if the linea has no rutaPasadaActiva at all', async () => {
       mockEm.findOne.mockImplementation((entity: any) => {
-        if (entity === Pasada) return Promise.resolve(null);
         if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: null });
         return Promise.resolve(null);
       });
@@ -297,8 +296,10 @@ describe('dashboard.controller', () => {
       expect(captured.statusCode).toBe(404);
     });
 
-    it('returns empty data if active Pasada has no ruta', async () => {
-      mockEm.findOne.mockResolvedValue({ id: 10 }); // No rutaPasada
+    it('returns empty data if active linea has no config etapas', async () => {
+      const timeZero = new Date('2026-07-13T10:00:00.000Z');
+      mockEm.findOne.mockResolvedValue({ id: 1, rutaPasadaActiva: { id: 5 }, rutaAsignadaAt: timeZero }); 
+      mockEm.find.mockResolvedValue([]);
 
       const req = { params: { lineaId: '1' } } as unknown as Request;
       const { captured, mock: res } = makeRes();
@@ -309,12 +310,12 @@ describe('dashboard.controller', () => {
       expect((captured.body as any).data).toEqual([]);
     });
 
-    it('returns etapas stats using estadoValidacion for conformity', async () => {
+    it('returns etapas stats using estadoValidacion for conformity and pasadaId in timeseries', async () => {
       const timeZero = new Date('2026-07-13T10:00:00.000Z');
       mockEm.findOne.mockResolvedValue({ 
-        id: 10, 
-        horaInicio: timeZero,
-        rutaPasada: { id: 5 }
+        id: 1, 
+        rutaAsignadaAt: timeZero,
+        rutaPasadaActiva: { id: 5 }
       });
       
       mockEm.find.mockImplementation((entity: any) => {
@@ -325,9 +326,9 @@ describe('dashboard.controller', () => {
         }
         if (entity === Muestra) {
           return Promise.resolve([
-            { id: 1, etapa: { id: 1 }, pesoNeto: 10, estadoValidacion: 'ok', timestamp: new Date() },
-            { id: 2, etapa: { id: 1 }, pesoNeto: 5, estadoValidacion: 'ok', timestamp: new Date() },  // pesoNeto out of range but estadoValidacion OK
-            { id: 3, etapa: { id: 1 }, pesoNeto: 9, estadoValidacion: 'ok', timestamp: new Date() },
+            { id: 1, etapa: { id: 1 }, pesoNeto: 10, estadoValidacion: 'ok', timestamp: new Date('2026-07-13T10:01:00.000Z'), pasada: { id: 42 } },
+            { id: 2, etapa: { id: 1 }, pesoNeto: 5, estadoValidacion: 'ok', timestamp: new Date('2026-07-13T10:02:00.000Z'), pasada: null },
+            { id: 3, etapa: { id: 1 }, pesoNeto: 9, estadoValidacion: 'ok', timestamp: new Date('2026-07-13T10:03:00.000Z'), pasada: { id: 42 } },
           ]);
         }
         return Promise.resolve([]);
@@ -341,10 +342,11 @@ describe('dashboard.controller', () => {
       expect(mockEm.find).toHaveBeenCalledWith(
         Muestra,
         {
-          pasada: 10,
+          lineaProduccion: 1,
+          rutaPasada: 5,
           timestamp: { $gte: timeZero }
         },
-        { populate: ['etapa'] }
+        { populate: ['etapa', 'pasada'] }
       );
       expect(captured.statusCode).toBe(200);
       expect((captured.body as any).data.length).toBe(1);
@@ -352,8 +354,12 @@ describe('dashboard.controller', () => {
       const etapa1 = (captured.body as any).data[0];
       expect(etapa1.etapa.nombre).toBe('Etapa 1');
       expect(etapa1.ultimoPeso).toBe(9);
-      // All 3 have estadoValidacion === 'ok' => 100%
       expect(etapa1.porcentajeConforme).toBe(100);
+      
+      const ts = etapa1.timeSeries;
+      expect(ts[0].pasadaId).toBe(42);
+      expect(ts[0].estadoValidacion).toBe('ok');
+      expect(ts[1].pasadaId).toBe(null);
     });
   });
 });

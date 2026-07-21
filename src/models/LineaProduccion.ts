@@ -20,6 +20,6 @@ export class LineaProduccion {
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
 
-  @Property({ type: 'datetime', onCreate: () => new Date(), onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  @Property({ type: 'datetime', nullable: true, columnType: 'timestamptz', fieldName: 'ruta_asignada_at' })
+  rutaAsignadaAt: Date | null = null;
 }

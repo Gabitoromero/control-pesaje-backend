@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { LineaProduccion } from './LineaProduccion.js';
 
 describe('LineaProduccion entity', () => {
-  it('has an updatedAt property of type Date', () => {
+  it('has a rutaAsignadaAt property that defaults to null', () => {
     const linea = new LineaProduccion();
-    // updatedAt should be auto-initialized via onCreate
-    expect(linea).toHaveProperty('updatedAt');
-    expect(linea.updatedAt).toBeInstanceOf(Date);
+    // rutaAsignadaAt is stamped manually when the route changes, so it starts as null
+    expect(linea).toHaveProperty('rutaAsignadaAt');
+    expect(linea.rutaAsignadaAt).toBeNull();
   });
 });

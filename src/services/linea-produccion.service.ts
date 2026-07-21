@@ -54,17 +54,17 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
 
     if (data.rutaPasadaActiva !== undefined) {
       const linea = await em.findOne(LineaProduccion, { id });
-      
+
       if (linea) {
         const currentRutaId = linea.rutaPasadaActiva?.id;
         let newRutaId: number | undefined;
-        
+
         if (typeof data.rutaPasadaActiva === 'number') {
           newRutaId = data.rutaPasadaActiva;
         } else if (typeof data.rutaPasadaActiva === 'object' && data.rutaPasadaActiva !== null && 'id' in data.rutaPasadaActiva) {
           newRutaId = (data.rutaPasadaActiva as RutaPasada).id;
         } else if (data.rutaPasadaActiva === null) {
-          newRutaId = undefined; // Treating null as clearing the route
+          newRutaId = undefined;
         }
 
         if (currentRutaId !== newRutaId) {
@@ -72,6 +72,8 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
           if (activePasadasCount > 0) {
             throw new ValidationError('No se puede cambiar la ruta mientras haya pasadas en curso en esta línea');
           }
+          // Stamp the exact moment the route changed — used as x1 anchor for dashboard KPIs
+          (data as Partial<LineaProduccion>).rutaAsignadaAt = new Date();
         }
       }
 
