@@ -47,6 +47,9 @@ export interface EtapaDto {
   pesoMaximo: number;
   ultimoPeso: number;
   porcentajeConforme: number;
+  muestrasConformes: number;
+  muestrasFueraRango: number;
+  muestrasTotales: number;
   timeSeries: TimeSeriesPunto[];
 }
 
@@ -185,6 +188,9 @@ export const dashboardService = {
       const porcentajeConforme = etapaMuestras.length > 0
         ? (conformeCount / etapaMuestras.length) * 100
         : 0;
+      const fueraRangoCount = etapaMuestras.filter(
+        sm => sm.estadoValidacion === MuestraEstadoValidacion.FUERA_DE_RANGO
+      ).length;
 
       return {
         etapa: { id: ce.etapa.id, nombre: ce.etapa.nombre },
@@ -193,6 +199,9 @@ export const dashboardService = {
         pesoMaximo: Number(ce.pesoMaximo),
         ultimoPeso,
         porcentajeConforme,
+        muestrasConformes: conformeCount,
+        muestrasFueraRango: fueraRangoCount,
+        muestrasTotales: etapaMuestras.length,
         timeSeries: etapaMuestras.map(sm => ({ 
           peso: Number(sm.pesoNeto), 
           time: sm.timestamp,

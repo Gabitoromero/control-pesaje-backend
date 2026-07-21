@@ -277,6 +277,9 @@ describe('dashboard.controller', () => {
           pesoMaximo: 110,
           ultimoPeso: 0,
           porcentajeConforme: 0,
+          muestrasConformes: 0,
+          muestrasFueraRango: 0,
+          muestrasTotales: 0,
           timeSeries: []
         }
       ]);
@@ -355,6 +358,9 @@ describe('dashboard.controller', () => {
       expect(etapa1.etapa.nombre).toBe('Etapa 1');
       expect(etapa1.ultimoPeso).toBe(9);
       expect(etapa1.porcentajeConforme).toBe(100);
+      expect(etapa1.muestrasConformes).toBe(3);
+      expect(etapa1.muestrasFueraRango).toBe(0);
+      expect(etapa1.muestrasTotales).toBe(3);
       
       const ts = etapa1.timeSeries;
       expect(ts[0].pasadaId).toBe(42);

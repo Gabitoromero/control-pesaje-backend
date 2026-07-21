@@ -135,6 +135,9 @@ describe('Dashboard Integration Tests', () => {
       expect(res.body.data.length).toBe(1);
       expect(res.body.data[0].ultimoPeso).toBe(100);
       expect(res.body.data[0].porcentajeConforme).toBe(100);
+      expect(res.body.data[0].muestrasConformes).toBe(1);
+      expect(res.body.data[0].muestrasFueraRango).toBe(0);
+      expect(res.body.data[0].muestrasTotales).toBe(1);
       expect(res.body.data[0].timeSeries.length).toBe(1);
       expect(res.body.data[0].timeSeries[0].pasadaId).toBe(42);
       expect(res.body.data[0].timeSeries[0].estadoValidacion).toBe('ok');
@@ -159,6 +162,9 @@ describe('Dashboard Integration Tests', () => {
       expect(res.body.data.length).toBe(1);
       expect(res.body.data[0].ultimoPeso).toBe(0);
       expect(res.body.data[0].porcentajeConforme).toBe(0);
+      expect(res.body.data[0].muestrasConformes).toBe(0);
+      expect(res.body.data[0].muestrasFueraRango).toBe(0);
+      expect(res.body.data[0].muestrasTotales).toBe(0);
       expect(res.body.data[0].timeSeries.length).toBe(0);
     });
   });
