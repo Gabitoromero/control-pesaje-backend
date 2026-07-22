@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import type { MuestraService } from '../services/muestra.service.js';
 import { UsuarioRol } from '../shared/types.js';
+import { MuestraRegistrarSchema, MuestraUpdateSchema } from '../shared/schemas.js';
 
 // Roles that bypass ownership checks (can delete any muestra)
 const PRIVILEGED_ROLES: ReadonlyArray<string> = [UsuarioRol.JEFE, UsuarioRol.ADMINISTRADOR];
@@ -17,7 +18,6 @@ export interface RegistrarMuestraBody {
   etapaId: number;
   lineaProduccionId: number;
   pesoNeto: number;
-  articuloId?: number;
   pasadaId?: number;
   observacion?: string;
 }
@@ -37,11 +37,11 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
     try {
       // userId MUST come from JWT payload, never from the body (REQ-M1)
       const userId = req.user!.id;
-      const { etapaId, lineaProduccionId, pesoNeto, articuloId, pasadaId, observacion } = req.body as RegistrarMuestraBody;
+      const parsedBody = MuestraRegistrarSchema.parse(req.body);
+      const { etapaId, lineaProduccionId, pesoNeto, pasadaId, observacion } = parsedBody;
 
       const muestra = await service.registrarMuestra(
         userId,
-        articuloId,
         etapaId,
         lineaProduccionId,
         pesoNeto,
@@ -115,7 +115,11 @@ export function createMuestraHandlers(service: MuestraService): MuestraHandlers 
         return;
       }
 
-      const updated = await service.update(id, req.body);
+      const parsedBody = MuestraUpdateSchema.parse(req.body);
+      const updated = await service.update(id, {
+        pesoNeto: parsedBody.pesoNeto,
+        observacion: parsedBody.observacion ?? undefined
+      });
       if (!updated) {
         res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
         return;

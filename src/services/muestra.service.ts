@@ -4,7 +4,6 @@ import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
 import { RutaPasada } from '../models/RutaPasada.js';
 import { Usuario } from '../models/Usuario.js';
-import { Articulo } from '../models/Articulo.js';
 import { Etapa } from '../models/Etapa.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { sesionService } from './sesion.service.js';
@@ -18,7 +17,6 @@ export class MuestraService {
 
   async registrarMuestra(
     usuarioId: number,
-    articuloId: number | undefined,
     etapaId: number,
     lineaProduccionId: number,
     pesoNeto: number,
@@ -110,7 +108,6 @@ export class MuestraService {
     muestra.pasada = pasada ?? undefined;
     muestra.usuario = em.getReference(Usuario, usuarioId);
     muestra.rutaPasada = em.getReference(RutaPasada, rutaPasadaId);
-    muestra.articulo = articuloId ? em.getReference(Articulo, articuloId) : undefined;
     muestra.etapa = em.getReference(Etapa, etapaId);
     muestra.lineaProduccion = em.getReference(LineaProduccion, lineaProduccionId);
     muestra.pesoNeto = pesoNeto;
@@ -135,11 +132,26 @@ export class MuestraService {
 
   async update(id: number, data: Partial<Muestra>): Promise<Muestra | null> {
     const em = this.getEm();
-    const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada'] });
+    const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada', 'rutaPasada', 'etapa'] });
     if (!muestra) return null;
 
     if (muestra.pasada && (muestra.pasada.estado === PasadaEstado.COMPLETA || muestra.pasada.estado === PasadaEstado.ABORTADA)) {
       throw new Error('Cannot update sample of a completed or aborted pasada');
+    }
+
+    if (data.pesoNeto !== undefined) {
+      const rutaEtapa = await em.findOne(RutaPasadaEtapa, {
+        rutaPasada: muestra.rutaPasada.id,
+        etapa: muestra.etapa.id,
+      });
+      if (!rutaEtapa) {
+        throw new Error(`No route configuration found for route ${muestra.rutaPasada.id} and stage ${muestra.etapa.id}`);
+      }
+
+      const min = Number(rutaEtapa.pesoMinimo);
+      const max = Number(rutaEtapa.pesoMaximo);
+      const isOk = data.pesoNeto >= min && data.pesoNeto <= max;
+      muestra.estadoValidacion = isOk ? MuestraEstadoValidacion.OK : MuestraEstadoValidacion.FUERA_DE_RANGO;
     }
 
     Object.assign(muestra, data);

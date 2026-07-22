@@ -132,7 +132,6 @@ export const MuestraRegistrarSchema = z.object({
   etapaId: z.number().int().positive(),
   lineaProduccionId: z.number().int().positive(),
   pesoNeto: z.number().positive(),
-  articuloId: z.number().int().positive().optional(),
   pasadaId: z.number().int().positive().optional(),
   observacion: z.string().min(1).optional(),
 });

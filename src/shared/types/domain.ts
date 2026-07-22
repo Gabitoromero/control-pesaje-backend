@@ -63,7 +63,6 @@ export interface Muestra {
   usuarioId: number;
   etapaId: number;
   lineaProduccionId: number;
-  articuloId?: number;
   timestamp: string | Date;
   observacion?: string;
 }

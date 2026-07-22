@@ -7,6 +7,12 @@ export interface SesionActiva {
   pasadaId: number | null;
   connectedAt: Date;
   ultimaActividadAt: Date | null;
+  /**
+   * Whether the pre-expiry warning (sesion-expirando) has already been
+   * emitted for the current inactivity window. Reset to false whenever
+   * actividad is refreshed, so a re-warn fires on the next idle stretch.
+   */
+  warningSent: boolean;
 }
 
 export interface SesionEnriquecida {
@@ -23,7 +29,11 @@ export type IniciarSesionResult =
   | { ok: true; session: SesionActiva }
   | { ok: false; conflict: { lineaProduccionId: number } };
 
-const INACTIVITY_MS = 5 * 60 * 1000;
+export type InactivityCloseCallback = (lineaProduccionId: number) => void;
+export type InactivityWarningCallback = (lineaProduccionId: number) => void;
+
+const DEFAULT_INACTIVITY_MS = 5 * 60 * 1000;
+const INACTIVITY_WARNING_LEAD_MS = 30 * 1000;
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_LOCK_MS = 3 * 60 * 1000;
 
@@ -32,6 +42,8 @@ export class SesionService {
   private lineSessions = new Map<number, SesionActiva>();    
   private failedAttempts = new Map<string, number>();        
   private lockExpires = new Map<string, Date>();             
+  private inactivityCloseCallback: InactivityCloseCallback | null = null;
+  private inactivityWarningCallback: InactivityWarningCallback | null = null;
 
   private constructor() {}
 
@@ -40,6 +52,36 @@ export class SesionService {
       SesionService.instance = new SesionService();
     }
     return SesionService.instance;
+  }
+
+  /**
+   * Configurable inactivity timeout, parsed from
+   * `INACTIVITY_TIMEOUT_MINUTES` (integer minutes). Falls back to 5 minutes
+   * when the var is missing or invalid (non-numeric, zero, or negative).
+   *
+   * Read lazily on each call rather than captured at construction so that
+   * the value always reflects the current environment — the SesionService
+   * is a process-wide singleton that outlives any single config reload.
+   */
+  public getInactivityTimeoutMs(): number {
+    const raw = process.env.INACTIVITY_TIMEOUT_MINUTES;
+    const parsed = raw ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(parsed) && parsed > 0
+      ? parsed * 60 * 1000
+      : DEFAULT_INACTIVITY_MS;
+  }
+
+  /** Pre-expiry warning lead time (ms before full timeout). */
+  public getInactivityWarningLeadMs(): number {
+    return INACTIVITY_WARNING_LEAD_MS;
+  }
+
+  setInactivityCloseCallback(cb: InactivityCloseCallback | null): void {
+    this.inactivityCloseCallback = cb;
+  }
+
+  setInactivityWarningCallback(cb: InactivityWarningCallback | null): void {
+    this.inactivityWarningCallback = cb;
   }
 
   iniciarSesion(
@@ -61,6 +103,7 @@ export class SesionService {
       pasadaId: null,
       connectedAt: new Date(),
       ultimaActividadAt: new Date(),
+      warningSent: false,
     };
 
     this.lineSessions.set(lineaProduccionId, session);
@@ -75,15 +118,29 @@ export class SesionService {
     const session = this.lineSessions.get(lineaProduccionId);
     if (!session) return null;
 
-    if (
-      session.usuarioId !== null &&
-      session.ultimaActividadAt &&
-      Date.now() - session.ultimaActividadAt.getTime() > INACTIVITY_MS
-    ) {
-      session.usuarioId = null;
-      session.usuarioRol = null;
-      session.ultimaActividadAt = null;
+    if (session.usuarioId !== null && session.ultimaActividadAt) {
+      const elapsed = Date.now() - session.ultimaActividadAt.getTime();
+      const timeout = this.getInactivityTimeoutMs();
+
+      if (elapsed > timeout) {
+        // Inactivity expired: DELETE the session — no zombie entry with a
+        // null user that the admin dashboard would show as "Unknown". The
+        // operator must re-authenticate.
+        this.lineSessions.delete(lineaProduccionId);
+        this.inactivityCloseCallback?.(lineaProduccionId);
+        return null;
+      }
+
+      // Pre-expiry warning window (timeout − lead). Fire the warning at most
+      // once per inactivity stretch; actualizarActividad resets the gate so a
+      // subsequent idle period re-warns.
+      const warningThreshold = timeout - this.getInactivityWarningLeadMs();
+      if (elapsed >= warningThreshold && !session.warningSent) {
+        session.warningSent = true;
+        this.inactivityWarningCallback?.(lineaProduccionId);
+      }
     }
+
     return session;
   }
 
@@ -114,6 +171,7 @@ export class SesionService {
     const session = this.lineSessions.get(lineaProduccionId);
     if (session && session.usuarioId !== null) {
       session.ultimaActividadAt = new Date();
+      session.warningSent = false;
     }
   }
 
@@ -182,7 +240,7 @@ export class SesionService {
           usuarioNombre,
           legajo,
           fechaInicio: session.connectedAt.toISOString(),
-          expiraEn: session.ultimaActividadAt ? new Date(session.ultimaActividadAt.getTime() + 5 * 60 * 1000).toISOString() : null,
+          expiraEn: session.ultimaActividadAt ? new Date(session.ultimaActividadAt.getTime() + this.getInactivityTimeoutMs()).toISOString() : null,
         };
       })
     );

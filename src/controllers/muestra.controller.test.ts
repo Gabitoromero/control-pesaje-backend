@@ -74,7 +74,6 @@ describe('createMuestraHandlers', () => {
           etapaId: 1,
           lineaProduccionId: 2,
           pesoNeto: 50,
-          articuloId: 3,
           pasadaId: 4,
           observacion: 'ok',
         },
@@ -86,7 +85,6 @@ describe('createMuestraHandlers', () => {
 
       expect(service.registrarMuestra).toHaveBeenCalledWith(
         9,    // userId from JWT
-        3,    // articuloId
         1,    // etapaId
         2,    // lineaProduccionId
         50,   // pesoNeto

@@ -318,11 +318,9 @@ describe('MuestraRegistrarSchema', () => {
       etapaId: 1,
       lineaProduccionId: 2,
       pesoNeto: 50.5,
-      articuloId: 3,
       pasadaId: 4,
       observacion: 'todo ok',
     });
-    expect(parsed.articuloId).toBe(3);
     expect(parsed.pasadaId).toBe(4);
     expect(parsed.observacion).toBe('todo ok');
   });

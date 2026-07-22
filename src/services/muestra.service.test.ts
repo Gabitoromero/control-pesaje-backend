@@ -161,7 +161,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // OK sample
       const m1 = await muestraService.registrarMuestra(
         testUser.id,
-        testArticle.id,
         testEtapa1.id,
         testLine.id,
         48.500, // inside [45, 55]
@@ -173,7 +172,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // Out of range (low) sample
       const m2 = await muestraService.registrarMuestra(
         testUser.id,
-        testArticle.id,
         testEtapa1.id,
         testLine.id,
         42.000, // below 45
@@ -184,7 +182,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // Out of range (high) sample
       const m3 = await muestraService.registrarMuestra(
         testUser.id,
-        testArticle.id,
         testEtapa1.id,
         testLine.id,
         58.000, // above 55
@@ -197,11 +194,9 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
-      // Attempt to register Etapa 2 directly (Etapa 1 needs 2 OK samples, currently has 0)
       await expect(
         muestraService.registrarMuestra(
           testUser.id,
-          testArticle.id,
           testEtapa2.id,
           testLine.id,
           70.000,
@@ -217,7 +212,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // Register 1st OK sample for Etapa 1
       await muestraService.registrarMuestra(
         testUser.id,
-        testArticle.id,
         testEtapa1.id,
         testLine.id,
         50.000,
@@ -227,7 +221,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // Register an out-of-range sample for Etapa 1
       await muestraService.registrarMuestra(
         testUser.id,
-        testArticle.id,
         testEtapa1.id,
         testLine.id,
         60.000, // fuera de rango
@@ -238,7 +231,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       await expect(
         muestraService.registrarMuestra(
           testUser.id,
-          testArticle.id,
           testEtapa2.id,
           testLine.id,
           70.000,
@@ -249,7 +241,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // Register 2nd OK sample for Etapa 1 -> Etapa 1 is complete!
       await muestraService.registrarMuestra(
         testUser.id,
-        testArticle.id,
         testEtapa1.id,
         testLine.id,
         52.000,
@@ -259,7 +250,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // Now Etapa 2 sample should be accepted
       const mEtapa2 = await muestraService.registrarMuestra(
         testUser.id,
-        testArticle.id,
         testEtapa2.id,
         testLine.id,
         72.000, // OK sample for Etapa 2 [65, 75]
@@ -294,7 +284,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       await expect(
         muestraService.registrarMuestra(
           restrictedUser.id,
-          undefined,
           testEtapa1.id,
           testLine.id,
           50.000
@@ -317,7 +306,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
       const m = await muestraService.registrarMuestra(
         freeUser.id,
-        undefined,
         testEtapa1.id,
         testLine.id,
         50.000
@@ -339,7 +327,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       await expect(
         muestraService.registrarMuestra(
           testUser.id,
-          undefined,
           testEtapa1.id,
           lineaSinRuta.id,
           50.000
@@ -352,14 +339,12 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
       const m = await muestraService.registrarMuestra(
         testUser.id,
-        undefined, // no articuloId for random quality sample
         testEtapa1.id,
         testLine.id,
         50.000 // inside [45, 55], no pasadaId
       );
 
       expect(m.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
-      expect(m.articulo).toBeUndefined();
       expect(m.rutaPasada.id).toBe(testRutaPasada.id);
     }));
   });
@@ -381,7 +366,6 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // Stage 2 (testEtapa2) should now be reachable because stage 1 pivot is gone
       const m = await muestraService.registrarMuestra(
         testUser.id,
-        testArticle.id,
         testEtapa2.id,
         testLine.id,
         70.000, // OK for [65, 75]
@@ -397,10 +381,10 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
       // Register 2 OK samples for stage 1 (cantidadMuestrasRequeridas = 2)
       const m1 = await muestraService.registrarMuestra(
-        testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id
+        testUser.id, testEtapa1.id, testLine.id, 50.000, pasada.id
       );
       const m2 = await muestraService.registrarMuestra(
-        testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id
+        testUser.id, testEtapa1.id, testLine.id, 50.000, pasada.id
       );
 
       // Hard-delete both OK samples
@@ -410,7 +394,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // Now trying to register stage 2 should fail because all stage-1 samples are deleted
       await expect(
         muestraService.registrarMuestra(
-          testUser.id, testArticle.id, testEtapa2.id, testLine.id, 70.000, pasada.id
+          testUser.id, testEtapa2.id, testLine.id, 70.000, pasada.id
         )
       ).rejects.toThrow(`Preceding stage '${testEtapa1.id}' is not complete`);
     }));
@@ -422,9 +406,9 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
 
       // Create samples to complete the pasada
-      const m1 = await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
-      await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
-      await muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa2.id, testLine.id, 70.000, pasada.id);
+      const m1 = await muestraService.registrarMuestra(testUser.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
+      await muestraService.registrarMuestra(testUser.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
+      await muestraService.registrarMuestra(testUser.id, testEtapa2.id, testLine.id, 70.000, pasada.id);
 
       // Explicitly complete the pasada since auto-complete was removed
       await pasadaService.completarPasada(pasada.id);
@@ -470,7 +454,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
       // Block registering new samples on aborted pasada
       await expect(
-        muestraService.registrarMuestra(testUser.id, testArticle.id, testEtapa1.id, testLine.id, 50.000, pasada.id)
+        muestraService.registrarMuestra(testUser.id, testEtapa1.id, testLine.id, 50.000, pasada.id)
       ).rejects.toThrow('Cannot register sample: Pasada is already completed or aborted');
 
       // Block updates/deletions on aborted pasada
@@ -481,6 +465,23 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       await expect(
         pasadaService.softDelete(pasada.id)
       ).rejects.toThrow('No se puede eliminar una pasada completada o abortada');
+    }));
+
+    it('re-validates weight limits and updates validation status when updating pesoNeto', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+
+      // Create a valid sample (weight 50, within limits 45-55) -> OK
+      const m = await muestraService.registrarMuestra(testUser.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
+      expect(m.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
+
+      // Update to out-of-range weight (60, limits 45-55) -> should turn into FUERA_DE_RANGO
+      const updatedLow = await muestraService.update(m.id, { pesoNeto: 60.000 });
+      expect(updatedLow!.estadoValidacion).toBe(MuestraEstadoValidacion.FUERA_DE_RANGO);
+
+      // Update back to a valid weight (52.0) -> should turn back into OK
+      const updatedBack = await muestraService.update(m.id, { pesoNeto: 52.000 });
+      expect(updatedBack!.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
     }));
   });
 });

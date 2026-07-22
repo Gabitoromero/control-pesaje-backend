@@ -1196,8 +1196,27 @@ describe('Muestras HTTP Integration', () => {
 
   it('PUT /api/muestras/:id — 200 on success (owner operario)', async () => {
     // update handler: findById (findOne) returns muestra with usuario.id matching token id=3
-    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 3 } };
-    mockEm.findOne.mockResolvedValue(muestra);
+    const muestra = {
+      id: 7,
+      pesoNeto: 150,
+      activo: true,
+      usuario: { id: 3 },
+      rutaPasada: { id: 1 },
+      etapa: { id: 2 }
+    };
+    mockEm.findOne.mockImplementation(async (entityClass, where) => {
+      // Mock finding the Muestra
+      if (where && typeof where === 'object' && 'id' in where && where.id === 7) {
+        return muestra;
+      }
+      // Mock finding the RutaPasadaEtapa limits configuration
+      return {
+        id: 10,
+        pesoMinimo: 100,
+        pesoMaximo: 200,
+        pesoIdeal: 150
+      };
+    });
     mockEm.flush.mockResolvedValue(undefined);
 
     const res = await request(app)

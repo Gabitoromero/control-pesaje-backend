@@ -77,11 +77,54 @@ describe('getIo and initSocket', () => {
     const httpServer = http.createServer();
     const orm = {} as MikroORM;
     const io = initSocket(httpServer, orm);
-    
+
     expect(io).toBeInstanceOf(Server);
     expect(getIo()).toBe(io);
-    
+
     // Cleanup
+    io.close();
+  });
+});
+
+describe('initSocket wires inactivity callbacks to socket emissions', () => {
+  it('registers inactivity warning + close callbacks and they emit to the line room', () => {
+    const httpServer = http.createServer();
+    const orm = {} as MikroORM;
+
+    const warnSetter = vi.fn();
+    const closeSetter = vi.fn();
+    const mockSesionSvc = {
+      setInactivityWarningCallback: warnSetter,
+      setInactivityCloseCallback: closeSetter,
+    } as unknown as SesionService;
+
+    const io = initSocket(httpServer, orm, mockSesionSvc);
+
+    expect(warnSetter).toHaveBeenCalledOnce();
+    expect(closeSetter).toHaveBeenCalledOnce();
+
+    const warnCb = warnSetter.mock.calls[0][0];
+    const closeCb = closeSetter.mock.calls[0][0];
+
+    const emitMock = vi.fn();
+    const toMock = vi.fn().mockReturnValue({ emit: emitMock });
+    // Replace the instance method so .to(...) returns our mock chain.
+    (io as unknown as { to: unknown }).to = toMock;
+
+    warnCb(5);
+    expect(toMock).toHaveBeenCalledWith('linea-5');
+    expect(emitMock).toHaveBeenCalledWith('sesion-expirando', { lineaProduccionId: 5 });
+
+    emitMock.mockClear();
+    toMock.mockClear();
+
+    closeCb(7);
+    expect(toMock).toHaveBeenCalledWith('linea-7');
+    expect(emitMock).toHaveBeenCalledWith('sesion-cerrada', {
+      lineaProduccionId: 7,
+      reason: 'inactivity',
+    });
+
     io.close();
   });
 });

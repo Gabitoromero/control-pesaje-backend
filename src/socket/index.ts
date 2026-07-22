@@ -49,7 +49,18 @@ export const onSocketConnection = (
  * Initializes the Socket.IO server bound to the given HTTP server.
  * Must be called after http.createServer(app) and before httpServer.listen().
  */
-export const initSocket = (httpServer: http.Server, orm: MikroORM): Server => {
+/**
+ * Initializes the Socket.IO server bound to the given HTTP server.
+ * Must be called after http.createServer(app) and before httpServer.listen().
+ *
+ * `sesionSvc` is injected (defaulting to the singleton) so the inactivity
+ * callback wiring is testable without depending on the global instance.
+ */
+export const initSocket = (
+  httpServer: http.Server,
+  orm: MikroORM,
+  sesionSvc: SesionService = sesionService,
+): Server => {
   ioInstance = new Server(httpServer, {
     cors: { origin: '*' },
     transports: ['websocket', 'polling'],
@@ -59,6 +70,19 @@ export const initSocket = (httpServer: http.Server, orm: MikroORM): Server => {
 
   io.use(deviceAuthMiddleware);
   io.use(tabletJwtMiddleware);
+
+  // Wire inactivity lifecycle to socket room emissions. The SesionService
+  // detects expiry lazily and invokes these callbacks; the socket layer turns
+  // them into targeted room events so only the affected línea is notified.
+  sesionSvc.setInactivityWarningCallback((lineaProduccionId: number) => {
+    io.to(`linea-${lineaProduccionId}`).emit('sesion-expirando', { lineaProduccionId });
+  });
+  sesionSvc.setInactivityCloseCallback((lineaProduccionId: number) => {
+    io.to(`linea-${lineaProduccionId}`).emit('sesion-cerrada', {
+      lineaProduccionId,
+      reason: 'inactivity',
+    });
+  });
 
   io.on('connection', (socket) => {
     onSocketConnection(io, socket, orm);

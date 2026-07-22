@@ -104,7 +104,7 @@ export const cerrarSesion: RequestHandler = async (req, res) => {
       console.log(`[AUTH] Session deleted from memory for line ${lineaProduccionId}. Emitting sesion-cerrada...`);
       try {
         const io = getIo();
-        io.to(`linea-${lineaProduccionId}`).emit('sesion-cerrada', { lineaProduccionId });
+        io.to(`linea-${lineaProduccionId}`).emit('sesion-cerrada', { lineaProduccionId, reason: 'admin' });
       } catch (error) {
         console.error('[AUTH] Failed to emit sesion-cerrada socket event', error);
       }

@@ -60,6 +60,7 @@ const makeActiveSesion = (overrides: Partial<SesionActiva> = {}): SesionActiva =
   pasadaId: null,
   connectedAt: new Date(),
   ultimaActividadAt: new Date(),
+  warningSent: false,
   ...overrides,
 });
 

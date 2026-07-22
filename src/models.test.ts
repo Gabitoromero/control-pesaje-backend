@@ -183,7 +183,6 @@ describe('Domain Entities Integration Tests', () => {
     muestra.pasada = pasada;
     muestra.usuario = usuario;
     muestra.rutaPasada = rutaPasada;
-    muestra.articulo = articulo;
     muestra.etapa = etapa;
     muestra.lineaProduccion = linea;
     muestra.pesoNeto = 85.1236; // 4 decimals, should round to 85.124
