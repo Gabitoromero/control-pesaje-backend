@@ -181,11 +181,7 @@ export const reporteService = {
               pasadaNum: p.numero,
               etapa: etapa,
               total: pesos.length,
-<<<<<<< HEAD
-              promedio: avg.toFixed(2)
-=======
               promedio: avg.toFixed(3)
->>>>>>> 6d2d946 (fix(reporte): agregar promedio por etapa en resumen de pasadas y corregir schema zod)
             });
           }
         }

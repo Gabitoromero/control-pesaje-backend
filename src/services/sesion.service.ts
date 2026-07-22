@@ -159,6 +159,46 @@ export class SesionService {
     return Array.from(this.lineSessions.values());
   }
 
+  /**
+   * Periodic check: iterates all active sessions and triggers warning/close
+   * callbacks when inactivity thresholds are crossed. Called every ~10 seconds
+   * from the socket layer so that idle sessions (no balanza or admin queries)
+   * still fire their expiry events on time.
+   */
+  verificarInactividad(): void {
+    const now = Date.now();
+    const timeoutMs = this.getInactivityTimeoutMs();
+    const warningLeadMs = this.getInactivityWarningLeadMs();
+
+    for (const session of this.lineSessions.values()) {
+      if (
+        session.usuarioId === null ||
+        !session.ultimaActividadAt ||
+        session.ultimaActividadAt === null
+      ) {
+        continue;
+      }
+
+      const idleMs = now - session.ultimaActividadAt.getTime();
+
+      if (idleMs >= timeoutMs) {
+        // Full timeout: close and emit
+        if (this.inactivityCloseCallback) {
+          this.inactivityCloseCallback(session.lineaProduccionId);
+        }
+        this.lineSessions.delete(session.lineaProduccionId);
+      } else if (
+        idleMs >= timeoutMs - warningLeadMs &&
+        !session.warningSent &&
+        this.inactivityWarningCallback
+      ) {
+        // Pre-expiry warning
+        this.inactivityWarningCallback(session.lineaProduccionId);
+        session.warningSent = true;
+      }
+    }
+  }
+
   actualizarPasada(lineaProduccionId: number, pasadaId: number | null): void {
     const session = this.lineSessions.get(lineaProduccionId);
     if (session) {

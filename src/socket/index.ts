@@ -84,6 +84,22 @@ export const initSocket = (
     });
   });
 
+  // Periodic inactivity check: runs every 10 seconds so idle sessions
+  // still fire warnings and expiry events even when no balanza data or
+  // admin queries are hitting obtenerSesion().
+  const INACTIVITY_CHECK_INTERVAL = 10_000;
+  const inactivityTimer = setInterval(() => {
+    sesionSvc.verificarInactividad();
+  }, INACTIVITY_CHECK_INTERVAL);
+
+  // Clean up the interval when the process exits (tests, graceful shutdown)
+  const cleanupTimer = () => clearInterval(inactivityTimer);
+  process.once('SIGTERM', cleanupTimer);
+  process.once('SIGINT', cleanupTimer);
+  // Expose for test teardown
+  (io as any).__inactivityTimer = inactivityTimer;
+  (io as any).__cleanupInactivityTimer = cleanupTimer;
+
   io.on('connection', (socket) => {
     onSocketConnection(io, socket, orm);
   });
