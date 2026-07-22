@@ -12,7 +12,7 @@ vi.mock('@mikro-orm/core', () => ({
 
 vi.mock('../services/reporte.service.js', () => ({
   reporteService: {
-    generarReportePasadasMuestras: vi.fn(),
+    generateReportePasadasMuestras: vi.fn(),
   },
 }));
 
@@ -60,10 +60,10 @@ describe('Reporte Controller', () => {
     const emMock = {};
     (RequestContext.getEntityManager as any).mockReturnValue(emMock);
     const mockWorkbook = { xlsx: { write: vi.fn() } };
-    (reporteService.generarReportePasadasMuestras as any).mockResolvedValue(mockWorkbook);
+    (reporteService.generateReportePasadasMuestras as any).mockResolvedValue(mockWorkbook);
 
     await getReportePasadasMuestras(req as Request, res as Response, next as any);
-    expect(reporteService.generarReportePasadasMuestras).toHaveBeenCalledWith(emMock, expect.any(Date), expect.any(Date));
+    expect(reporteService.generateReportePasadasMuestras).toHaveBeenCalledWith(emMock, expect.any(Date), expect.any(Date));
     expect(mockWorkbook.xlsx.write).toHaveBeenCalledWith(res);
     expect(setHeaderMock).toHaveBeenCalledTimes(2);
     expect(endMock).toHaveBeenCalled();

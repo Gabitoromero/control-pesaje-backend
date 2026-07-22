@@ -46,7 +46,7 @@ export const getReportePasadasMuestras = async (req: Request, res: Response, nex
       return;
     }
 
-    const workbook = await reporteService.generarReportePasadasMuestras(em, fechaDesde, fechaHasta);
+    const workbook = await reporteService.generateReportePasadasMuestras(em, fechaDesde, fechaHasta);
 
     const isoDesde = desde.split('T')[0];
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

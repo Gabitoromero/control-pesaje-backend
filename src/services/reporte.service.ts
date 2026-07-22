@@ -1,5 +1,4 @@
 import { EntityManager } from '@mikro-orm/core';
-import { Response } from 'express';
 import exceljs from 'exceljs';
 import { Muestra, MuestraEstadoValidacion } from '../models/Muestra.js';
 import { Pasada } from '../models/Pasada.js';
@@ -11,7 +10,7 @@ function formatDateTime(date: Date): string {
 }
 
 export const reporteService = {
-  async generarReportePasadasMuestras(em: EntityManager, desde: Date, hasta: Date): Promise<exceljs.Workbook> {
+  async generateReportePasadasMuestras(em: EntityManager, desde: Date, hasta: Date): Promise<exceljs.Workbook> {
     const muestras = await em.find(
       Muestra,
       { timestamp: { $gte: desde, $lte: hasta } },
@@ -182,7 +181,11 @@ export const reporteService = {
               pasadaNum: p.numero,
               etapa: etapa,
               total: pesos.length,
+<<<<<<< HEAD
               promedio: avg.toFixed(2)
+=======
+              promedio: avg.toFixed(3)
+>>>>>>> 6d2d946 (fix(reporte): agregar promedio por etapa en resumen de pasadas y corregir schema zod)
             });
           }
         }
