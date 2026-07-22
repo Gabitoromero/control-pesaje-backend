@@ -4,8 +4,8 @@ import { reporteService } from '../services/reporte.service.js';
 import { z } from 'zod';
 
 const reporteQuerySchema = z.object({
-  desde: z.string({ required_error: 'Faltan parámetros desde o hasta' }),
-  hasta: z.string({ required_error: 'Faltan parámetros desde o hasta' }),
+  desde: z.string({ message: 'Faltan parámetros desde o hasta' }),
+  hasta: z.string({ message: 'Faltan parámetros desde o hasta' }),
 });
 
 export const getReportePasadasMuestras = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -46,7 +46,14 @@ export const getReportePasadasMuestras = async (req: Request, res: Response, nex
       return;
     }
 
-    await reporteService.generarReportePasadasMuestras(em, fechaDesde, fechaHasta, res);
+    const workbook = await reporteService.generarReportePasadasMuestras(em, fechaDesde, fechaHasta);
+
+    const isoDesde = desde.split('T')[0];
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="reporte-${isoDesde}.xlsx"`);
+    
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (err) {
     next(err);
   }

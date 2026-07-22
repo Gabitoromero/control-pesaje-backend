@@ -22,12 +22,15 @@ describe('Reporte Controller', () => {
   let next: ReturnType<typeof vi.fn>;
   let statusMock: ReturnType<typeof vi.fn>;
   let jsonMock: ReturnType<typeof vi.fn>;
-
+  let setHeaderMock: ReturnType<typeof vi.fn>;
+  let endMock: ReturnType<typeof vi.fn>;
   beforeEach(() => {
     jsonMock = vi.fn();
     statusMock = vi.fn().mockReturnValue({ json: jsonMock });
     req = { query: {} };
-    res = { status: statusMock } as any;
+    setHeaderMock = vi.fn();
+    endMock = vi.fn();
+    res = { status: statusMock, setHeader: setHeaderMock, end: endMock } as any;
     next = vi.fn();
     vi.clearAllMocks();
   });
@@ -56,8 +59,13 @@ describe('Reporte Controller', () => {
     req.query = { desde: '2023-01-01T00:00:00Z', hasta: '2023-01-05T23:59:59Z' };
     const emMock = {};
     (RequestContext.getEntityManager as any).mockReturnValue(emMock);
+    const mockWorkbook = { xlsx: { write: vi.fn() } };
+    (reporteService.generarReportePasadasMuestras as any).mockResolvedValue(mockWorkbook);
 
     await getReportePasadasMuestras(req as Request, res as Response, next as any);
-    expect(reporteService.generarReportePasadasMuestras).toHaveBeenCalledWith(emMock, expect.any(Date), expect.any(Date), res);
+    expect(reporteService.generarReportePasadasMuestras).toHaveBeenCalledWith(emMock, expect.any(Date), expect.any(Date));
+    expect(mockWorkbook.xlsx.write).toHaveBeenCalledWith(res);
+    expect(setHeaderMock).toHaveBeenCalledTimes(2);
+    expect(endMock).toHaveBeenCalled();
   });
 });

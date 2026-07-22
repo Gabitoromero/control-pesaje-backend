@@ -11,7 +11,7 @@ function formatDateTime(date: Date): string {
 }
 
 export const reporteService = {
-  async generarReportePasadasMuestras(em: EntityManager, desde: Date, hasta: Date, res: Response): Promise<void> {
+  async generarReportePasadasMuestras(em: EntityManager, desde: Date, hasta: Date): Promise<exceljs.Workbook> {
     const muestras = await em.find(
       Muestra,
       { timestamp: { $gte: desde, $lte: hasta } },
@@ -59,7 +59,7 @@ export const reporteService = {
     } else {
       for (const grupo of lineas) {
         const lineName = grupo.linea.nombre.replace(/[/\\?*[\]]/g, '');
-        const detailSheet = workbook.addWorksheet(`Detalle - ${lineName}`.substring(0, 31));
+        const detailSheet = workbook.addWorksheet(`Muestras - ${lineName}`.substring(0, 31));
         
         detailSheet.columns = [
           { header: 'Línea de Producción', key: 'linea', width: 20 },
@@ -105,7 +105,7 @@ export const reporteService = {
           }
         }
 
-        const resSheet = workbook.addWorksheet(`Resumen - ${lineName}`.substring(0, 31));
+        const resSheet = workbook.addWorksheet(`Pasadas - ${lineName}`.substring(0, 31));
         resSheet.columns = [
           { header: 'Línea de Producción', key: 'linea', width: 20 },
           { header: 'Ruta', key: 'ruta', width: 20 },
@@ -135,7 +135,7 @@ export const reporteService = {
           if (p.horaCierre) {
             duracion = Math.round((p.horaCierre.getTime() - p.horaInicio.getTime()) / 60000);
           }
-          
+
           resSheet.addRow({
             linea: p.lineaProduccion.nombre,
             ruta: p.rutaPasada.nombre,
@@ -154,14 +154,41 @@ export const reporteService = {
             obs: p.observacionCierre ?? '-'
           });
         }
+
+        const etapaSheet = workbook.addWorksheet(`Etapas - ${lineName}`.substring(0, 31));
+        etapaSheet.columns = [
+          { header: 'Línea de Producción', key: 'linea', width: 20 },
+          { header: 'Ruta', key: 'ruta', width: 20 },
+          { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
+          { header: 'Etapa', key: 'etapa', width: 20 },
+          { header: 'Total Muestras', key: 'total', width: 15 },
+          { header: 'Promedio Peso Neto (g)', key: 'promedio', width: 20 },
+        ];
+        etapaSheet.getRow(1).font = { bold: true };
+
+        for (const p of grupo.pasadas) {
+          const pm = grupo.muestras.filter(m => m.pasada?.id === p.id);
+          const pmPorEtapa = new Map<string, number[]>();
+          for (const m of pm) {
+            if (!pmPorEtapa.has(m.etapa.nombre)) pmPorEtapa.set(m.etapa.nombre, []);
+            pmPorEtapa.get(m.etapa.nombre)!.push(Number(m.pesoNeto));
+          }
+          for (const [etapa, pesos] of pmPorEtapa.entries()) {
+            const sum = pesos.reduce((acc, v) => acc + v, 0);
+            const avg = sum / pesos.length;
+            etapaSheet.addRow({
+              linea: p.lineaProduccion.nombre,
+              ruta: p.rutaPasada.nombre,
+              pasadaNum: p.numero,
+              etapa: etapa,
+              total: pesos.length,
+              promedio: avg.toFixed(2)
+            });
+          }
+        }
       }
     }
 
-    const isoDesde = desde.toISOString().split('T')[0];
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="reporte-${isoDesde}.xlsx"`);
-    
-    await workbook.xlsx.write(res);
-    res.end();
+    return workbook;
   }
 };
