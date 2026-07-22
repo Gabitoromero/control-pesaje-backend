@@ -11,6 +11,7 @@ export interface LineaDto {
   nombre: string;
   activo: boolean;
   rutaPasadaActiva: { id: number; nombre: string } | null;
+  rutaAsignadaAt: Date | null;
   dispositivo: { id: string } | null;
 }
 
@@ -23,6 +24,7 @@ export interface PasadaEnCursoDto {
 
 export interface ResumenDto {
   conectado: boolean;
+  tiempoDesdeRuta: number | null;
   pasadaEnCurso: PasadaEnCursoDto | null;
 }
 
@@ -70,11 +72,19 @@ export const dashboardService = {
       rutaPasadaActiva: l.rutaPasadaActiva
         ? { id: l.rutaPasadaActiva.id, nombre: l.rutaPasadaActiva.nombre }
         : null,
+      rutaAsignadaAt: l.rutaAsignadaAt || null,
       dispositivo: l.dispositivo ? { id: l.dispositivo.hardwareId } : null,
     }));
   },
 
   async getResumen(em: EntityManager, lineaId: number): Promise<ResumenDto | null> {
+    const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
+    if (!linea?.rutaPasadaActiva) return null;
+
+    const tiempoDesdeRuta = linea.rutaAsignadaAt
+      ? Date.now() - new Date(linea.rutaAsignadaAt).getTime()
+      : null;
+
     const pasada = await em.findOne(Pasada, {
       lineaProduccion: lineaId,
       estado: PasadaEstado.EN_CURSO,
@@ -82,17 +92,14 @@ export const dashboardService = {
     });
 
     if (!pasada) {
-      // Return null to signal "no route assigned" (caller returns 404)
-      const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
-      if (!linea?.rutaPasadaActiva) return null;
-
       // Has a route but no active pasada → "esperando"
-      return { conectado: false, pasadaEnCurso: null };
+      return { conectado: false, tiempoDesdeRuta, pasadaEnCurso: null };
     }
 
     const tiempoTranscurrido = Date.now() - new Date(pasada.horaInicio).getTime();
     return {
       conectado: false, // caller will override with deviceRegistryService
+      tiempoDesdeRuta,
       pasadaEnCurso: {
         id: pasada.id,
         horaInicio: pasada.horaInicio,
@@ -103,24 +110,25 @@ export const dashboardService = {
   },
 
   async getKpis(em: EntityManager, lineaId: number): Promise<KpisDto | null> {
-    const pasada = await em.findOne(
-      Pasada,
-      { lineaProduccion: lineaId, estado: PasadaEstado.EN_CURSO, activo: true },
-      { populate: ['rutaPasada'] }
+    const linea = await em.findOne(
+      LineaProduccion,
+      { id: lineaId, activo: true },
+      { populate: ['rutaPasadaActiva'] }
     );
+    if (!linea?.rutaPasadaActiva) return null;
 
-    if (!pasada) {
-      const linea = await em.findOne(LineaProduccion, { id: lineaId, activo: true });
-      if (!linea?.rutaPasadaActiva) return null;
+    const rutaPasadaId = linea.rutaPasadaActiva.id;
+    const timeZero = linea.rutaAsignadaAt;
+
+    if (!timeZero) {
       return { muestrasTotales: 0, fueraRango: 0, pasadasFinalizadas: 0, pasadasEnCurso: 0 };
     }
 
-    const timeZero = pasada.horaInicio;
-
     const muestras = await em.find(Muestra, {
-      pasada: pasada.id,
+      lineaProduccion: lineaId,
+      rutaPasada: rutaPasadaId,
       timestamp: { $gte: timeZero },
-    }, { populate: ['etapa'] });
+    });
 
     const fueraRango = muestras.filter(
       m => m.estadoValidacion === MuestraEstadoValidacion.FUERA_DE_RANGO
@@ -128,14 +136,18 @@ export const dashboardService = {
 
     const pasadasFinalizadas = await em.count(Pasada, {
       lineaProduccion: lineaId,
+      rutaPasada: rutaPasadaId,
       estado: PasadaEstado.COMPLETA,
       horaInicio: { $gte: timeZero },
+      activo: true,
     });
 
     const pasadasEnCurso = await em.count(Pasada, {
       lineaProduccion: lineaId,
+      rutaPasada: rutaPasadaId,
       estado: PasadaEstado.EN_CURSO,
       horaInicio: { $gte: timeZero },
+      activo: true,
     });
 
     return { muestrasTotales: muestras.length, fueraRango, pasadasFinalizadas, pasadasEnCurso };

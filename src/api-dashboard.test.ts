@@ -63,27 +63,44 @@ describe('Dashboard Integration Tests', () => {
   });
 
   describe('GET /api/dashboard/:lineaId/resumen', () => {
-    it('returns 404 when no active pasada', async () => {
-      mockEm.findOne.mockResolvedValue(null);
+    it('returns 404 when no active ruta', async () => {
+      mockEm.findOne.mockResolvedValueOnce(null); // LineaProduccion
       const res = await request(app)
         .get('/api/dashboard/1/resumen')
         .set('Authorization', `Bearer ${adminToken()}`);
       expect(res.status).toBe(404);
     });
 
-    it('returns active pasada and calculated tiempoTranscurrido', async () => {
+    it('returns 200 and calculcates tiempoDesdeRuta when no active pasada', async () => {
       const now = new Date();
+      const rutaAsignadaAt = new Date(now.getTime() - 120000); // 2 minutes ago
+      mockEm.findOne.mockResolvedValueOnce({ id: 1, rutaPasadaActiva: { id: 10 }, rutaAsignadaAt }); // LineaProduccion
+      mockEm.findOne.mockResolvedValueOnce(null); // Pasada
+
+      const res = await request(app)
+        .get('/api/dashboard/1/resumen')
+        .set('Authorization', `Bearer ${adminToken()}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.tiempoDesdeRuta).toBeGreaterThanOrEqual(119000);
+      expect(res.body.data.pasadaEnCurso).toBeNull();
+    });
+
+    it('returns active pasada and calculated tiempoTranscurrido and tiempoDesdeRuta', async () => {
+      const now = new Date();
+      const rutaAsignadaAt = new Date(now.getTime() - 120000); // 2 minutes ago
       const horaInicio = new Date(now.getTime() - 60000); // 1 minute ago
-      mockEm.findOne.mockResolvedValue({
+      mockEm.findOne.mockResolvedValueOnce({ id: 1, rutaPasadaActiva: { id: 10 }, rutaAsignadaAt }); // LineaProduccion
+      mockEm.findOne.mockResolvedValueOnce({
         id: 5,
         estado: PasadaEstado.EN_CURSO,
         horaInicio,
-      });
+      }); // Pasada
       const res = await request(app)
         .get('/api/dashboard/1/resumen')
         .set('Authorization', `Bearer ${adminToken()}`);
       
       expect(res.status).toBe(200);
+      expect(res.body.data.tiempoDesdeRuta).toBeGreaterThanOrEqual(119000);
       expect(res.body.data.pasadaEnCurso).toBeDefined();
       expect(res.body.data.pasadaEnCurso.id).toBe(5);
       expect(res.body.data.pasadaEnCurso.tiempoTranscurrido).toBeGreaterThanOrEqual(59000); // approx 60000 ms
@@ -92,7 +109,7 @@ describe('Dashboard Integration Tests', () => {
 
   describe('GET /api/dashboard/:lineaId/kpis', () => {
     it('returns kpis for the line based on today samples', async () => {
-      mockEm.findOne.mockResolvedValue({ id: 5, horaInicio: new Date(), rutaPasada: { id: 1 } });
+      mockEm.findOne.mockResolvedValueOnce({ id: 1, rutaAsignadaAt: new Date(), rutaPasadaActiva: { id: 1 } });
       mockEm.find.mockResolvedValue([
         { id: 1, etapa: { id: 1 }, pesoNeto: 100, estadoValidacion: 'ok', timestamp: new Date() },
         { id: 2, etapa: { id: 1 }, pesoNeto: 85,  estadoValidacion: 'fuera_de_rango', timestamp: new Date() },

@@ -61,12 +61,12 @@ describe('dashboard.controller', () => {
   });
 
   describe('getLineas', () => {
-    it('returns lineas de produccion with updatedAt', async () => {
+    it('returns lineas de produccion with updatedAt and rutaAsignadaAt', async () => {
       const req = {} as Request;
       const { captured, mock: res } = makeRes();
       const now = new Date('2026-07-13T10:00:00.000Z');
 
-      mockEm.find.mockResolvedValue([{ id: 1, nombre: 'Linea 1', updatedAt: now }]);
+      mockEm.find.mockResolvedValue([{ id: 1, nombre: 'Linea 1', updatedAt: now, rutaAsignadaAt: now }]);
 
       await getLineas(req, res, vi.fn());
 
@@ -74,6 +74,7 @@ describe('dashboard.controller', () => {
       expect((captured.body as any).data.length).toBe(1);
       expect((captured.body as any).data[0].id).toBe(1);
       expect((captured.body as any).data[0].nombre).toBe('Linea 1');
+      expect((captured.body as any).data[0].rutaAsignadaAt).toBe(now);
     });
 
     it('populates rutaPasadaActiva and dispositivo', async () => {
@@ -94,9 +95,14 @@ describe('dashboard.controller', () => {
 
   describe('getResumen', () => {
     it('returns 200 estado "esperando" if linea has rutaPasadaActiva but no Pasada EN_CURSO', async () => {
+      const timeZero = new Date('2026-07-13T10:00:00.000Z');
+      const now = new Date('2026-07-13T10:05:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
       mockEm.findOne.mockImplementation((entity: any) => {
         if (entity === Pasada) return Promise.resolve(null);
-        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 } });
+        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 }, rutaAsignadaAt: timeZero });
         return Promise.resolve(null);
       });
       (deviceRegistryService.hasDeviceForLinea as any).mockReturnValue(false);
@@ -107,16 +113,17 @@ describe('dashboard.controller', () => {
       await getResumen(req, res, vi.fn());
 
       expect(mockEm.findOne).toHaveBeenCalledWith(
-        Pasada,
-        expect.objectContaining({ lineaProduccion: 1, estado: 'en_curso', activo: true })
-      );
-      expect(mockEm.findOne).toHaveBeenCalledWith(
         LineaProduccion,
         expect.objectContaining({ id: 1, activo: true })
+      );
+      expect(mockEm.findOne).toHaveBeenCalledWith(
+        Pasada,
+        expect.objectContaining({ lineaProduccion: 1, estado: 'en_curso', activo: true })
       );
       expect(captured.statusCode).toBe(200);
       expect((captured.body as any).data).toEqual({
         conectado: false,
+        tiempoDesdeRuta: 5 * 60 * 1000,
         pasadaEnCurso: null
       });
     });
@@ -144,7 +151,11 @@ describe('dashboard.controller', () => {
       vi.useFakeTimers();
       vi.setSystemTime(now);
 
-      mockEm.findOne.mockResolvedValue({ id: 10, horaInicio: timeZero });
+      mockEm.findOne.mockImplementation((entity: any) => {
+        if (entity === Pasada) return Promise.resolve({ id: 10, horaInicio: timeZero });
+        if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 }, rutaAsignadaAt: timeZero });
+        return Promise.resolve(null);
+      });
       (deviceRegistryService.hasDeviceForLinea as any).mockReturnValue(true);
 
       const req = { params: { lineaId: '1' } } as unknown as Request;
@@ -155,6 +166,7 @@ describe('dashboard.controller', () => {
       expect(deviceRegistryService.hasDeviceForLinea).toHaveBeenCalledWith(1);
       expect(captured.statusCode).toBe(200);
       expect((captured.body as any).data.conectado).toBe(true);
+      expect((captured.body as any).data.tiempoDesdeRuta).toBe(5 * 60 * 1000);
       expect((captured.body as any).data.pasadaEnCurso.id).toBe(10);
       expect((captured.body as any).data.pasadaEnCurso.tiempoTranscurrido).toBe(5 * 60 * 1000);
     });
@@ -200,9 +212,9 @@ describe('dashboard.controller', () => {
     it('returns KPIs counting fueraRango by estadoValidacion', async () => {
       const timeZero = new Date('2026-07-13T10:00:00.000Z');
       mockEm.findOne.mockResolvedValue({ 
-        id: 10, 
-        horaInicio: timeZero,
-        rutaPasada: { id: 2 } 
+        id: 1, 
+        rutaAsignadaAt: timeZero,
+        rutaPasadaActiva: { id: 2 } 
       });
 
       mockEm.find.mockImplementation((entity: any) => {
@@ -230,10 +242,10 @@ describe('dashboard.controller', () => {
       expect(mockEm.find).toHaveBeenCalledWith(
         Muestra,
         {
-          pasada: 10,
+          lineaProduccion: 1,
+          rutaPasada: 2,
           timestamp: { $gte: timeZero }
-        },
-        { populate: ['etapa'] }
+        }
       );
       
       expect(captured.statusCode).toBe(200);
