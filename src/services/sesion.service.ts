@@ -212,6 +212,7 @@ export class SesionService {
     if (session && session.usuarioId !== null) {
       session.ultimaActividadAt = new Date();
       session.warningSent = false;
+      console.log(`[Sesión] Actividad renovada para línea ${lineaProduccionId}. Timeout reiniciado.`);
     }
   }
 

@@ -1232,7 +1232,7 @@ describe('Muestras HTTP Integration', () => {
 
   it('DELETE /api/muestras/:id — 204 on success (owner operario)', async () => {
     // hardDelete handler: findById (findOne) returns muestra with usuario.id matching token id=3
-    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 3 } };
+    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 3 }, lineaProduccion: { id: 1 } };
     mockEm.findOne.mockResolvedValue(muestra);
 
     // MuestraService.hardDelete: em.findOne + em.remove + em.flush
@@ -1248,7 +1248,7 @@ describe('Muestras HTTP Integration', () => {
 
   it('DELETE /api/muestras/:id — 403 when non-owner OPERARIO tries to delete', async () => {
     // muestra owner is user id=99; operario token has id=3 → ownership check fails
-    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 99 } };
+    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 99 }, lineaProduccion: { id: 1 } };
     mockEm.findOne.mockResolvedValue(muestra);
 
     const res = await request(app)
@@ -1261,7 +1261,7 @@ describe('Muestras HTTP Integration', () => {
 
   it('DELETE /api/muestras/:id — 204 when JEFE deletes any muestra (bypasses owner check)', async () => {
     // JEFE is a privileged role; can delete regardless of muestra.usuario.id
-    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 99 } };
+    const muestra = { id: 7, pesoNeto: 150, activo: true, usuario: { id: 99 }, lineaProduccion: { id: 1 } };
     mockEm.findOne.mockResolvedValue(muestra);
     (mockEm as Record<string, unknown>).remove = vi.fn().mockResolvedValue(undefined);
     (mockEm as Record<string, unknown>).flush = vi.fn().mockResolvedValue(undefined);

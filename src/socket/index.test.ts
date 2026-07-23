@@ -108,8 +108,10 @@ describe('initSocket wires inactivity callbacks to socket emissions', () => {
 
     const emitMock = vi.fn();
     const toMock = vi.fn().mockReturnValue({ emit: emitMock });
+    const ioEmitMock = vi.fn();
     // Replace the instance method so .to(...) returns our mock chain.
-    (io as unknown as { to: unknown }).to = toMock;
+    (io as unknown as { to: unknown; emit: unknown }).to = toMock;
+    (io as unknown as { to: unknown; emit: unknown }).emit = ioEmitMock;
 
     warnCb(5);
     expect(toMock).toHaveBeenCalledWith('linea-5');
@@ -117,6 +119,7 @@ describe('initSocket wires inactivity callbacks to socket emissions', () => {
 
     emitMock.mockClear();
     toMock.mockClear();
+    ioEmitMock.mockClear();
 
     closeCb(7);
     expect(toMock).toHaveBeenCalledWith('linea-7');
@@ -124,6 +127,7 @@ describe('initSocket wires inactivity callbacks to socket emissions', () => {
       lineaProduccionId: 7,
       reason: 'inactivity',
     });
+    expect(ioEmitMock).toHaveBeenCalledWith('estado-lineas-actualizado');
 
     io.close();
   });

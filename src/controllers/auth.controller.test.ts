@@ -17,7 +17,7 @@ const emitMock = vi.fn();
 const toMock = vi.fn().mockReturnValue({ emit: emitMock });
 
 vi.mock('../socket/index.js', () => ({
-  getIo: vi.fn(() => ({ to: toMock }) as unknown as unknown),
+  getIo: vi.fn(() => ({ to: toMock, emit: emitMock }) as unknown as unknown),
 }));
 
 // We need RequestContext for the ORM, but instead of complex mock,
@@ -160,6 +160,28 @@ describe('auth.controller', () => {
         lineaProduccionId: 1,
         reason: 'admin',
       });
+      expect(emitMock).toHaveBeenCalledWith('estado-lineas-actualizado');
+    });
+  });
+
+  describe('sesionLinea emits estado-lineas-actualizado', () => {
+    beforeEach(() => {
+      sesionService.limpiar();
+      emitMock.mockClear();
+    });
+
+    it('emits estado-lineas-actualizado on successful line session start', async () => {
+      const { sesionLinea } = await import('./auth.controller.js');
+      const req = {
+        user: { id: 10, rol: UsuarioRol.OPERARIO },
+        body: { lineaProduccionId: 1 },
+      } as unknown as Request;
+      const { captured, mock: res } = makeRes();
+
+      await sesionLinea(req, res, vi.fn());
+
+      expect(captured.statusCode).toBe(201);
+      expect(emitMock).toHaveBeenCalledWith('estado-lineas-actualizado');
     });
   });
 });

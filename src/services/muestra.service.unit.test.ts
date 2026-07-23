@@ -23,7 +23,7 @@ describe('MuestraService.hardDelete', () => {
   });
 
   it('returns true and calls remove and flush when muestra is found', async () => {
-    const fakeMustra = { id: 1, activo: true };
+    const fakeMustra = { id: 1, activo: true, lineaProduccion: { id: 1 } };
     mockEm.findOne.mockResolvedValue(fakeMustra);
     mockEm.remove.mockResolvedValue(undefined);
     mockEm.flush.mockResolvedValue(undefined);
@@ -46,7 +46,7 @@ describe('MuestraService.hardDelete', () => {
   });
 
   it('calls em.remove and flush with the exact found entity reference', async () => {
-    const fakeMustra = { id: 5, pesoNeto: 50, activo: true };
+    const fakeMustra = { id: 5, pesoNeto: 50, activo: true, lineaProduccion: { id: 2 } };
     mockEm.findOne.mockResolvedValue(fakeMustra);
     mockEm.remove.mockResolvedValue(undefined);
     mockEm.flush.mockResolvedValue(undefined);

@@ -82,6 +82,7 @@ export const initSocket = (
       lineaProduccionId,
       reason: 'inactivity',
     });
+    io.emit('estado-lineas-actualizado');
   });
 
   // Periodic inactivity check: runs every 10 seconds so idle sessions

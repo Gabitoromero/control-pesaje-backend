@@ -118,6 +118,8 @@ export class MuestraService {
     em.persist(muestra);
     await em.flush();
 
+    sesionService.actualizarActividad(lineaProduccionId);
+
     // 6. Return the new sample. Pasada completion is now triggered explicitly by the user from the frontend.
     return muestra;
   }
@@ -166,15 +168,20 @@ export class MuestraService {
    */
   async hardDelete(id: number): Promise<boolean> {
     const em = this.getEm();
-    const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada'] });
+    const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada', 'lineaProduccion'] });
     if (!muestra) return false;
 
     if (muestra.pasada && (muestra.pasada.estado === PasadaEstado.COMPLETA || muestra.pasada.estado === PasadaEstado.ABORTADA)) {
       throw new Error('Cannot delete sample of a completed or aborted pasada');
     }
 
+    const lineaProduccionId = muestra.lineaProduccion.id;
+
     await em.remove(muestra);
     await em.flush();
+
+    sesionService.actualizarActividad(lineaProduccionId);
+
     return true;
   }
 }

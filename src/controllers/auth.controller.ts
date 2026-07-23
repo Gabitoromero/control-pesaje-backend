@@ -59,6 +59,12 @@ export const sesionLinea: RequestHandler = async (req, res) => {
         ultimaActividadAt: result.session.ultimaActividadAt?.toISOString() || null
       }
     });
+    
+    try {
+      getIo().emit('estado-lineas-actualizado');
+    } catch (error) {
+      console.error('[AUTH] Failed to emit estado-lineas-actualizado', error);
+    }
   } catch {
     res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
@@ -105,8 +111,9 @@ export const cerrarSesion: RequestHandler = async (req, res) => {
       try {
         const io = getIo();
         io.to(`linea-${lineaProduccionId}`).emit('sesion-cerrada', { lineaProduccionId, reason: 'admin' });
+        io.emit('estado-lineas-actualizado');
       } catch (error) {
-        console.error('[AUTH] Failed to emit sesion-cerrada socket event', error);
+        console.error('[AUTH] Failed to emit socket events', error);
       }
     }
     
