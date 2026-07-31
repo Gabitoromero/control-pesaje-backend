@@ -3,6 +3,7 @@ import { LineaProduccion } from './LineaProduccion.js';
 import { Articulo } from './Articulo.js';
 import { RutaPasada } from './RutaPasada.js';
 import { Usuario } from './Usuario.js';
+import { Balanza } from './Balanza.js';
 
 export enum PasadaEstado {
   EN_CURSO = 'en_curso',
@@ -21,8 +22,11 @@ export class Pasada {
   @ManyToOne(() => RutaPasada, { deleteRule: 'restrict' })
   rutaPasada!: RutaPasada;
 
-  @ManyToOne(() => Articulo, { deleteRule: 'restrict', nullable: true })
-  articulo?: Articulo;
+  @ManyToOne(() => Articulo, { deleteRule: 'restrict', nullable: false })
+  articulo!: Articulo;
+
+  @ManyToOne(() => Balanza, { deleteRule: 'restrict', nullable: false })
+  balanza!: Balanza;
 
   @ManyToOne(() => Usuario, { deleteRule: 'restrict' })
   usuario!: Usuario;

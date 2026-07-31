@@ -14,7 +14,8 @@ import {
   UsuarioRol,
   PasadaEstado,
   MuestraEstadoValidacion,
-  ArticuloRutaPasada
+  ArticuloRutaPasada,
+  Balanza
 } from '../models/index.js';
 import { sesionService } from './sesion.service.js';
 import { PasadaService } from './pasada.service.js';
@@ -29,6 +30,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
   let testUser: Usuario;
   let testLine: LineaProduccion;
   let testArticle: Articulo;
+  let testBalanza: Balanza;
   let testEtapa1: Etapa;
   let testEtapa2: Etapa;
   let testRutaPasada: RutaPasada;
@@ -50,6 +52,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
         Pasada,
         Muestra,
         ArticuloRutaPasada,
+        Balanza,
       ],
       entitiesTs: [],
       allowGlobalContext: true,
@@ -82,7 +85,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     testUser = new Usuario();
     testUser.nombreApellido = 'Juan Pérez';
     testUser.nombreUsuario = 'juan.perez';
-    testUser.legajo = 'LEG-001';
+    testUser.legajo = '00001';
     testUser.pinHash = 'hash';
     testUser.rol = UsuarioRol.OPERARIO;
     testUser.puedeTomarMuestrasLibres = true;
@@ -93,18 +96,26 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     testRutaPasada.nombre = 'Ruta Alfajor Standard';
     await em.persist(testRutaPasada).flush();
 
+    // Seed Balanza
+    testBalanza = new Balanza();
+    testBalanza.nombre = 'Balanza Test';
+    testBalanza.activo = true;
+    await em.persist(testBalanza).flush();
+
+    // Seed Article
+    testArticle = new Articulo();
+    testArticle.codigo = 'Alfajor Triple';
+    testArticle.descripcion = 'Alfajor relleno con dulce de leche';
+    await em.persist(testArticle).flush();
+
     // Seed Line with active route
     testLine = new LineaProduccion();
     testLine.activo = true;
     testLine.nombre = 'Linea de Envasado 1';
     testLine.rutaPasadaActiva = testRutaPasada;
+    testLine.balanza = testBalanza;
+    testLine.articulo = testArticle;
     await em.persist(testLine).flush();
-
-    // Seed Article
-    testArticle = new Articulo();
-    testArticle.nombre = 'Alfajor Triple';
-    testArticle.descripcion = 'Alfajor relleno con dulce de leche';
-    await em.persist(testArticle).flush();
 
     // Link Article to Route
     const testArticuloRuta = new ArticuloRutaPasada();
@@ -156,7 +167,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
   describe('MuestraService.registrarMuestra', () => {
     it('should validate sample range correctly', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
 
       // OK sample
       const m1 = await muestraService.registrarMuestra(
@@ -192,7 +203,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
     it('should reject registration of subsequent stages if preceding stages are incomplete', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
 
       await expect(
         muestraService.registrarMuestra(
@@ -207,7 +218,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
     it('should progress through stages and complete the Pasada on the last sample', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
 
       // Register 1st OK sample for Etapa 1
       await muestraService.registrarMuestra(
@@ -273,7 +284,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       const restrictedUser = new Usuario();
       restrictedUser.nombreApellido = 'Restricted User';
       restrictedUser.nombreUsuario = 'restricted';
-      restrictedUser.legajo = 'LEG-002';
+      restrictedUser.legajo = '00002';
       restrictedUser.pinHash = 'x';
       restrictedUser.rol = UsuarioRol.OPERARIO;
       restrictedUser.puedeTomarMuestrasLibres = false;
@@ -296,7 +307,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       const freeUser = new Usuario();
       freeUser.nombreApellido = 'Free Sample User';
       freeUser.nombreUsuario = 'freesampler';
-      freeUser.legajo = 'LEG-003';
+      freeUser.legajo = '00003';
       freeUser.pinHash = 'x';
       freeUser.rol = UsuarioRol.OPERARIO;
       freeUser.puedeTomarMuestrasLibres = true;
@@ -320,6 +331,8 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       const lineaSinRuta = new LineaProduccion();
       lineaSinRuta.activo = true;
       lineaSinRuta.nombre = 'Linea sin ruta';
+      lineaSinRuta.balanza = testBalanza;
+      lineaSinRuta.articulo = testArticle;
       await em.persist(lineaSinRuta).flush();
 
       sesionService.iniciarSesion(lineaSinRuta.id, testUser.id, UsuarioRol.OPERARIO);
@@ -361,7 +374,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       await em.flush();
 
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
 
       // Stage 2 (testEtapa2) should now be reachable because stage 1 pivot is gone
       const m = await muestraService.registrarMuestra(
@@ -377,7 +390,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     // T-11: hard-deleted samples do not count toward stage completion
     it('T-11: hard-deleted samples do not count toward stage completion', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
 
       // Register 2 OK samples for stage 1 (cantidadMuestrasRequeridas = 2)
       const m1 = await muestraService.registrarMuestra(
@@ -403,7 +416,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
   describe('Deletes and Updates Restrictions on Completed Records', () => {
     it('should reject updates and soft-deletes of completed Pasadas and Muestras', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
 
       // Create samples to complete the pasada
       const m1 = await muestraService.registrarMuestra(testUser.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
@@ -439,7 +452,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
     it('should successfully abort a pasada and reject subsequent operations', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
       expect(pasada.estado).toBe(PasadaEstado.EN_CURSO);
 
       // Abort the pasada
@@ -469,7 +482,7 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
     it('re-validates weight limits and updates validation status when updating pesoNeto', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
 
       // Create a valid sample (weight 50, within limits 45-55) -> OK
       const m = await muestraService.registrarMuestra(testUser.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
@@ -482,6 +495,38 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // Update back to a valid weight (52.0) -> should turn back into OK
       const updatedBack = await muestraService.update(m.id, { pesoNeto: 52.000 });
       expect(updatedBack!.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
+    }));
+
+    it('T-17: update() does not overwrite frozen weight limits when pesoNeto changes', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+
+      // Create a sample, which will snapshot the current limits (45, 55, 50)
+      const m = await muestraService.registrarMuestra(testUser.id, testEtapa1.id, testLine.id, 50.000, pasada.id);
+      expect(m.pesoMinimo).toBe(45.000);
+      expect(m.pesoMaximo).toBe(55.000);
+      expect(m.pesoIdeal).toBe(50.000);
+
+      // Suppose the route limits are changed in DB by someone else
+      const em = orm.em.fork();
+      const routeEtapa = await em.findOneOrFail(RutaPasadaEtapa, testRuta1.id);
+      routeEtapa.pesoMinimo = 40.000;
+      routeEtapa.pesoMaximo = 60.000;
+      routeEtapa.pesoIdeal = 50.000;
+      await em.flush();
+
+      // Now we update the sample's pesoNeto
+      const updated = await muestraService.update(m.id, { pesoNeto: 48.000 });
+
+      // The limits on the Muestra MUST remain the ones snapshotted at creation (45, 55, 50)
+      expect(updated!.pesoMinimo).toBe(45.000);
+      expect(updated!.pesoMaximo).toBe(55.000);
+      expect(updated!.pesoIdeal).toBe(50.000);
+
+      // (Cleanup so we don't mess up other tests if any are added after this, though db is cleared per test)
+      routeEtapa.pesoMinimo = 45.000;
+      routeEtapa.pesoMaximo = 55.000;
+      await em.flush();
     }));
   });
 });

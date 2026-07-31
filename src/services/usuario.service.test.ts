@@ -38,28 +38,28 @@ describe('UsuarioService', () => {
 
   describe('create', () => {
     it('throws ValidationError when legajo is already taken', async () => {
-      mockEm.findOne.mockResolvedValueOnce({ id: 2, legajo: '1234', nombreApellido: 'Otro Usuario' });
+      mockEm.findOne.mockResolvedValueOnce({ id: 2, legajo: '01234', nombreApellido: 'Otro Usuario' });
 
       await expect(
         service.create({
           nombreApellido: 'Test',
-          legajo: '1234',
+          legajo: '01234',
         } as any)
       ).rejects.toThrow(ValidationError);
 
-      mockEm.findOne.mockResolvedValueOnce({ id: 2, legajo: '1234', nombreApellido: 'Otro Usuario' });
+      mockEm.findOne.mockResolvedValueOnce({ id: 2, legajo: '01234', nombreApellido: 'Otro Usuario' });
       await expect(
         service.create({
           nombreApellido: 'Test',
-          legajo: '1234',
+          legajo: '01234',
         } as any)
-      ).rejects.toThrow("El legajo 1234 ya está en uso por Otro Usuario");
+      ).rejects.toThrow("El legajo 01234 ya está en uso por Otro Usuario");
     });
   });
 
   describe('update', () => {
     it('throws ValidationError when attempting to modify an esSistema user', async () => {
-      mockEm.findOne.mockResolvedValueOnce({ id: 1, esSistema: true, legajo: '0000' });
+      mockEm.findOne.mockResolvedValueOnce({ id: 1, esSistema: true, legajo: '00000' });
 
       await expect(
         service.update(1, {
@@ -68,7 +68,7 @@ describe('UsuarioService', () => {
       ).rejects.toThrow(ValidationError);
 
       // Need to reset the mock for the second assertion
-      mockEm.findOne.mockResolvedValueOnce({ id: 1, esSistema: true, legajo: '0000' });
+      mockEm.findOne.mockResolvedValueOnce({ id: 1, esSistema: true, legajo: '00000' });
       await expect(
         service.update(1, {
           nombreApellido: 'Hacker',
@@ -78,27 +78,27 @@ describe('UsuarioService', () => {
 
     it('throws ValidationError when updated legajo is taken by another user', async () => {
       // First findOne is for finding the user to update
-      mockEm.findOne.mockResolvedValueOnce({ id: 1, esSistema: false, legajo: '1111' });
+      mockEm.findOne.mockResolvedValueOnce({ id: 1, esSistema: false, legajo: '11111' });
       // Second findOne is for checkUniqueLegajo
-      mockEm.findOne.mockResolvedValueOnce({ id: 2, legajo: '2222', nombreApellido: 'Admin' });
+      mockEm.findOne.mockResolvedValueOnce({ id: 2, legajo: '22222', nombreApellido: 'Admin' });
 
       await expect(
         service.update(1, {
-          legajo: '2222',
+          legajo: '22222',
         } as any)
-      ).rejects.toThrow("El legajo 2222 ya está en uso por Admin");
+      ).rejects.toThrow("El legajo 22222 ya está en uso por Admin");
     });
   });
 
   describe('softDelete', () => {
     it('throws ValidationError when attempting to delete an esSistema user', async () => {
-      mockEm.findOne.mockResolvedValueOnce({ id: 1, esSistema: true, legajo: '0000' });
+      mockEm.findOne.mockResolvedValueOnce({ id: 1, esSistema: true, legajo: '00000' });
 
       await expect(
         service.softDelete(1)
       ).rejects.toThrow(ValidationError);
 
-      mockEm.findOne.mockResolvedValueOnce({ id: 1, esSistema: true, legajo: '0000' });
+      mockEm.findOne.mockResolvedValueOnce({ id: 1, esSistema: true, legajo: '00000' });
       await expect(
         service.softDelete(1)
       ).rejects.toThrow("No se permite eliminar usuarios de sistema");

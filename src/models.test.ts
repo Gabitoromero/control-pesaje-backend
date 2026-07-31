@@ -15,7 +15,8 @@ import {
   Muestra,
   UsuarioRol,
   PasadaEstado,
-  MuestraEstadoValidacion
+  MuestraEstadoValidacion,
+  Balanza
 } from './models/index.js';
 
 describe('Domain Entities Integration Tests', () => {
@@ -37,6 +38,7 @@ describe('Domain Entities Integration Tests', () => {
         RutaPasadaEtapa,
         Pasada,
         Muestra,
+        Balanza,
       ],
       entitiesTs: [], // Disable ts scanning in test
       allowGlobalContext: true,
@@ -55,7 +57,7 @@ describe('Domain Entities Integration Tests', () => {
     }
   });
 
-  it('should discover all 9 core domain entities', () => {
+  it('should discover all 10 core domain entities', () => {
     const entities = orm.config.get('entities');
     const entityNames = entities.map(e => typeof e === 'function' ? e.name : e);
 
@@ -68,7 +70,8 @@ describe('Domain Entities Integration Tests', () => {
     expect(entityNames).toContain('RutaPasadaEtapa');
     expect(entityNames).toContain('Pasada');
     expect(entityNames).toContain('Muestra');
-    expect(entityNames.length).toBe(9);
+    expect(entityNames).toContain('Balanza');
+    expect(entityNames.length).toBe(10);
   });
 
   it('should create and retrieve a Usuario with v1.5 shape (legajo, pinHash, no contrasenaHash)', async () => {
@@ -77,7 +80,7 @@ describe('Domain Entities Integration Tests', () => {
     const usuario = new Usuario();
     usuario.nombreApellido = 'Juan Pérez';
     usuario.nombreUsuario = 'juan.perez';
-    usuario.legajo = 'LEG123';
+    usuario.legajo = '12345';
     usuario.pinHash = '$2b$10$hashedpinhere';
     // @ts-expect-error Testing that contrasenaHash no longer exists on the type
     usuario.contrasenaHash = 'should-not-exist';
@@ -92,7 +95,7 @@ describe('Domain Entities Integration Tests', () => {
 
     const retrieved = await em.findOne(Usuario, { nombreUsuario: 'juan.perez' });
     expect(retrieved).not.toBeNull();
-    expect(retrieved!.legajo).toBe('LEG123');
+    expect(retrieved!.legajo).toBe('12345');
     expect(retrieved!.pinHash).toBe('$2b$10$hashedpinhere');
     expect((retrieved as any).contrasenaHash).toBeUndefined();
     expect(retrieved!.datosAdicionales).toEqual({
@@ -148,15 +151,21 @@ describe('Domain Entities Integration Tests', () => {
     const usuario = new Usuario();
     usuario.nombreApellido = 'Test Operario';
     usuario.nombreUsuario = 'test.operario';
-    usuario.legajo = 'TEST-123';
+    usuario.legajo = '54321';
     usuario.pinHash = 'hash';
     usuario.rol = UsuarioRol.OPERARIO;
 
-    const linea = new LineaProduccion();
-    linea.nombre = 'Línea de Envasado 1';
+    const balanza = new Balanza();
+    balanza.nombre = 'Balanza Test';
+    balanza.activo = true;
 
     const articulo = new Articulo();
-    articulo.nombre = 'Alfajor Triple';
+    articulo.codigo = 'Alfajor Triple';
+
+    const linea = new LineaProduccion();
+    linea.nombre = 'Línea de Envasado 1';
+    linea.balanza = balanza;
+    linea.articulo = articulo;
 
     const etapa = new Etapa();
     etapa.nombre = 'Relleno';
@@ -164,13 +173,14 @@ describe('Domain Entities Integration Tests', () => {
     const rutaPasada = new RutaPasada();
     rutaPasada.nombre = 'Ruta Alfajor Standard';
 
-    await em.persist([usuario, linea, articulo, etapa, rutaPasada]).flush();
+    await em.persist([usuario, balanza, linea, articulo, etapa, rutaPasada]).flush();
 
     // Create Pasada
     const pasada = new Pasada();
     pasada.lineaProduccion = linea;
     pasada.rutaPasada = rutaPasada;
     pasada.articulo = articulo;
+    pasada.balanza = balanza;
     pasada.usuario = usuario;
     pasada.numero = 1;
     pasada.estado = PasadaEstado.EN_CURSO;
@@ -186,6 +196,9 @@ describe('Domain Entities Integration Tests', () => {
     muestra.etapa = etapa;
     muestra.lineaProduccion = linea;
     muestra.pesoNeto = 85.1236; // 4 decimals, should round to 85.124
+    muestra.pesoIdeal = 85.000;
+    muestra.pesoMinimo = 80.000;
+    muestra.pesoMaximo = 90.000;
     muestra.estadoValidacion = MuestraEstadoValidacion.OK;
     muestra.timestamp = new Date();
 
@@ -198,7 +211,7 @@ describe('Domain Entities Integration Tests', () => {
     expect(retrievedPasada!.estado).toBe(PasadaEstado.EN_CURSO);
     expect(retrievedPasada!.numero).toBe(1);
     expect(retrievedPasada!.lineaProduccion.nombre).toBe('Línea de Envasado 1');
-    expect(retrievedPasada!.articulo!.nombre).toBe('Alfajor Triple');
+    expect(retrievedPasada!.articulo!.codigo).toBe('Alfajor Triple');
     expect(retrievedPasada!.usuario.nombreApellido).toBe('Test Operario');
 
     const retrievedMuestra = await em.findOne(Muestra, muestra.id, { populate: ['pasada', 'etapa'] });
@@ -209,26 +222,26 @@ describe('Domain Entities Integration Tests', () => {
     expect(serialized.pesoNeto).toBe(85.124);
   });
 
-  it('should support a nullable string marca on Articulo', async () => {
+  it('should support a nullable string nombre on Articulo', async () => {
     const em = orm.em.fork();
 
     const articuloSinMarca = new Articulo();
-    articuloSinMarca.nombre = 'Alfajor Sin Marca';
-    articuloSinMarca.marca = undefined;
+    articuloSinMarca.codigo = 'Alfajor Sin Marca';
+    articuloSinMarca.nombre = undefined;
 
     const articuloConMarca = new Articulo();
-    articuloConMarca.nombre = 'Alfajor Con Marca';
-    articuloConMarca.marca = 'Havanna';
+    articuloConMarca.codigo = 'Alfajor Con Marca';
+    articuloConMarca.nombre = 'Havanna';
 
     await em.persist([articuloSinMarca, articuloConMarca]).flush();
     em.clear();
 
-    const retrievedSin = await em.findOne(Articulo, { nombre: 'Alfajor Sin Marca' });
+    const retrievedSin = await em.findOne(Articulo, { codigo: 'Alfajor Sin Marca' });
     expect(retrievedSin).not.toBeNull();
-    expect(retrievedSin!.marca).toBeNull();
+    expect(retrievedSin!.nombre).toBeNull();
 
-    const retrievedCon = await em.findOne(Articulo, { nombre: 'Alfajor Con Marca' });
+    const retrievedCon = await em.findOne(Articulo, { codigo: 'Alfajor Con Marca' });
     expect(retrievedCon).not.toBeNull();
-    expect(retrievedCon!.marca).toBe('Havanna');
+    expect(retrievedCon!.nombre).toBe('Havanna');
   });
 });

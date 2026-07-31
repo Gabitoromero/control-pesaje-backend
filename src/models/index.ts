@@ -8,3 +8,4 @@ export * from './RutaPasadaEtapa.js';
 export * from './Pasada.js';
 export * from './Muestra.js';
 export * from './Dispositivo.js';
+export * from './Balanza.js';

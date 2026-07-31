@@ -6,6 +6,7 @@ import { Usuario } from '../models/Usuario.js';
 import { RutaPasada } from '../models/RutaPasada.js';
 import { ArticuloRutaPasada } from '../models/ArticuloRutaPasada.js';
 import { sesionService } from './sesion.service.js';
+import { Balanza } from '../models/Balanza.js';
 import { LockMode } from '@mikro-orm/core';
 
 export class PasadaService extends BaseService<Pasada> {
@@ -17,13 +18,13 @@ export class PasadaService extends BaseService<Pasada> {
     return this.getEm().find(
       Pasada,
       { activo: true, ...where },
-      { populate: ['usuario', 'lineaProduccion', 'articulo'] as const }
+      { populate: ['usuario', 'lineaProduccion', 'articulo', 'balanza'] as const }
     );
   }
 
   async iniciarPasada(
     lineaProduccionId: number,
-    articuloId: number,
+    idBalanza: number,
     usuarioId: number
   ): Promise<Pasada> {
     const em = this.getEm();
@@ -45,11 +46,24 @@ export class PasadaService extends BaseService<Pasada> {
       const linea = await txEm.findOne(
         LineaProduccion,
         { id: lineaProduccionId },
-        { lockMode: LockMode.PESSIMISTIC_WRITE, populate: ['rutaPasadaActiva'] }
+        { lockMode: LockMode.PESSIMISTIC_WRITE, populate: ['rutaPasadaActiva', 'articulo'] }
       );
       if (!linea?.rutaPasadaActiva) {
         throw new Error(`No se puede iniciar la pasada: no hay una ruta activa en la línea de producción ${lineaProduccionId}`);
       }
+      if (!linea.articulo) {
+        throw new Error(`No se puede iniciar la pasada: la línea de producción no tiene un artículo configurado`);
+      }
+
+      const balanza = await txEm.findOne(Balanza, { id: idBalanza });
+      if (!balanza) {
+        throw new Error(`La balanza con ID ${idBalanza} no existe`);
+      }
+      if (!balanza.activo) {
+        throw new Error(`La balanza con ID ${idBalanza} no está activa`);
+      }
+
+      const articuloId = linea.articulo.id;
 
       const isOnRoute = await txEm.count(ArticuloRutaPasada, {
         rutaPasada: linea.rutaPasadaActiva.id,
@@ -74,12 +88,14 @@ export class PasadaService extends BaseService<Pasada> {
       const lineaRef = txEm.getReference(LineaProduccion, lineaProduccionId);
       const rutaPasadaRef = txEm.getReference(RutaPasada, linea.rutaPasadaActiva.id);
       const articuloRef = txEm.getReference(Articulo, articuloId);
+      const balanzaRef = txEm.getReference(Balanza, idBalanza);
       const usuarioRef = txEm.getReference(Usuario, usuarioId);
 
       const pasada = new Pasada();
       pasada.lineaProduccion = lineaRef;
       pasada.rutaPasada = rutaPasadaRef;
       pasada.articulo = articuloRef;
+      pasada.balanza = balanzaRef;
       pasada.usuario = usuarioRef;
       pasada.numero = nextNumero;
       pasada.estado = PasadaEstado.EN_CURSO;

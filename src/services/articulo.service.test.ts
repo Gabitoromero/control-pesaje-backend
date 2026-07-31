@@ -1,15 +1,18 @@
 import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ArticuloService } from './articulo.service.js';
+import { ValidationError } from '../utils/errors.js';
 
 // ─── Mock EntityManager ───────────────────────────────────────────────────────
 
 const mockEm = {
   find: vi.fn(),
   findOne: vi.fn(),
+  create: vi.fn(),
   count: vi.fn(),
   flush: vi.fn(),
   persist: vi.fn().mockReturnThis(),
+  assign: vi.fn(),
 };
 
 vi.mock('@mikro-orm/core', () => ({
@@ -27,13 +30,13 @@ describe('ArticuloService.create validations', () => {
     service = new ArticuloService();
   });
 
-  it('throws ValidationError when nombre and marca are duplicated', async () => {
-    mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'A1', marca: 'M1' });
+  it('throws ValidationError when codigo and nombre are duplicated', async () => {
+    mockEm.findOne.mockResolvedValueOnce({ id: 2, codigo: 'A1', nombre: 'M1' });
 
     await expect(
       service.create({
-        nombre: 'A1',
-        marca: 'M1',
+        codigo: 'A1',
+        nombre: 'M1',
       } as any)
     ).rejects.toThrow(/already exists/);
   });
@@ -46,15 +49,15 @@ describe('ArticuloService.update validations', () => {
     service = new ArticuloService();
   });
 
-  it('throws ValidationError when updated to existing nombre and marca', async () => {
+  it('throws ValidationError when updated to existing codigo and nombre', async () => {
     // first call gets current entity
-    mockEm.findOne.mockResolvedValueOnce({ id: 1, nombre: 'Old', marca: 'M1' });
+    mockEm.findOne.mockResolvedValueOnce({ id: 1, codigo: 'Old', nombre: 'M1' });
     // second call finds duplicate
-    mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'A1', marca: 'M1' });
+    mockEm.findOne.mockResolvedValueOnce({ id: 2, codigo: 'A1', nombre: 'M1' });
 
     await expect(
       service.update(1, {
-        nombre: 'A1',
+        codigo: 'A1',
       } as any)
     ).rejects.toThrow(/already exists/);
   });
@@ -96,7 +99,7 @@ describe('ArticuloService.softDelete', () => {
   it('C) succeeds when no pivot records reference the article', async () => {
     const articuloId = 3;
     mockEm.count.mockResolvedValue(0);
-    mockEm.findOne.mockResolvedValue({ id: articuloId, nombre: 'Articulo Test', activo: true });
+    mockEm.findOne.mockResolvedValue({ id: articuloId, codigo: 'Articulo Test', activo: true });
     mockEm.flush.mockResolvedValue(undefined);
 
     const result = await service.softDelete(articuloId);

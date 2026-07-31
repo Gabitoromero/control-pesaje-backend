@@ -304,7 +304,7 @@ describe('Schema validation (v1.5)', () => {
   it('UsuarioCreateSchema validates correctly', () => {
     expect(UsuarioCreateSchema.safeParse({ 
       nombreApellido: 'A', nombreUsuario: 'abc', rol: 'operario', 
-      legajo: '123', pin: '1234' 
+      legajo: '12345', pin: '1234' 
     }).success).toBe(true);
     
     expect(UsuarioCreateSchema.safeParse({ 
@@ -394,20 +394,20 @@ describe('4.3 — Login endpoint (v1.5)', () => {
   it('POST /api/auth/login rate-limits after 5 failures and resets on success', async () => {
     const hash = await bcrypt.hash('1234', 10);
     mockEm.findOne.mockResolvedValue({
-      id: 1, legajo: 'RATE', activo: true, pinHash: hash,
+      id: 1, legajo: '11111', activo: true, pinHash: hash,
     });
 
     for (let i = 0; i < 5; i++) {
-      await request(app).post('/api/auth/login').send({ legajo: 'RATE', pin: '0000' });
+      await request(app).post('/api/auth/login').send({ legajo: '11111', pin: '0000' });
     }
 
-    const res6 = await request(app).post('/api/auth/login').send({ legajo: 'RATE', pin: '1234' });
+    const res6 = await request(app).post('/api/auth/login').send({ legajo: '11111', pin: '1234' });
     expect(res6.status).toBe(429);
 
     // fast forward logic is hard here without vitest fake timers, but sesionService is a singleton so we can manual reset
-    sesionService.resetearIntentos('RATE');
+    sesionService.resetearIntentos('11111');
 
-    const res7 = await request(app).post('/api/auth/login').send({ legajo: 'RATE', pin: '1234' });
+    const res7 = await request(app).post('/api/auth/login').send({ legajo: '11111', pin: '1234' });
     expect(res7.status).toBe(200);
   });
 });
@@ -849,12 +849,13 @@ describe('Pasadas HTTP Integration', () => {
 
     // iniciarPasada uses em.transactional; the mock runs the callback synchronously with mockEm.
     // We need findOne to return a linea with an active rutaPasadaActiva for the transaction path.
-    const lineaMock = { id: 1, rutaPasadaActiva: { id: 10 } };
+    const lineaMock = { id: 1, rutaPasadaActiva: { id: 10 }, articulo: { id: 5 } };
     const fakePasada = { id: 55, estado: 'en_curso', numero: 1, activo: true };
 
     // First findOne in transactional is for LineaProduccion; second is for lastPasada check (returns null = first pasada).
     mockEm.findOne
       .mockResolvedValueOnce(lineaMock) // linea with rutaPasadaActiva
+      .mockResolvedValueOnce({ id: 5, activo: true }) // balanza with idBalanza
       .mockResolvedValueOnce(null);     // no previous pasada → numero = 1
 
     // em.getReference, em.persist, em.flush are called internally.
@@ -869,7 +870,7 @@ describe('Pasadas HTTP Integration', () => {
     const res = await request(app)
       .post('/api/pasadas')
       .set('Authorization', `Bearer ${operarioToken()}`)
-      .send({ lineaProduccionId: 1, articuloId: 5 });
+      .send({ lineaProduccionId: 1, idBalanza: 5 });
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
@@ -882,7 +883,7 @@ describe('Pasadas HTTP Integration', () => {
     const res = await request(app)
       .post('/api/pasadas')
       .set('Authorization', `Bearer ${operarioToken()}`)
-      .send({ lineaProduccionId: 1, articuloId: 5 });
+      .send({ lineaProduccionId: 1, idBalanza: 5 });
 
     expect(res.status).toBe(422);
     expect(res.body.success).toBe(false);
@@ -892,16 +893,16 @@ describe('Pasadas HTTP Integration', () => {
   it('POST /api/pasadas — 401 when no token', async () => {
     const res = await request(app)
       .post('/api/pasadas')
-      .send({ lineaProduccionId: 1, articuloId: 5 });
+      .send({ lineaProduccionId: 1, idBalanza: 5 });
 
     expect(res.status).toBe(401);
   });
 
-  it('POST /api/pasadas — 400 when body fails Zod validation (missing articuloId)', async () => {
+  it('POST /api/pasadas — 400 when body fails Zod validation (missing idBalanza)', async () => {
     const res = await request(app)
       .post('/api/pasadas')
       .set('Authorization', `Bearer ${operarioToken()}`)
-      .send({ lineaProduccionId: 1 }); // articuloId missing
+      .send({ lineaProduccionId: 1 }); // idBalanza missing
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);

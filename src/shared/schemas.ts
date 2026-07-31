@@ -6,7 +6,7 @@ import { UsuarioRol } from './types.js';
 export const UsuarioCreateSchema = z.object({
   nombreApellido: z.string().min(1),
   nombreUsuario: z.string().min(3),
-  legajo: z.string().min(1),
+  legajo: z.string().regex(/^[0-9]{5}$/, 'Debe tener exactamente 5 dígitos numéricos'),
   pin: z.string().regex(/^\d{4,6}$/),
   puedeTomarMuestrasLibres: z.boolean().optional(),
   activo: z.boolean().optional(),
@@ -33,7 +33,7 @@ export const UsuarioUpdateSchema = UsuarioCreateSchema.partial();
 // ─── Articulo ─────────────────────────────────────────────────────────────────
 
 export const ArticuloCreateSchema = z.object({
-  marca: z.string().min(1),
+  codigo: z.string().min(1),
   nombre: z.string().min(1),
   descripcion: z.string().min(4).nullable().optional(),
   activo: z.boolean().optional(),
@@ -51,10 +51,21 @@ export const EtapaCreateSchema = z.object({
 
 export const EtapaUpdateSchema = EtapaCreateSchema.partial();
 
+// ─── Balanza ──────────────────────────────────────────────────────────────────
+
+export const BalanzaCreateSchema = z.object({
+  nombre: z.string().min(1),
+  activo: z.boolean().optional(),
+});
+
+export const BalanzaUpdateSchema = BalanzaCreateSchema.partial();
+
 // ─── LineaProduccion ──────────────────────────────────────────────────────────
 
 export const LineaProduccionCreateSchema = z.object({
   nombre: z.string().min(1),
+  articuloId: z.number().int().positive(),
+  idBalanza: z.number().int().positive(),
   rutaPasadaActiva: z.number().int().positive().nullable().optional(),
   activo: z.boolean().optional(),
 });
@@ -113,8 +124,7 @@ export const ArticuloRutaPasadaUpdateSchema = ArticuloRutaPasadaCreateSchema.par
 
 export const PasadaIniciarSchema = z.object({
   lineaProduccionId: z.number().int().positive(),
-  // articuloId is required — service contract requires it (see design TD-02)
-  articuloId: z.number().int().positive(),
+  idBalanza: z.number().int().positive(),
 });
 
 export const PasadaUpdateSchema = z.object({

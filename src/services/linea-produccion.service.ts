@@ -4,12 +4,16 @@ import { RutaPasada } from '../models/RutaPasada.js';
 import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { ValidationError } from '../utils/errors.js';
 import { RequiredEntityData } from '@mikro-orm/core';
+import { Balanza } from '../models/Balanza.js';
+import { Articulo } from '../models/Articulo.js';
 
 const LINEA_POPULATE = [
   'rutaPasadaActiva',
   'rutaPasadaActiva.etapas',
   'rutaPasadaActiva.etapas.etapa',
   'dispositivo',
+  'balanza',
+  'articulo',
 ] as const;
 
 export class LineaProduccionService extends BaseService<LineaProduccion> {
@@ -29,9 +33,10 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
     return this.getEm().findOne(LineaProduccion, { id }, { populate: LINEA_POPULATE });
   }
 
-  override async create(data: RequiredEntityData<LineaProduccion>): Promise<LineaProduccion> {
+  override async create(data: RequiredEntityData<LineaProduccion> & { idBalanza?: number; articuloId?: number }): Promise<LineaProduccion> {
+    const em = this.getEm();
     if (data.nombre) {
-      const existing = await this.getEm().findOne(LineaProduccion, { nombre: data.nombre });
+      const existing = await em.findOne(LineaProduccion, { nombre: data.nombre });
       if (existing) {
         throw new ValidationError(`LineaProduccion with nombre '${data.nombre}' already exists`);
       }
@@ -39,10 +44,38 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
     if (data.rutaPasadaActiva !== undefined && data.rutaPasadaActiva !== null) {
       await this.validateRutaPasadaActiva(data.rutaPasadaActiva);
     }
-    return super.create(data);
+
+    const { idBalanza, articuloId, ...rest } = data;
+    if (!idBalanza) {
+      throw new ValidationError('El campo idBalanza es requerido');
+    }
+    if (!articuloId) {
+      throw new ValidationError('El campo articuloId es requerido');
+    }
+
+    const balanza = await em.findOne(Balanza, { id: idBalanza });
+    if (!balanza) {
+      throw new ValidationError(`La balanza con ID ${idBalanza} no existe`);
+    }
+
+    const articulo = await em.findOne(Articulo, { id: articuloId });
+    if (!articulo) {
+      throw new ValidationError(`El artículo con ID ${articuloId} no existe`);
+    }
+
+    const finalData: RequiredEntityData<LineaProduccion> = {
+      nombre: rest.nombre ?? '',
+      rutaPasadaActiva: rest.rutaPasadaActiva,
+      activo: rest.activo ?? true,
+      rutaAsignadaAt: rest.rutaAsignadaAt,
+      balanza: em.getReference(Balanza, idBalanza),
+      articulo: em.getReference(Articulo, articuloId),
+    };
+
+    return super.create(finalData);
   }
 
-  override async update(id: number, data: Partial<LineaProduccion>): Promise<LineaProduccion | null> {
+  override async update(id: number, data: Partial<LineaProduccion> & { idBalanza?: number; articuloId?: number }): Promise<LineaProduccion | null> {
     const em = this.getEm();
 
     if (data.nombre) {
@@ -50,6 +83,31 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
       if (existing && existing.id !== id) {
         throw new ValidationError(`LineaProduccion with nombre '${data.nombre}' already exists`);
       }
+    }
+
+    const { idBalanza, articuloId, ...rest } = data;
+    const updateData: Partial<LineaProduccion> = { ...rest };
+
+    if (idBalanza !== undefined) {
+      if (idBalanza === null) {
+        throw new ValidationError('El campo idBalanza no puede ser nulo');
+      }
+      const balanza = await em.findOne(Balanza, { id: idBalanza });
+      if (!balanza) {
+        throw new ValidationError(`La balanza con ID ${idBalanza} no existe`);
+      }
+      updateData.balanza = em.getReference(Balanza, idBalanza);
+    }
+
+    if (articuloId !== undefined) {
+      if (articuloId === null) {
+        throw new ValidationError('El campo articuloId no puede ser nulo');
+      }
+      const articulo = await em.findOne(Articulo, { id: articuloId });
+      if (!articulo) {
+        throw new ValidationError(`El artículo con ID ${articuloId} no existe`);
+      }
+      updateData.articulo = em.getReference(Articulo, articuloId);
     }
 
     if (data.rutaPasadaActiva !== undefined) {
@@ -73,7 +131,7 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
             throw new ValidationError('No se puede cambiar la ruta mientras haya pasadas en curso en esta línea');
           }
           // Stamp the exact moment the route changed — used as x1 anchor for dashboard KPIs
-          (data as Partial<LineaProduccion>).rutaAsignadaAt = new Date();
+          updateData.rutaAsignadaAt = new Date();
         }
       }
 
@@ -81,7 +139,7 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
         await this.validateRutaPasadaActiva(data.rutaPasadaActiva);
       }
     }
-    return super.update(id, data);
+    return super.update(id, updateData);
   }
 
   private async validateRutaPasadaActiva(ruta: unknown): Promise<void> {

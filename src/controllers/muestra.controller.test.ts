@@ -33,7 +33,7 @@ function makeReq(overrides: Partial<Request> = {}): Request {
     params: {},
     query: {},
     body: {},
-    user: { id: 1, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: 'L1', puedeTomarMuestrasLibres: false },
+    user: { id: 1, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
     ...overrides,
   } as unknown as Request;
 }
@@ -77,7 +77,7 @@ describe('createMuestraHandlers', () => {
           pasadaId: 4,
           observacion: 'ok',
         },
-        user: { id: 9, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: 'L1', puedeTomarMuestrasLibres: false },
+        user: { id: 9, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 
@@ -246,7 +246,7 @@ describe('createMuestraHandlers', () => {
       const req = makeReq({
         params: { id: '8' },
         body: { observacion: 'ok' },
-        user: { id: 2, rol: UsuarioRol.JEFE, nombreUsuario: 'jefe', legajo: 'J1', puedeTomarMuestrasLibres: false },
+        user: { id: 2, rol: UsuarioRol.JEFE, nombreUsuario: 'jefe', legajo: '00002', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 
@@ -297,7 +297,7 @@ describe('createMuestraHandlers', () => {
 
       const req = makeReq({
         params: { id: '7' },
-        user: { id: 1, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: 'L1', puedeTomarMuestrasLibres: false },
+        user: { id: 1, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 
@@ -314,7 +314,7 @@ describe('createMuestraHandlers', () => {
 
       const req = makeReq({
         params: { id: '7' },
-        user: { id: 1, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: 'L1', puedeTomarMuestrasLibres: false },
+        user: { id: 1, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 
@@ -331,7 +331,7 @@ describe('createMuestraHandlers', () => {
 
       const req = makeReq({
         params: { id: '8' },
-        user: { id: 2, rol: UsuarioRol.JEFE, nombreUsuario: 'jefe', legajo: 'J1', puedeTomarMuestrasLibres: false },
+        user: { id: 2, rol: UsuarioRol.JEFE, nombreUsuario: 'jefe', legajo: '00002', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 
@@ -348,7 +348,7 @@ describe('createMuestraHandlers', () => {
 
       const req = makeReq({
         params: { id: '9' },
-        user: { id: 1, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: 'L1', puedeTomarMuestrasLibres: false },
+        user: { id: 1, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 

@@ -14,6 +14,7 @@ import {
   Pasada,
   Muestra,
   Dispositivo,
+  Balanza,
 } from '../models/index.js';
 import {
   findLineaByHardwareId,
@@ -45,6 +46,7 @@ describe('device-pairing.service', () => {
         Pasada,
         Muestra,
         Dispositivo,
+        Balanza,
       ],
       entitiesTs: [],
       allowGlobalContext: true,
@@ -66,16 +68,34 @@ describe('device-pairing.service', () => {
     em = orm.em.fork();
     await em.nativeDelete(Dispositivo, {});
     await em.nativeDelete(LineaProduccion, {});
+    await em.nativeDelete(Articulo, {});
+    await em.nativeDelete(Balanza, {});
+
+    const testBalanza = new Balanza();
+    testBalanza.nombre = 'Balanza Test';
+    testBalanza.activo = true;
+    await em.persist(testBalanza).flush();
+
+    const testArticle = new Articulo();
+    testArticle.codigo = 'Articulo Test';
+    testArticle.descripcion = 'Test Description';
+    await em.persist(testArticle).flush();
 
     lineaA = new LineaProduccion();
     lineaA.nombre = 'Linea A';
+    lineaA.balanza = testBalanza;
+    lineaA.articulo = testArticle;
 
     lineaB = new LineaProduccion();
     lineaB.nombre = 'Linea B';
+    lineaB.balanza = testBalanza;
+    lineaB.articulo = testArticle;
 
     lineaInactiva = new LineaProduccion();
     lineaInactiva.nombre = 'Linea Inactiva';
     lineaInactiva.activo = false;
+    lineaInactiva.balanza = testBalanza;
+    lineaInactiva.articulo = testArticle;
 
     await em.persist([lineaA, lineaB, lineaInactiva]).flush();
 

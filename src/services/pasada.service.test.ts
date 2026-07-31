@@ -4,7 +4,7 @@ import { MikroORM, SchemaGenerator, RequestContext } from '@mikro-orm/postgresql
 import config from '../../mikro-orm.config.js';
 import {
   Usuario, LineaProduccion, Articulo, Etapa, RutaPasada,
-  RutaPasadaEtapa, Pasada, Muestra, UsuarioRol, PasadaEstado, ArticuloRutaPasada
+  RutaPasadaEtapa, Pasada, Muestra, UsuarioRol, PasadaEstado, ArticuloRutaPasada, Balanza
 } from '../models/index.js';
 import { sesionService } from './sesion.service.js';
 import { PasadaService } from './pasada.service.js';
@@ -17,6 +17,7 @@ describe('PasadaService Tests', () => {
   let testUser: Usuario;
   let testLine: LineaProduccion;
   let testArticle: Articulo;
+  let testBalanza: Balanza;
   let testRutaPasada: RutaPasada;
 
   beforeAll(async () => {
@@ -24,7 +25,7 @@ describe('PasadaService Tests', () => {
       ...config,
       dbName: 'control_pesaje_test',
       extensions: [SchemaGenerator],
-      entities: [Usuario, LineaProduccion, Articulo, Etapa, RutaPasada, RutaPasadaEtapa, Pasada, Muestra, ArticuloRutaPasada],
+      entities: [Usuario, LineaProduccion, Articulo, Etapa, RutaPasada, RutaPasadaEtapa, Pasada, Muestra, ArticuloRutaPasada, Balanza],
       entitiesTs: [],
       allowGlobalContext: true,
     });
@@ -49,7 +50,7 @@ describe('PasadaService Tests', () => {
     testUser = new Usuario();
     testUser.nombreApellido = 'Juan Pérez';
     testUser.nombreUsuario = 'juan.perez';
-    testUser.legajo = 'LEG-001';
+    testUser.legajo = '00001';
     testUser.pinHash = 'hash';
     testUser.rol = UsuarioRol.OPERARIO;
     testUser.puedeTomarMuestrasLibres = true;
@@ -59,16 +60,26 @@ describe('PasadaService Tests', () => {
     testRutaPasada.nombre = 'Ruta Alfajor Standard';
     await em.persist(testRutaPasada).flush();
 
+    // Seed Balanza
+    testBalanza = new Balanza();
+    testBalanza.nombre = 'Balanza Test';
+    testBalanza.activo = true;
+    await em.persist(testBalanza).flush();
+
+    // Seed Article
+    testArticle = new Articulo();
+    testArticle.codigo = 'Alfajor Triple';
+    testArticle.descripcion = 'Alfajor relleno con dulce de leche';
+    await em.persist(testArticle).flush();
+
+    // Seed Line
     testLine = new LineaProduccion();
     testLine.nombre = 'Linea de Envasado 1';
     testLine.activo = true;
     testLine.rutaPasadaActiva = testRutaPasada;
+    testLine.balanza = testBalanza;
+    testLine.articulo = testArticle;
     await em.persist(testLine).flush();
-
-    testArticle = new Articulo();
-    testArticle.nombre = 'Alfajor Triple';
-    testArticle.descripcion = 'Alfajor relleno con dulce de leche';
-    await em.persist(testArticle).flush();
 
     const testArticuloRuta = new ArticuloRutaPasada();
     testArticuloRuta.articulo = testArticle;
@@ -87,27 +98,32 @@ describe('PasadaService Tests', () => {
   describe('iniciarPasada', () => {
     it('should fail if there is no active session on the line', () => runInContext(async () => {
       await expect(
-        pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id)
+        pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id)
       ).rejects.toThrow(`No hay una sesión activa en la línea de producción ${testLine.id}`);
     }));
 
     it('should fail if the article does not belong to the active route of the line', () => runInContext(async () => {
       const em = orm.em.fork();
       const offRouteArticle = new Articulo();
-      offRouteArticle.nombre = 'Alfajor Blanco';
+      offRouteArticle.codigo = 'Alfajor Blanco';
       offRouteArticle.descripcion = 'Sin ruta asignada';
       await em.persist(offRouteArticle).flush();
+
+      // Set offRouteArticle on testLine
+      const lineToUpdate = await em.findOne(LineaProduccion, testLine.id);
+      lineToUpdate!.articulo = offRouteArticle;
+      await em.persist(lineToUpdate).flush();
 
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
 
       await expect(
-        pasadaService.iniciarPasada(testLine.id, offRouteArticle.id, testUser.id)
+        pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id)
       ).rejects.toThrow(`El artículo ${offRouteArticle.id} no pertenece a la ruta activa de la línea de producción ${testLine.id}`);
     }));
 
     it('should successfully initiate a Pasada and assign sequential numbers per line-article', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada1 = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada1 = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
       expect(pasada1.numero).toBe(1);
       expect(pasada1.estado).toBe(PasadaEstado.EN_CURSO);
       expect(pasada1.lineaProduccion.id).toBe(testLine.id);
@@ -119,7 +135,7 @@ describe('PasadaService Tests', () => {
       await pasadaService.completarPasada(pasada1.id);
       activeSession!.pasadaId = null;
 
-      const pasada2 = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada2 = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
       expect(pasada2.numero).toBe(2);
       expect(pasada2.estado).toBe(PasadaEstado.EN_CURSO);
     }));
@@ -128,7 +144,7 @@ describe('PasadaService Tests', () => {
   describe('Restrictions on Completed Records (Pasada Only)', () => {
     it('should reject updates and soft-deletes of completed Pasadas', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
       
       await pasadaService.completarPasada(pasada.id);
       
@@ -140,7 +156,7 @@ describe('PasadaService Tests', () => {
 
     it('should successfully abort a pasada and reject subsequent operations', () => runInContext(async () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
-      const pasada = await pasadaService.iniciarPasada(testLine.id, testArticle.id, testUser.id);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
       
       const abortedPasada = await pasadaService.abortarPasada(pasada.id, 'Motivo de prueba');
       expect(abortedPasada!.estado).toBe(PasadaEstado.ABORTADA);

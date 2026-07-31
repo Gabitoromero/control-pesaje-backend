@@ -39,6 +39,8 @@ function toLineaDto(linea: LineaProduccion) {
     activo: linea.activo,
     estado: ocupada ? 'ocupada' : 'disponible',
     dispositivo: toDispositivoDto(linea.dispositivo),
+    idBalanza: linea.balanza?.id,
+    articuloId: linea.articulo?.id,
   };
 }
 

@@ -13,7 +13,44 @@ import {
   PasadaUpdateSchema,
   MuestraRegistrarSchema,
   MuestraUpdateSchema,
+  UsuarioCreateSchema,
 } from './schemas.js';
+import { UsuarioRol } from './types.js';
+
+describe('UsuarioCreateSchema', () => {
+  it('accepts valid 5-digit legajo', () => {
+    const parsed = UsuarioCreateSchema.parse({
+      nombreApellido: 'Juan Perez',
+      nombreUsuario: 'juanp',
+      legajo: '12345',
+      pin: '1234',
+      rol: UsuarioRol.OPERARIO
+    });
+    expect(parsed.legajo).toBe('12345');
+  });
+
+  it('rejects legajo with invalid length', () => {
+    const result = UsuarioCreateSchema.safeParse({
+      nombreApellido: 'Juan Perez',
+      nombreUsuario: 'juanp',
+      legajo: '1234',
+      pin: '1234',
+      rol: UsuarioRol.OPERARIO
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects non-numeric legajo', () => {
+    const result = UsuarioCreateSchema.safeParse({
+      nombreApellido: 'Juan Perez',
+      nombreUsuario: 'juanp',
+      legajo: '12A45',
+      pin: '1234',
+      rol: UsuarioRol.OPERARIO
+    });
+    expect(result.success).toBe(false);
+  });
+});
 
 describe('EtapaCreateSchema', () => {
   it('accepts valid nombre + activo', () => {
@@ -75,31 +112,31 @@ describe('EtapaUpdateSchema', () => {
 });
 
 describe('ArticuloCreateSchema', () => {
-  it('accepts valid nombre + marca', () => {
-    const parsed = ArticuloCreateSchema.parse({ nombre: 'Harina 000', marca: 'Morixe' });
-    expect(parsed.nombre).toBe('Harina 000');
-    expect(parsed.marca).toBe('Morixe');
+  it('accepts valid codigo + nombre', () => {
+    const parsed = ArticuloCreateSchema.parse({ codigo: 'Harina 000', nombre: 'Morixe' });
+    expect(parsed.codigo).toBe('Harina 000');
+    expect(parsed.nombre).toBe('Morixe');
   });
 
   it('accepts descripcion: null (nullable field)', () => {
-    const parsed = ArticuloCreateSchema.parse({ nombre: 'Harina 000', marca: 'Morixe', descripcion: null });
+    const parsed = ArticuloCreateSchema.parse({ codigo: 'Harina 000', nombre: 'Morixe', descripcion: null });
     expect(parsed.descripcion).toBeNull();
   });
 
   it('accepts omitted descripcion', () => {
-    const parsed = ArticuloCreateSchema.parse({ nombre: 'Harina 000', marca: 'Morixe' });
+    const parsed = ArticuloCreateSchema.parse({ codigo: 'Harina 000', nombre: 'Morixe' });
     expect(parsed.descripcion).toBeUndefined();
   });
 
-  it('rejects missing marca', () => {
-    const result = ArticuloCreateSchema.safeParse({ nombre: 'Harina 000' });
+  it('rejects missing nombre', () => {
+    const result = ArticuloCreateSchema.safeParse({ codigo: 'Harina 000' });
     expect(result.success).toBe(false);
   });
 });
 
 describe('ArticuloUpdateSchema', () => {
   it('accepts descripcion: null to clear the field', () => {
-    const parsed = ArticuloUpdateSchema.parse({ nombre: 'Harina 000', descripcion: null });
+    const parsed = ArticuloUpdateSchema.parse({ codigo: 'Harina 000', descripcion: null });
     expect(parsed.descripcion).toBeNull();
   });
 
@@ -194,21 +231,27 @@ describe('LineaProduccionCreateSchema', () => {
   it('accepts null rutaPasadaActiva (nullable FK)', () => {
     const parsed = LineaProduccionCreateSchema.parse({
       nombre: 'Linea 1',
-      numeroBalanza: 1,
+      articuloId: 2,
+      idBalanza: 3,
       rutaPasadaActiva: null,
     });
     expect(parsed.rutaPasadaActiva).toBeNull();
   });
 
   it('accepts omitted rutaPasadaActiva (optional FK)', () => {
-    const parsed = LineaProduccionCreateSchema.parse({ nombre: 'Linea 1', numeroBalanza: 1 });
+    const parsed = LineaProduccionCreateSchema.parse({
+      nombre: 'Linea 1',
+      articuloId: 2,
+      idBalanza: 3,
+    });
     expect(parsed.rutaPasadaActiva).toBeUndefined();
   });
 
   it('accepts a positive integer FK', () => {
     const parsed = LineaProduccionCreateSchema.parse({
       nombre: 'Linea 1',
-      numeroBalanza: 1,
+      articuloId: 2,
+      idBalanza: 3,
       rutaPasadaActiva: 5,
     });
     expect(parsed.rutaPasadaActiva).toBe(5);
@@ -235,24 +278,24 @@ describe('LineaProduccionUpdateSchema', () => {
 // ─── PasadaIniciarSchema ──────────────────────────────────────────────────────
 
 describe('PasadaIniciarSchema', () => {
-  it('accepts valid lineaProduccionId and articuloId', () => {
-    const parsed = PasadaIniciarSchema.parse({ lineaProduccionId: 1, articuloId: 2 });
+  it('accepts valid lineaProduccionId and idBalanza', () => {
+    const parsed = PasadaIniciarSchema.parse({ lineaProduccionId: 1, idBalanza: 3 });
     expect(parsed.lineaProduccionId).toBe(1);
-    expect(parsed.articuloId).toBe(2);
+    expect(parsed.idBalanza).toBe(3);
   });
 
   it('rejects missing lineaProduccionId', () => {
-    const result = PasadaIniciarSchema.safeParse({ articuloId: 2 });
+    const result = PasadaIniciarSchema.safeParse({ idBalanza: 3 });
     expect(result.success).toBe(false);
   });
 
-  it('rejects missing articuloId', () => {
+  it('rejects missing idBalanza', () => {
     const result = PasadaIniciarSchema.safeParse({ lineaProduccionId: 1 });
     expect(result.success).toBe(false);
   });
 
   it('rejects non-integer lineaProduccionId', () => {
-    const result = PasadaIniciarSchema.safeParse({ lineaProduccionId: 1.5, articuloId: 2 });
+    const result = PasadaIniciarSchema.safeParse({ lineaProduccionId: 1.5, idBalanza: 3 });
     expect(result.success).toBe(false);
   });
 

@@ -32,7 +32,7 @@ describe('AuthService.login', () => {
     mockEm.findOne.mockResolvedValue({
       id: 1,
       nombreUsuario: 'admin',
-      legajo: 'ADMIN01',
+      legajo: '00001',
       rol: UsuarioRol.ADMINISTRADOR,
       activo: true,
       pinHash,
@@ -48,7 +48,7 @@ describe('AuthService.login', () => {
     mockEm.findOne.mockResolvedValue({
       id: 2,
       nombreUsuario: 'jefe',
-      legajo: 'JEFE01',
+      legajo: '00002',
       rol: UsuarioRol.JEFE,
       activo: true,
       pinHash,
@@ -60,7 +60,7 @@ describe('AuthService.login', () => {
     
     expect(decoded.id).toBe(2);
     expect(decoded.nombreUsuario).toBe('jefe');
-    expect(decoded.legajo).toBe('JEFE01');
+    expect(decoded.legajo).toBe('00002');
     expect(decoded.rol).toBe(UsuarioRol.JEFE);
     expect(decoded.puedeTomarMuestrasLibres).toBe(false);
   });
@@ -70,7 +70,7 @@ describe('AuthService.login', () => {
     mockEm.findOne.mockResolvedValue({
       id: 1,
       nombreUsuario: 'admin',
-      legajo: 'ADMIN01',
+      legajo: '00001',
       rol: UsuarioRol.ADMINISTRADOR,
       activo: true,
       pinHash,
@@ -99,7 +99,7 @@ describe('AuthService.login', () => {
     mockEm.findOne.mockResolvedValue({
       id: 1,
       nombreUsuario: 'admin',
-      legajo: 'ADMIN01',
+      legajo: '00001',
       rol: UsuarioRol.ADMINISTRADOR,
       activo: true,
       pinHash,
@@ -115,7 +115,7 @@ describe('AuthService.login', () => {
     mockEm.findOne.mockResolvedValue({
       id: 1,
       nombreUsuario: 'admin',
-      legajo: 'ADMIN01',
+      legajo: '00001',
       rol: UsuarioRol.ADMINISTRADOR,
       activo: false,
       pinHash,
@@ -133,7 +133,7 @@ describe('AuthService.login', () => {
     mockEm.findOne.mockResolvedValue({
       id: 3,
       nombreUsuario: 'operario01',
-      legajo: 'LEG-3',
+      legajo: '00003',
       rol: UsuarioRol.OPERARIO,
       activo: true,
       pinHash,
@@ -144,7 +144,7 @@ describe('AuthService.login', () => {
     expect(typeof token).toBe('string');
     const decoded = jwt.verify(token!, JWT_SECRET) as any;
     expect(decoded.nombreUsuario).toBe('operario01');
-    expect(decoded.legajo).toBe('LEG-3');
+    expect(decoded.legajo).toBe('00003');
   });
 
   it('returns null when neither legajo nor nombreUsuario matches', async () => {

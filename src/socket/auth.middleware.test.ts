@@ -59,7 +59,7 @@ const JWT_SECRET = 'test-jwt-secret';
 const makeTabletPayload = () => ({
   id: 1,
   nombreUsuario: 'testuser',
-  legajo: 'L001',
+  legajo: '00001',
   rol: 'operario' as const,
   puedeTomarMuestrasLibres: false,
 });

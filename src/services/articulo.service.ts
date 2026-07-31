@@ -15,10 +15,10 @@ export class ArticuloService extends BaseService<Articulo> {
 
   override async create(data: RequiredEntityData<Articulo>): Promise<Articulo> {
     const em = this.getEm();
-    if (data.nombre && data.marca !== undefined) {
-      const existing = await em.findOne(Articulo, { nombre: data.nombre, marca: data.marca });
+    if (data.codigo && data.nombre !== undefined) {
+      const existing = await em.findOne(Articulo, { codigo: data.codigo, nombre: data.nombre });
       if (existing) {
-        throw new ValidationError(`Articulo with nombre '${data.nombre}' and marca '${data.marca}' already exists`);
+        throw new ValidationError(`Articulo with codigo '${data.codigo}' and nombre '${data.nombre}' already exists`);
       }
     }
     return super.create(data);
@@ -27,18 +27,15 @@ export class ArticuloService extends BaseService<Articulo> {
   override async update(id: number, data: Partial<Articulo>): Promise<Articulo | null> {
     const em = this.getEm();
     
-    // We only need to check if both are present in data, OR we need to fetch the existing entity to get the missing one.
-    // Wait, the requirement says "check const existing = await em.findOne(Articulo, { nombre, marca })"
-    // Since it's a partial update, we must get the final nombre and marca.
-    if (data.nombre !== undefined || data.marca !== undefined) {
+    if (data.codigo !== undefined || data.nombre !== undefined) {
       const current = await em.findOne(Articulo, { id });
       if (current) {
+        const codigoToCheck = data.codigo !== undefined ? data.codigo : current.codigo;
         const nombreToCheck = data.nombre !== undefined ? data.nombre : current.nombre;
-        const marcaToCheck = data.marca !== undefined ? data.marca : current.marca;
         
-        const existing = await em.findOne(Articulo, { nombre: nombreToCheck, marca: marcaToCheck });
+        const existing = await em.findOne(Articulo, { codigo: codigoToCheck, nombre: nombreToCheck });
         if (existing && existing.id !== id) {
-          throw new ValidationError(`Articulo with nombre '${nombreToCheck}' and marca '${marcaToCheck}' already exists`);
+          throw new ValidationError(`Articulo with codigo '${codigoToCheck}' and nombre '${nombreToCheck}' already exists`);
         }
       }
     }

@@ -2,6 +2,9 @@ import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LineaProduccionService } from './linea-produccion.service.js';
 import { ValidationError } from '../utils/errors.js';
+import { Balanza } from '../models/Balanza.js';
+import { Articulo } from '../models/Articulo.js';
+import { LineaProduccion } from '../models/LineaProduccion.js';
 
 // Mock EntityManager
 const mockEm = {
@@ -12,6 +15,7 @@ const mockEm = {
   flush: vi.fn(),
   persist: vi.fn().mockReturnThis(),
   count: vi.fn(),
+  getReference: vi.fn((entity, id) => ({ id })),
 };
 
 vi.mock('@mikro-orm/core', () => ({
@@ -35,20 +39,27 @@ describe('LineaProduccionService', () => {
       await expect(
         service.create({
           nombre: 'Linea 1',
-          numeroBalanza: 1,
+          idBalanza: 5,
+          articuloId: 6,
         } as any)
       ).rejects.toThrow(ValidationError);
       expect(mockEm.findOne).toHaveBeenCalledOnce();
     });
 
     it('succeeds when rutaPasadaActiva is null/undefined', async () => {
-      mockEm.findOne.mockResolvedValue(null);
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
+        if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
+        if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
+        return null;
+      });
       mockEm.create.mockReturnValue({ id: 1 });
       mockEm.flush.mockResolvedValue(undefined);
 
       const result = await service.create({
         nombre: 'Linea 1',
-        numeroBalanza: 1,
+        idBalanza: 5,
+        articuloId: 6,
         rutaPasadaActiva: null,
       } as any);
 
@@ -57,14 +68,17 @@ describe('LineaProduccionService', () => {
 
     it('throws ValidationError when rutaPasadaActiva does not exist or is inactive', async () => {
       mockEm.findOne.mockImplementation(async (entity: any) => {
-        if (entity.name === 'LineaProduccion') return null;
-        return null;
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
+        if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
+        if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
+        return null; // rutaPasadaActiva query returns null
       });
 
       await expect(
         service.create({
           nombre: 'Linea 1',
-          numeroBalanza: 1,
+          idBalanza: 5,
+          articuloId: 6,
           rutaPasadaActiva: 999,
         } as any)
       ).rejects.toThrow(ValidationError);
@@ -79,14 +93,17 @@ describe('LineaProduccionService', () => {
         etapas: { length: 0 },
       };
       mockEm.findOne.mockImplementation(async (entity: any) => {
-        if (entity.name === 'LineaProduccion') return null;
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
+        if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
+        if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
         return mockRoute;
       });
 
       await expect(
         service.create({
           nombre: 'Linea 1',
-          numeroBalanza: 1,
+          idBalanza: 5,
+          articuloId: 6,
           rutaPasadaActiva: 2,
         } as any)
       ).rejects.toThrow('No se puede asignar una ruta sin etapas a una línea de producción');
@@ -101,7 +118,9 @@ describe('LineaProduccionService', () => {
         etapas: { length: 1 },
       };
       mockEm.findOne.mockImplementation(async (entity: any) => {
-        if (entity.name === 'LineaProduccion') return null;
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
+        if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
+        if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
         return mockRoute;
       });
       mockEm.create.mockReturnValue({ id: 1, rutaPasadaActiva: mockRoute });
@@ -109,12 +128,13 @@ describe('LineaProduccionService', () => {
 
       const result = await service.create({
         nombre: 'Linea 1',
-        numeroBalanza: 1,
+        idBalanza: 5,
+        articuloId: 6,
         rutaPasadaActiva: 3,
       } as any);
 
       expect(result).toBeDefined();
-      expect(mockEm.findOne).toHaveBeenCalledTimes(2);
+      expect(mockEm.findOne).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -129,16 +149,15 @@ describe('LineaProduccionService', () => {
         } as any)
       ).rejects.toThrow(ValidationError);
     });
+
     it('throws ValidationError when updated rutaPasadaActiva has 0 stages', async () => {
       const mockRoute = {
         id: 2,
         activo: true,
         etapas: { length: 0 },
       };
-      // Primera llamada: busca la linea
-      // Segunda llamada: busca la ruta
       mockEm.findOne.mockImplementation(async (entity: any) => {
-        if (entity.name === 'LineaProduccion') return { id: 1, rutaPasadaActiva: { id: 1 } };
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return { id: 1, rutaPasadaActiva: { id: 1 } };
         return mockRoute;
       });
       mockEm.count.mockResolvedValue(0);
@@ -154,7 +173,7 @@ describe('LineaProduccionService', () => {
 
     it('throws ValidationError when there are active pasadas on the line during route change', async () => {
       mockEm.findOne.mockImplementation(async (entity: any) => {
-        if (entity.name === 'LineaProduccion') return { id: 1, rutaPasadaActiva: { id: 1 } };
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return { id: 1, rutaPasadaActiva: { id: 1 } };
         return null;
       });
       // Mock that there is 1 active pasada
@@ -177,7 +196,20 @@ describe('LineaProduccionService', () => {
 
       const result = await service.findById(1);
 
-      expect(mockEm.findOne).toHaveBeenCalledWith(expect.anything(), { id: 1 }, { populate: ['rutaPasadaActiva', 'rutaPasadaActiva.etapas', 'rutaPasadaActiva.etapas.etapa', 'dispositivo'] });
+      expect(mockEm.findOne).toHaveBeenCalledWith(
+        expect.anything(),
+        { id: 1 },
+        {
+          populate: [
+            'rutaPasadaActiva',
+            'rutaPasadaActiva.etapas',
+            'rutaPasadaActiva.etapas.etapa',
+            'dispositivo',
+            'balanza',
+            'articulo',
+          ]
+        }
+      );
       expect(result).toBe(mockLinea);
     });
   });

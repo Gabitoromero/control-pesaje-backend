@@ -18,7 +18,7 @@ export class Usuario {
   nombreUsuario!: string;
 
   @Unique()
-  @Property({ type: 'string', length: 10 })
+  @Property({ type: 'string', length: 5 })
   legajo!: string;
 
   @Property({ type: 'string', length: 255 })

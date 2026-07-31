@@ -113,6 +113,9 @@ export class MuestraService {
     muestra.pesoNeto = pesoNeto;
     muestra.estadoValidacion = estadoValidacion;
     muestra.observacion = observacion;
+    muestra.pesoIdeal = Number(rutaEtapa.pesoIdeal);
+    muestra.pesoMinimo = Number(rutaEtapa.pesoMinimo);
+    muestra.pesoMaximo = Number(rutaEtapa.pesoMaximo);
     muestra.timestamp = new Date();
 
     em.persist(muestra);
@@ -142,16 +145,8 @@ export class MuestraService {
     }
 
     if (data.pesoNeto !== undefined) {
-      const rutaEtapa = await em.findOne(RutaPasadaEtapa, {
-        rutaPasada: muestra.rutaPasada.id,
-        etapa: muestra.etapa.id,
-      });
-      if (!rutaEtapa) {
-        throw new Error(`No route configuration found for route ${muestra.rutaPasada.id} and stage ${muestra.etapa.id}`);
-      }
-
-      const min = Number(rutaEtapa.pesoMinimo);
-      const max = Number(rutaEtapa.pesoMaximo);
+      const min = Number(muestra.pesoMinimo);
+      const max = Number(muestra.pesoMaximo);
       const isOk = data.pesoNeto >= min && data.pesoNeto <= max;
       muestra.estadoValidacion = isOk ? MuestraEstadoValidacion.OK : MuestraEstadoValidacion.FUERA_DE_RANGO;
     }

@@ -100,7 +100,7 @@ describe('SesionService (In-Memory Session Registry)', () => {
 
   describe('Rate Limiter by Legajo', () => {
     it('blocks after 5 failed attempts', () => {
-      const legajo = 'EMP01';
+      const legajo = '11111';
       expect(sesionService.estaBloqueada(legajo)).toBe(false);
 
       for (let i = 0; i < 5; i++) {
@@ -111,7 +111,7 @@ describe('SesionService (In-Memory Session Registry)', () => {
     });
 
     it('remains blocked on 6th attempt within window', () => {
-      const legajo = 'EMP02';
+      const legajo = '22222';
       for (let i = 0; i < 6; i++) {
         sesionService.registrarIntentoFallido(legajo);
       }
@@ -123,7 +123,7 @@ describe('SesionService (In-Memory Session Registry)', () => {
       const now = Date.now();
       vi.setSystemTime(now);
 
-      const legajo = 'EMP03';
+      const legajo = '33333';
       for (let i = 0; i < 5; i++) {
         sesionService.registrarIntentoFallido(legajo);
       }
@@ -136,7 +136,7 @@ describe('SesionService (In-Memory Session Registry)', () => {
     });
 
     it('resets attempts on resetearIntentos', () => {
-      const legajo = 'EMP04';
+      const legajo = '44444';
       sesionService.registrarIntentoFallido(legajo);
       sesionService.registrarIntentoFallido(legajo);
       sesionService.registrarIntentoFallido(legajo); // 3 failures

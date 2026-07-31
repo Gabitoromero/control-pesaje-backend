@@ -16,8 +16,8 @@ export interface EtapaDetalle {
 /** Inline articulo reference returned inside Pasada responses */
 export interface ArticuloDetalle {
   id: number;
-  nombre: string;
-  marca?: string;
+  codigo: string;
+  nombre?: string;
   descripcion?: string;
   activo?: boolean;
 }
@@ -77,8 +77,8 @@ export interface ArticuloRutaPasadaItem {
   id: number;
   articulo: {
     id: number;
-    nombre: string;
-    marca?: string;
+    codigo: string;
+    nombre?: string;
   };
 }
 

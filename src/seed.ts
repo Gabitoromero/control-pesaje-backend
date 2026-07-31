@@ -8,6 +8,7 @@ import { Articulo } from './models/Articulo.js';
 import { ArticuloRutaPasada } from './models/ArticuloRutaPasada.js';
 import { RutaPasadaEtapa } from './models/RutaPasadaEtapa.js';
 import { Dispositivo } from './models/Dispositivo.js';
+import { Balanza } from './models/Balanza.js';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 
@@ -38,7 +39,7 @@ async function run() {
     const admin = em.create(Usuario, {
       nombreApellido: 'Admin Local',
       nombreUsuario: 'admin',
-      legajo: '0000',
+      legajo: '00000',
       pinHash: adminPinHash,
       rol: UsuarioRol.ADMINISTRADOR,
       puedeTomarMuestrasLibres: true,
@@ -49,7 +50,7 @@ async function run() {
     const jefe = em.create(Usuario, {
       nombreApellido: 'Jefe de Planta',
       nombreUsuario: 'jefe',
-      legajo: '1111',
+      legajo: '11111',
       pinHash: jefePinHash,
       rol: UsuarioRol.JEFE,
       puedeTomarMuestrasLibres: true,
@@ -65,7 +66,7 @@ async function run() {
     const operario1 = em.create(Usuario, {
       nombreApellido: 'Lionel Andres Messi',
       nombreUsuario: 'operario1',
-      legajo: '3333',
+      legajo: '33333',
       pinHash: pin1Hash,
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: true,
@@ -77,7 +78,7 @@ async function run() {
     const operario2 = em.create(Usuario, {
       nombreApellido: 'Angel Di Maria',
       nombreUsuario: 'operario2',
-      legajo: '4444',
+      legajo: '44444',
       pinHash: pin2Hash,
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: false,
@@ -89,7 +90,7 @@ async function run() {
     const operario3 = em.create(Usuario, {
       nombreApellido: 'Sergio Agüero',
       nombreUsuario: 'operario3',
-      legajo: '5555',
+      legajo: '55555',
       pinHash: pin3Hash,
       rol: UsuarioRol.OPERARIO,
       puedeTomarMuestrasLibres: false,
@@ -148,45 +149,57 @@ async function run() {
       activo: true,
     });
 
+    // Create Balanzas
+    console.log('[seed]: Creating balanzas...');
+    const balanza1 = em.create(Balanza, {
+      nombre: 'Balanza 1',
+      activo: true,
+    });
+
+    const balanza2 = em.create(Balanza, {
+      nombre: 'Balanza 2',
+      activo: true,
+    });
+
     // 3. Create Articulos
     console.log('[seed]: Creating articles...');
     const articuloBombonSuizo = em.create(Articulo, {
-      nombre: 'Bombón Suizo',
+      codigo: 'Bombón Suizo',
       descripcion: 'Helado individual bañado en chocolate con crocante',
-      marca: 'Montevideana',
+      nombre: 'Montevideana',
       activo: true,
     });
 
     const articuloPotePremium = em.create(Articulo, {
-      nombre: 'Pote Premium Chocolate Shock',
+      codigo: 'Pote Premium Chocolate Shock',
       descripcion: 'Pote de helado familiar sabor chocolate intenso con chips',
-      marca: 'Montevideana',
+      nombre: 'Montevideana',
       activo: true,
     });
 
     const articuloConoDoret = em.create(Articulo, {
-      nombre: 'Cono Doret Dulce de Leche',
+      codigo: 'Cono Doret Dulce de Leche',
       descripcion: 'Cono de helado relleno con dulce de leche repostero',
-      marca: 'Com Com',
+      nombre: 'Com Com',
       activo: true,
     });
 
     const articuloFlan = em.create(Articulo, {
-      nombre: 'Midi Súper Flan',
+      codigo: 'Midi Súper Flan',
       descripcion: 'Flan individual con caramelo líquido',
-      marca: 'Com Com',
+      nombre: 'Com Com',
       activo: true,
     });
 
     const articuloPostreAlfajor = em.create(Articulo, {
-      nombre: 'Postre Helado Alfajor',
+      codigo: 'Postre Helado Alfajor',
       descripcion: 'Postre helado con tapitas sabor alfajor y relleno de crema dulce',
-      marca: 'Fantoche',
+      nombre: 'Fantoche',
       activo: true,
     });
 
     const articuloPesaFija = em.create(Articulo, {
-      nombre: 'Pesa fija de calibración',
+      codigo: 'Pesa fija de calibración',
       descripcion: 'Pesa fija utilizada para calibrar balanzas',
       activo: false,
     });
@@ -351,30 +364,36 @@ async function run() {
     });
 
 
-    // 7. Create LineasProduccion
+    // 8. Create LineasProduccion
     console.log('[seed]: Creating production lines...');
     const lineaA = em.create(LineaProduccion, {
       nombre: 'Línea A',
       rutaPasadaActiva: rutaPostresChicos,
+      balanza: balanza1,
+      articulo: articuloBombonSuizo,
       activo: true,
       rutaAsignadaAt: new Date(),
     });
 
-    em.create(LineaProduccion, {
+    const lineaB = em.create(LineaProduccion, {
       nombre: 'Línea B',
       rutaPasadaActiva: rutaPostresFamiliares,
+      balanza: balanza2,
+      articulo: articuloPotePremium,
       activo: true,
       rutaAsignadaAt: new Date(),
     });
 
-    em.create(LineaProduccion, {
+    const lineaC = em.create(LineaProduccion, {
       nombre: 'Línea C',
       rutaPasadaActiva: undefined,
+      balanza: balanza1,
+      articulo: articuloPesaFija,
       activo: true,
       rutaAsignadaAt: new Date(),
     });
 
-    // 8. Create Dispositivos (persistent hardware registry) — demoable
+    // 9. Create Dispositivos (persistent hardware registry) — demoable
     // without a live device connection: the paired one shows as
     // 'Desconectado' (no live socket), the unpaired one has no línea nombre.
     console.log('[seed]: Creating dispositivos...');

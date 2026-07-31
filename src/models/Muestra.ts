@@ -39,7 +39,15 @@ export class Muestra {
   @Property({ type: 'string', columnType: 'text', nullable: true })
   observacion?: string;
 
+  @Property({ type: 'decimal', columnType: 'decimal(8,3)', serializer: value => Number(value) })
+  pesoIdeal!: number;
+
+  @Property({ type: 'decimal', columnType: 'decimal(8,3)', serializer: value => Number(value) })
+  pesoMinimo!: number;
+
+  @Property({ type: 'decimal', columnType: 'decimal(8,3)', serializer: value => Number(value) })
+  pesoMaximo!: number;
+
   @Property({ type: 'datetime' })
   timestamp: Date = new Date();
-
 }

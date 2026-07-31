@@ -31,7 +31,7 @@ function makeReq(overrides: Partial<Request> = {}): Request {
     params: {},
     query: {},
     body: {},
-    user: { id: 1, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: 'L1', puedeTomarMuestrasLibres: false },
+    user: { id: 1, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
     ...overrides,
   } as unknown as Request;
 }
@@ -65,13 +65,13 @@ describe('createPasadaHandlers', () => {
   // ─── iniciar ───────────────────────────────────────────────────────────────
 
   describe('iniciar', () => {
-    it('calls service.iniciarPasada with lineaId, articuloId and userId from JWT, returns 201', async () => {
+    it('calls service.iniciarPasada with lineaId, idBalanza and userId from JWT, returns 201', async () => {
       const pasada = { id: 10, estado: 'en_curso' };
       service.iniciarPasada.mockResolvedValue(pasada);
 
       const req = makeReq({
-        body: { lineaProduccionId: 3, articuloId: 5 },
-        user: { id: 7, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: 'L1', puedeTomarMuestrasLibres: false },
+        body: { lineaProduccionId: 3, idBalanza: 5 },
+        user: { id: 7, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 
@@ -85,7 +85,7 @@ describe('createPasadaHandlers', () => {
     it('returns 422 when service throws an Error', async () => {
       service.iniciarPasada.mockRejectedValue(new Error('No hay sesión activa'));
 
-      const req = makeReq({ body: { lineaProduccionId: 1, articuloId: 2 } });
+      const req = makeReq({ body: { lineaProduccionId: 1, idBalanza: 2 } });
       const { mock } = makeRes();
 
       await handlers.iniciar(req, mock as unknown as Response, vi.fn());
@@ -192,7 +192,7 @@ describe('createPasadaHandlers', () => {
       const req = makeReq({
         params: { id: '3' },
         body: { action: 'completar' },
-        user: { id: 7, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: 'L1', puedeTomarMuestrasLibres: false },
+        user: { id: 7, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 
@@ -209,7 +209,7 @@ describe('createPasadaHandlers', () => {
       const req = makeReq({
         params: { id: '3' },
         body: { action: 'completar' },
-        user: { id: 7, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: 'L1', puedeTomarMuestrasLibres: false },
+        user: { id: 7, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 
@@ -227,7 +227,7 @@ describe('createPasadaHandlers', () => {
       const req = makeReq({
         params: { id: '4' },
         body: { action: 'abortar', motivoCierre: 'Equipo averiado' },
-        user: { id: 7, rol: UsuarioRol.JEFE, nombreUsuario: 'jefe', legajo: 'J1', puedeTomarMuestrasLibres: false },
+        user: { id: 7, rol: UsuarioRol.JEFE, nombreUsuario: 'jefe', legajo: '00002', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 
@@ -244,7 +244,7 @@ describe('createPasadaHandlers', () => {
       const req = makeReq({
         params: { id: '4' },
         body: { action: 'abortar' }, // no motivoCierre
-        user: { id: 7, rol: UsuarioRol.JEFE, nombreUsuario: 'jefe', legajo: 'J1', puedeTomarMuestrasLibres: false },
+        user: { id: 7, rol: UsuarioRol.JEFE, nombreUsuario: 'jefe', legajo: '00002', puedeTomarMuestrasLibres: false },
       });
       const { mock } = makeRes();
 
