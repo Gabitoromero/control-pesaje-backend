@@ -112,7 +112,7 @@ describe('PasadaService Tests', () => {
       // Set offRouteArticle on testLine
       const lineToUpdate = await em.findOne(LineaProduccion, testLine.id);
       lineToUpdate!.articulo = offRouteArticle;
-      await em.persist(lineToUpdate).flush();
+      await em.persist(lineToUpdate!).flush();
 
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
 
