@@ -28,6 +28,12 @@ export interface LineaDetalle {
   nombre?: string;
 }
 
+/** Inline balanza reference returned inside Pasada responses */
+export interface BalanzaDetalle {
+  id: number;
+  nombre: string;
+}
+
 /** Inline usuario reference returned inside Pasada responses */
 export interface UsuarioDetalle {
   id: number;
@@ -53,6 +59,12 @@ export interface Etapa {
   id?: number;
   nombre: string;
   descripcion?: string | null;
+  activo?: boolean;
+}
+
+export interface Balanza {
+  id?: number;
+  nombre: string;
   activo?: boolean;
 }
 
@@ -146,10 +158,12 @@ export interface Pasada {
   numero?: number;
   motivoCierre?: string;
   observacionCierre?: string;
+  idBalanza?: number;
   // Nested relations the backend populates on eager load
   articulo?: ArticuloDetalle;
   usuario?: UsuarioDetalle;
   lineaProduccion?: LineaDetalle;
+  balanza?: BalanzaDetalle;
   muestras?: Muestra[];
 }
 
