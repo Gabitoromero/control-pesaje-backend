@@ -12,7 +12,7 @@ Toda la documentación y diseño del sistema se encuentra en la raíz del backen
 * **`BUSINESS_RULES.md`** — Reglas de negocio obligatorias (**RN-01** a **RN-19**).
 * **`FUNCTIONAL_REQUIREMENTS.md`** — Requerimientos funcionales detallados (**RF-01** a **RF-27**).
 * **`ARCHITECTURE.md`** — Arquitectura del sistema, stack y modelo de datos conceptual.
-* **`modelo_datos_control_pesaje.md`** — Diccionario de datos de la base de datos (11 entidades vigentes).
+* **`../modelo_datos_control_pesaje_v1.5.md`** — Diccionario de datos de la base de datos (contrato v1.5, vigente).
 * **`ROADMAP.md`** — Fases del proyecto y estado actual de implementación.
 
 ---

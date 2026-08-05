@@ -46,27 +46,11 @@ El sistema requiere comunicación bidireccional en tiempo real para:
 
 ---
 
-## Autenticación en Dos Capas (2FA)
+## Autenticación (capa única, contrato v1.5)
 
-Para balancear la seguridad de la administración técnica con la velocidad del operario en planta, el sistema implementa una autenticación de dos capas:
+> Este sistema fue rediseñado en junio 2026 de dos capas (login global + PIN por línea) a una capa única. El diseño vigente vive en `../rediseno_auth_sesiones_v1_5.md` — no lo dupliques acá.
 
-```
-[Administrador / Jefe]                      [Operario de Planta]
-          │                                           │
-  (Capa 1: Login Global)                     (Capa 2: Sesión Planta)
-  POST /api/auth/login                       POST /api/auth/activar-sesion-operario
-  Contraseña robusta                         PIN (4-6 dígitos)
-  JWT válido por 8 horas                     Expiración por inactividad (5 min)
-          │                                           │
-          ▼                                           ▼
-[Tablet desbloqueada a nivel API]  ◄────────  [Sesión de pesaje activa en Línea]
-```
-
-### Flujo de Interacción
-1. **Capa 1 (Desbloqueo Global):** El jefe/admin realiza login con contraseña robusta. Recibe un JWT con validez de 8 horas que autoriza a la tablet a comunicarse con la API de planta.
-2. **Capa 2 (Sesión Operativa):** El operario de planta activa su sesión en una línea de producción enviando su PIN (4-6 dígitos) a `POST /api/auth/activar-sesion-operario` (con el JWT de Capa 1 en las cabeceras). El `SesionService` en memoria vincula la línea con el operario.
-3. **Mantenimiento y Timeout:** Cada interacción de planta refresca el timestamp `operarioUltimaActividadAt`. Si transcurren **5 minutos** sin actividad, el backend pone la sesión del operario en `null` (modo puesta a punto, descarte de datos) sin invalidar el JWT global.
-4. **Rate Limiting:** Tras **3 intentos fallidos** consecutivos de PIN en una línea, el backend bloquea las validaciones de PIN para esa línea durante **5 minutos** (HTTP 429).
+Login unificado con **legajo + PIN**, sin capa separada de "desbloqueo global". El diseño anterior de dos capas quedó preservado en la branch `archive/auth-two-layer` (no se elimina ni recibe commits nuevos), pero ya no refleja el sistema en producción.
 
 ---
 
@@ -74,93 +58,7 @@ Para balancear la seguridad de la administración técnica con la velocidad del 
 
 ### Entidades principales
 
-```
-Usuario
-  - id
-  - nombre_apellido
-  - nombre_usuario
-  - password_hash
-  - rol (operario | jefe | visualizacion | administrador)
-  - activo
-
-LineaProduccion
-  - id
-  - nombre
-  - numero_balanza
-  - activo
-
-Articulo
-  - id
-  - nombre
-  - descripcion
-  - activo
-
-Marca
-  - id
-  - nombre
-  - activo
-
-ArticuloMarca (Intermedia N:M)
-  - id
-  - articulo_id
-  - marca_id
-
-RutaPasada
-  - id
-  - nombre
-  - descripcion
-  - activo
-
-ArticuloRutaPasada (Intermedia N:M explícita)
-  - id
-  - articulo_id
-  - ruta_pasada_id
-  - activo
-
-Etapa
-  - id
-  - nombre
-  - descripcion
-  - activo
-
-RutaPasadaEtapa (Configuración de Etapa en Ruta)
-  - id
-  - ruta_pasada_id
-  - etapa_id
-  - orden
-  - peso_ideal
-  - peso_minimo
-  - peso_maximo
-  - cantidad_muestras_requeridas
-  - activo
-
-Pasada (Ejecución de Pesaje)
-  - id
-  - linea_produccion_id
-  - ruta_pasada_id
-  - articulo_id (opcional)
-  - marca_id (opcional)
-  - usuario_id
-  - numero (autoincremental por línea por día)
-  - estado (en_curso | completa | abortada)
-  - motivo_cierre (opcional - justificación de aborto)
-  - hora_inicio
-  - hora_cierre
-  - activo
-
-Muestra (Medición de Peso)
-  - id
-  - pasada_id (opcional - NULL en muestras al azar)
-  - usuario_id
-  - articulo_id
-  - etapa_id
-  - linea_produccion_id
-  - peso_neto
-  - estado_validacion (ok | fuera_de_rango)
-  - observacion
-  - timestamp
-  - activo
-```
+> El diccionario de datos vigente (contrato v1.5) vive en `../modelo_datos_control_pesaje_v1.5.md`. No lo dupliques acá: ese archivo nunca tuvo entidad `Marca` ni `ArticuloMarca` (esa relación N:M nunca se construyó — `Articulo` termina siendo la única tabla, con columna `nombre` propia), y `Usuario` usa `pin_hash`/`legajo` en vez de `password_hash`.
 
 ---
 

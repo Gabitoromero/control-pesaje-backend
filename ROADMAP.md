@@ -3,8 +3,11 @@
 ## Estado actual
 `[x] Fase I — Setup de infraestructura`
 `[x] Fase II — API Core`
-`[ ] Fase III — Integración Raspberry Pi`
-`[ ] Fase IV — Lógica de negocio avanzada (En progreso — Planificando 2FA)`
+`[x] Fase III — Integración Raspberry Pi`
+`[x] Fase IV — Lógica de negocio avanzada`
+`[x] Fase V — Dashboard Web`
+
+> Nota: la autenticación fue rediseñada en junio 2026 de dos capas a capa única (legajo + PIN). Ver `../rediseno_auth_sesiones_v1_5.md`. La Fase I original planificó "2FA/JWT Capa 1"; eso ya no refleja el diseño vigente.
 
 ---
 
@@ -17,7 +20,7 @@
 - [x] Servidor configurado (VPS o local)
 - [x] Base de datos inicializada (MikroORM & PostgreSQL)
 - [x] Docker configurado
-- [x] Seguridad base implementada (JWT Capa 1 y bcrypt)
+- [x] Seguridad base implementada (rediseñada en v1.5 a login único legajo + PIN, ver `../rediseno_auth_sesiones_v1_5.md`)
 - [x] Variables de entorno y configuración
 
 ---
@@ -39,40 +42,40 @@
 
 ### Fase III — Integración Raspberry Pi
 **Estimado:** 50 horas  
-**Estado:** ⬜ Pendiente
+**Estado:** ✅ Completado
 
-- [ ] Script de captura en Raspberry Pi
-- [ ] Protocolo de envío al servidor
-- [ ] Recepción en tiempo real en el servidor
-- [ ] Descarte de datos en modo puesta a punto (sin sesión activa)
+- [x] Script de captura en Raspberry Pi
+- [x] Protocolo de envío al servidor
+- [x] Recepción en tiempo real en el servidor
+- [x] Descarte de datos en modo puesta a punto (sin sesión activa) — guard de sesión activa en `balanza.handler.ts`, RF-15
 
 ---
 
 ### Fase IV — Lógica de negocio avanzada
 **Estimado:** 30 horas  
-**Estado:** ⬜ Pendiente
+**Estado:** ✅ Completado
 
-- [ ] Control de sesiones concurrentes (1 sesión por operario)
-- [ ] Lógica de pasadas simultáneas por línea
-- [ ] Flujo de muestras fuera de rango (solicitar más muestras)
-- [ ] Lógica de puesta a punto (detección por ausencia de sesión)
-- [ ] Control al azar (sin pasada asociada)
-- [ ] Baja lógica de todas las entidades
+- [x] Control de sesiones concurrentes (1 sesión por operario)
+- [x] Lógica de pasadas simultáneas por línea
+- [x] Flujo de muestras fuera de rango (solicitar más muestras)
+- [x] Lógica de puesta a punto (detección por ausencia de sesión)
+- [x] Control al azar (sin pasada asociada)
+- [x] Baja lógica de todas las entidades
 
 ---
 
 ### Fase V — Dashboard Web
 **Estimado:** 45 horas  
-**Estado:** ⬜ Pendiente
+**Estado:** ✅ Completado
 
-- [ ] Interfaz de operario para tablet (captura y confirmación de muestras)
-- [ ] Dashboard de monitoreo en tiempo real (jefe/gerente/visualización)
-  - [ ] Estado por línea de producción
-  - [ ] Pasadas en curso con avance por etapa
-  - [ ] Promedios acumulados por etapa
-  - [ ] Gráfico de muestras con líneas de referencia (ideal, mín, máx)
-- [ ] Módulo de reportes (descarga Excel filtrado por fecha)
-- [ ] ABM de entidades (administración)
+- [x] Interfaz de operario para tablet (captura y confirmación de muestras)
+- [x] Dashboard de monitoreo en tiempo real (jefe/gerente/visualización) — polling, ver deuda técnica pendiente sobre push real por socket
+  - [x] Estado por línea de producción
+  - [x] Pasadas en curso con avance por etapa
+  - [x] Promedios acumulados por etapa
+  - [x] Gráfico de muestras con líneas de referencia (ideal, mín, máx)
+- [x] Módulo de reportes (descarga Excel filtrado por fecha)
+- [x] ABM de entidades (administración)
 
 ---
 
