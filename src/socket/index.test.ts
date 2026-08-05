@@ -101,7 +101,10 @@ describe('initSocket CORS configuration', () => {
     const orm = {} as MikroORM;
 
     const io = initSocket(httpServer, orm);
-    const originFn = io.opts.cors?.origin as (
+    // `opts` is private on socket.io's Server type — cast through unknown
+    // purely for this test's introspection, no production code depends on it.
+    const ioOpts = (io as unknown as { opts: { cors?: { origin?: unknown } } }).opts;
+    const originFn = ioOpts.cors?.origin as (
       origin: string,
       cb: (err: Error | null, allow?: boolean) => void,
     ) => void;

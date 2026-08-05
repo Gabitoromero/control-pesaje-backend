@@ -48,10 +48,6 @@ export const onSocketConnection = (
 /**
  * Initializes the Socket.IO server bound to the given HTTP server.
  * Must be called after http.createServer(app) and before httpServer.listen().
- */
-/**
- * Initializes the Socket.IO server bound to the given HTTP server.
- * Must be called after http.createServer(app) and before httpServer.listen().
  *
  * `sesionSvc` is injected (defaulting to the singleton) so the inactivity
  * callback wiring is testable without depending on the global instance.
