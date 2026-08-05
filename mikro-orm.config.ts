@@ -15,7 +15,7 @@ export default defineConfig({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5433', 10),
   user: process.env.DB_USER || 'pesaje_admin',
-  password: process.env.DB_PASSWORD || 'balanzas_control_2026_pwd!',
+  password: process.env.DB_PASSWORD || '',
   entities: ['./dist/src/models/**/*.js', '!./dist/src/models/**/*.test.js'],
   entitiesTs: ['./src/models/**/*.ts', '!./src/models/**/*.test.ts'],
   debug: process.env.NODE_ENV !== 'production',

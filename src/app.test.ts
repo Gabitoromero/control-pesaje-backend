@@ -47,3 +47,31 @@ describe('API Health Check', () => {
     expect(response.body).toHaveProperty('timestamp');
   });
 });
+
+describe('CORS', () => {
+  const originalAllowedOrigin = process.env.ALLOWED_ORIGIN;
+  let orm: MikroORM;
+
+  afterAll(async () => {
+    process.env.ALLOWED_ORIGIN = originalAllowedOrigin;
+    await orm.close();
+  });
+
+  it('reflects only the configured ALLOWED_ORIGIN, not an arbitrary origin', async () => {
+    process.env.ALLOWED_ORIGIN = 'http://trusted.example.com';
+    orm = await MikroORM.init({
+      ...config,
+      dbName: 'control_pesaje_test',
+      entities: [Usuario, LineaProduccion, Articulo, Etapa, RutaPasadaEtapa],
+      entitiesTs: [],
+      allowGlobalContext: true,
+    });
+    const app = await initApp(orm);
+
+    const trusted = await request(app).get('/health').set('Origin', 'http://trusted.example.com');
+    const untrusted = await request(app).get('/health').set('Origin', 'http://evil.example.com');
+
+    expect(trusted.headers['access-control-allow-origin']).toBe('http://trusted.example.com');
+    expect(untrusted.headers['access-control-allow-origin']).toBeUndefined();
+  });
+});

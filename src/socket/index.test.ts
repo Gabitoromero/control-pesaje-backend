@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import http from 'node:http';
 import { Server, type Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
@@ -82,6 +82,38 @@ describe('getIo and initSocket', () => {
     expect(getIo()).toBe(io);
 
     // Cleanup
+    io.close();
+  });
+});
+
+describe('initSocket CORS configuration', () => {
+  const originalAllowedOrigin = process.env.ALLOWED_ORIGIN;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    process.env.ALLOWED_ORIGIN = originalAllowedOrigin;
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it('accepts the configured ALLOWED_ORIGIN and rejects any other origin', () => {
+    process.env.ALLOWED_ORIGIN = 'http://trusted.example.com';
+    const httpServer = http.createServer();
+    const orm = {} as MikroORM;
+
+    const io = initSocket(httpServer, orm);
+    const originFn = io.opts.cors?.origin as (
+      origin: string,
+      cb: (err: Error | null, allow?: boolean) => void,
+    ) => void;
+
+    const trustedCb = vi.fn();
+    originFn('http://trusted.example.com', trustedCb);
+    expect(trustedCb).toHaveBeenCalledWith(null, true);
+
+    const untrustedCb = vi.fn();
+    originFn('http://evil.example.com', untrustedCb);
+    expect(untrustedCb).toHaveBeenCalledWith(null, false);
+
     io.close();
   });
 });

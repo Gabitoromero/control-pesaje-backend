@@ -61,8 +61,17 @@ export const initSocket = (
   orm: MikroORM,
   sesionSvc: SesionService = sesionService,
 ): Server => {
+  // Mirrors the ALLOWED_ORIGIN restriction in app.ts (Express CORS) — devices
+  // don't send an Origin header so they're unaffected either way.
+  const allowedOrigin = process.env.ALLOWED_ORIGIN;
   ioInstance = new Server(httpServer, {
-    cors: { origin: '*' },
+    cors: {
+      origin: allowedOrigin
+        ? (origin, callback) => callback(null, origin === allowedOrigin)
+        : process.env.NODE_ENV === 'production'
+          ? false
+          : true,
+    },
     transports: ['websocket', 'polling'],
   });
 
@@ -98,8 +107,12 @@ export const initSocket = (
   process.once('SIGTERM', cleanupTimer);
   process.once('SIGINT', cleanupTimer);
   // Expose for test teardown
-  (io as any).__inactivityTimer = inactivityTimer;
-  (io as any).__cleanupInactivityTimer = cleanupTimer;
+  const ioWithTestHooks = io as Server & {
+    __inactivityTimer?: NodeJS.Timeout;
+    __cleanupInactivityTimer?: () => void;
+  };
+  ioWithTestHooks.__inactivityTimer = inactivityTimer;
+  ioWithTestHooks.__cleanupInactivityTimer = cleanupTimer;
 
   io.on('connection', (socket) => {
     onSocketConnection(io, socket, orm);

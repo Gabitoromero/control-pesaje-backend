@@ -33,8 +33,17 @@ export const registerBalanzaHandlers = (
       return;
     }
 
-    // Authentication guard: require either device identity or authenticated user
-    if (!socket.data.isDevice && !socket.data.user) {
+    // Devices are paired to a línea exclusively via handleDeviceConnection
+    // (hardwareId → Dispositivo lookup in the DB). join-linea is the tablet
+    // path; letting isDevice sockets call it would let anyone claiming an
+    // arbitrary hardwareId join — and inject balanza-data into — any línea.
+    if (socket.data.isDevice) {
+      socket.emit('error', { message: 'Forbidden: devices cannot join-linea manually' });
+      return;
+    }
+
+    // Authentication guard: require an authenticated user (tablet)
+    if (!socket.data.user) {
       socket.emit('error', { message: 'Unauthorized: authentication required' });
       return;
     }

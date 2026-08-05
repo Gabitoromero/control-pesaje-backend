@@ -8,7 +8,19 @@ export const initApp = async (orm: MikroORM<PostgreSqlDriver>): Promise<Express>
   const app = express();
 
   app.use(express.json());
-  app.use(cors());
+  // ALLOWED_ORIGIN restricts CORS to the deployed frontend's origin. Falling
+  // back to reflecting any origin only in non-production, so local dev
+  // (Vite on a different port) keeps working without configuring it.
+  const allowedOrigin = process.env.ALLOWED_ORIGIN;
+  app.use(
+    cors({
+      origin: allowedOrigin
+        ? (origin, callback) => callback(null, origin === allowedOrigin)
+        : process.env.NODE_ENV === 'production'
+          ? false
+          : true,
+    }),
+  );
 
   // MikroORM RequestContext middleware — must come before routes
   app.use((_req, _res, next) => {
