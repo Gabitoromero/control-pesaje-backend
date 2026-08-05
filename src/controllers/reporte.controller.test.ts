@@ -68,4 +68,71 @@ describe('Reporte Controller', () => {
     expect(setHeaderMock).toHaveBeenCalledTimes(2);
     expect(endMock).toHaveBeenCalled();
   });
+
+  describe('Integración - reporteService', () => {
+    it('debe contener las columnas de límites y balanza con la información correcta', async () => {
+      const { reporteService: realReporteService } = await vi.importActual<typeof import('../services/reporte.service.js')>('../services/reporte.service.js');
+      
+      const emMock = {
+        find: vi.fn().mockImplementation((entityClass: any) => {
+          if (entityClass.name === 'Muestra') {
+            return Promise.resolve([{
+              lineaProduccion: { id: 1, nombre: 'Linea 1' },
+              rutaPasada: { nombre: 'Ruta 1' },
+              pasada: { id: 1, numero: 'P-001', estado: 'EN CURSO' },
+              etapa: { nombre: 'Etapa 1' },
+              timestamp: new Date('2023-01-01T10:00:00Z'),
+              pesoNeto: 100,
+              pesoMinimo: 90,
+              pesoIdeal: 100,
+              pesoMaximo: 110,
+              estadoValidacion: 'OK',
+              observacion: 'ninguna',
+              usuario: { nombreApellido: 'Juan Perez' }
+            }]);
+          }
+          if (entityClass.name === 'Pasada') {
+            return Promise.resolve([{
+              id: 1,
+              lineaProduccion: { id: 1, nombre: 'Linea 1' },
+              rutaPasada: { nombre: 'Ruta 1' },
+              balanza: { nombre: 'Balanza 1' },
+              numero: 'P-001',
+              articulo: { codigo: 'A-001', nombre: 'Articulo 1' },
+              estado: 'EN CURSO',
+              horaInicio: new Date('2023-01-01T09:00:00Z'),
+              horaCierre: new Date('2023-01-01T11:00:00Z'),
+              usuario: { nombreApellido: 'Juan Perez' },
+              motivoCierre: '',
+              observacionCierre: ''
+            }]);
+          }
+          return Promise.resolve([]);
+        })
+      };
+
+      const workbook = await realReporteService.generateReportePasadasMuestras(emMock as any, new Date(), new Date());
+      const muestrasSheet = workbook.getWorksheet('Muestras - Linea 1');
+      const pasadasSheet = workbook.getWorksheet('Pasadas - Linea 1');
+
+      expect(muestrasSheet).toBeDefined();
+      expect(pasadasSheet).toBeDefined();
+
+      const headersMuestras = muestrasSheet!.getRow(1).values as string[];
+      expect(headersMuestras).toContain('Límite Mín (g)');
+      expect(headersMuestras).toContain('Peso Ideal (g)');
+      expect(headersMuestras).toContain('Límite Máx (g)');
+
+      const rowMuestra = muestrasSheet!.getRow(2).values as any[];
+      expect(rowMuestra).toContain(90);
+      expect(rowMuestra).toContain(100);
+      expect(rowMuestra).toContain(110);
+
+      const headersPasadas = pasadasSheet!.getRow(1).values as string[];
+      expect(headersPasadas).toContain('Balanza');
+      
+      const rowPasada = pasadasSheet!.getRow(2).values as any[];
+      expect(rowPasada).toContain('Balanza 1');
+    });
+  });
 });

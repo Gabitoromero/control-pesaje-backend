@@ -24,7 +24,7 @@ export const reporteService = {
       Pasada,
       { horaInicio: { $gte: desde, $lte: hasta }, activo: true },
       {
-        populate: ['lineaProduccion', 'rutaPasada', 'articulo', 'usuario'] as const,
+        populate: ['lineaProduccion', 'rutaPasada', 'articulo', 'usuario', 'balanza'] as const,
         orderBy: { horaInicio: 'asc' }
       }
     );
@@ -68,6 +68,9 @@ export const reporteService = {
           { header: 'Etapa', key: 'etapa', width: 20 },
           { header: 'Fecha/Hora Muestra', key: 'fechaHora', width: 20 },
           { header: 'Peso Neto (g)', key: 'peso', width: 15 },
+          { header: 'Límite Mín (g)', key: 'limiteMin', width: 15 },
+          { header: 'Peso Ideal (g)', key: 'pesoIdeal', width: 15 },
+          { header: 'Límite Máx (g)', key: 'limiteMax', width: 15 },
           { header: 'Validación', key: 'validacion', width: 15 },
           { header: 'Observación Muestra', key: 'obs', width: 30 },
           { header: 'Operario', key: 'operario', width: 20 },
@@ -83,6 +86,9 @@ export const reporteService = {
             etapa: m.etapa.nombre,
             fechaHora: formatDateTime(m.timestamp),
             peso: Number(m.pesoNeto),
+            limiteMin: m.pesoMinimo !== undefined ? Number(m.pesoMinimo) : '-',
+            pesoIdeal: m.pesoIdeal !== undefined ? Number(m.pesoIdeal) : '-',
+            limiteMax: m.pesoMaximo !== undefined ? Number(m.pesoMaximo) : '-',
             validacion: m.estadoValidacion === MuestraEstadoValidacion.OK ? 'ok' : 'fuera de rango',
             obs: m.observacion ?? '-',
             operario: m.usuario.nombreApellido,
@@ -105,6 +111,7 @@ export const reporteService = {
         const resSheet = workbook.addWorksheet(`Pasadas - ${lineName}`.substring(0, 31));
         resSheet.columns = [
           { header: 'Línea de Producción', key: 'linea', width: 20 },
+          { header: 'Balanza', key: 'balanza', width: 20 },
           { header: 'Ruta', key: 'ruta', width: 20 },
           { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
           { header: 'Código', key: 'articuloCodigo', width: 18 },
@@ -136,6 +143,7 @@ export const reporteService = {
 
           resSheet.addRow({
             linea: p.lineaProduccion.nombre,
+            balanza: p.balanza?.nombre ?? '-',
             ruta: p.rutaPasada.nombre,
             pasadaNum: p.numero,
             articuloCodigo: p.articulo?.codigo ?? '-',
