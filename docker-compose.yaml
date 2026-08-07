@@ -27,6 +27,7 @@ services:
       - backend-net
 
   backend:
+    image: control-pesaje-backend:${BACKEND_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile
