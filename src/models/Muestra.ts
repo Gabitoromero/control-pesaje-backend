@@ -4,6 +4,7 @@ import { Usuario } from './Usuario.js';
 import { RutaPasada } from './RutaPasada.js';
 import { Etapa } from './Etapa.js';
 import { LineaProduccion } from './LineaProduccion.js';
+import { PESO_DECIMALS } from '../shared/constants.js';
 
 export enum MuestraEstadoValidacion {
   OK = 'ok',
@@ -30,7 +31,7 @@ export class Muestra {
   @ManyToOne(() => LineaProduccion, { deleteRule: 'restrict' })
   lineaProduccion!: LineaProduccion;
 
-  @Property({ type: 'decimal', columnType: 'decimal(8,3)', serializer: value => Number(value) })
+  @Property({ type: 'decimal', columnType: `decimal(8,${PESO_DECIMALS})`, serializer: value => Number(value) })
   pesoNeto!: number;
 
   @Enum({ items: () => MuestraEstadoValidacion, nativeEnumName: 'muestra_estado_validacion_enum' })
@@ -39,13 +40,13 @@ export class Muestra {
   @Property({ type: 'string', columnType: 'text', nullable: true })
   observacion?: string;
 
-  @Property({ type: 'decimal', columnType: 'decimal(8,3)', serializer: value => Number(value) })
+  @Property({ type: 'decimal', columnType: `decimal(8,${PESO_DECIMALS})`, serializer: value => Number(value) })
   pesoIdeal!: number;
 
-  @Property({ type: 'decimal', columnType: 'decimal(8,3)', serializer: value => Number(value) })
+  @Property({ type: 'decimal', columnType: `decimal(8,${PESO_DECIMALS})`, serializer: value => Number(value) })
   pesoMinimo!: number;
 
-  @Property({ type: 'decimal', columnType: 'decimal(8,3)', serializer: value => Number(value) })
+  @Property({ type: 'decimal', columnType: `decimal(8,${PESO_DECIMALS})`, serializer: value => Number(value) })
   pesoMaximo!: number;
 
   @Property({ type: 'datetime' })

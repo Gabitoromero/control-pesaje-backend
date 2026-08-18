@@ -3,6 +3,7 @@ import exceljs from 'exceljs';
 import { Muestra, MuestraEstadoValidacion } from '../models/Muestra.js';
 import { Pasada } from '../models/Pasada.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
+import { PESO_DECIMALS } from '../shared/constants.js';
 
 function formatDateTime(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
@@ -189,7 +190,7 @@ export const reporteService = {
               pasadaNum: p.numero,
               etapa: etapa,
               total: pesos.length,
-              promedio: avg.toFixed(3)
+              promedio: avg.toFixed(PESO_DECIMALS)
             });
           }
         }
