@@ -23,6 +23,7 @@ import {
   Usuario,
   LineaProduccion,
   Articulo,
+  Balanza,
   Etapa,
   RutaPasada,
   ArticuloRutaPasada,
@@ -57,6 +58,7 @@ describe('DELETE /api/dispositivos/:id', () => {
         Usuario,
         LineaProduccion,
         Articulo,
+        Balanza,
         Etapa,
         RutaPasada,
         ArticuloRutaPasada,
@@ -165,6 +167,7 @@ describe('PATCH /api/dispositivos/:id/unidad', () => {
         Usuario,
         LineaProduccion,
         Articulo,
+        Balanza,
         Etapa,
         RutaPasada,
         ArticuloRutaPasada,
@@ -311,7 +314,7 @@ describe('PATCH /api/dispositivos/:id/unidad', () => {
     expect(found?.unidad).toBe('kg');
   });
 
-  it('still returns 200 and persists when the socket emit fails (no Socket.io server initialized in this test app)', async () => {
+  it('still returns 200 when the device has no línea assigned (emit guard never triggers)', async () => {
     const id = await createDispositivo('hw-patch-no-socket', 'kg');
 
     const res = await request(app)
@@ -323,6 +326,41 @@ describe('PATCH /api/dispositivos/:id/unidad', () => {
 
     em.clear();
     const found = await em.findOne(Dispositivo, { hardwareId: id });
+    expect(found?.unidad).toBe('g');
+  });
+
+  it('still returns 200 and persists when the device HAS a línea assigned and getIo() throws (no Socket.io server initialized in this test app) — proves the try/catch around the emit actually protects the response', async () => {
+    const balanza = em.create(Balanza, { nombre: 'Balanza-patch-emit-test', activo: true });
+    const articulo = em.create(Articulo, {
+      codigo: 'ART-PATCH-EMIT',
+      nombre: 'Articulo patch emit test',
+      activo: true,
+    });
+    const linea = em.create(LineaProduccion, {
+      nombre: 'Linea-patch-emit-test',
+      balanza,
+      articulo,
+      activo: true,
+    });
+    const dispositivo = em.create(Dispositivo, {
+      hardwareId: 'hw-patch-with-linea',
+      nombre: 'Pi-patch-with-linea',
+      unidad: 'kg',
+      lineaProduccion: linea,
+    });
+    await em.persist([balanza, articulo, linea, dispositivo]).flush();
+    em.clear();
+
+    const res = await request(app)
+      .patch('/api/dispositivos/hw-patch-with-linea/unidad')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ unidad: 'g' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    em.clear();
+    const found = await em.findOne(Dispositivo, { hardwareId: 'hw-patch-with-linea' });
     expect(found?.unidad).toBe('g');
   });
 });
