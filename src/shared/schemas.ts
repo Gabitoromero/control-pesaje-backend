@@ -79,10 +79,12 @@ export const LineaProduccionDeviceSchema = z.object({
 export const DispositivoCreateSchema = z.object({
   hardwareId: z.string().min(1),
   nombre: z.string().min(1).optional(),
+  unidad: z.enum(['g', 'kg']),
 });
 
 export const DispositivoUpdateSchema = z.object({
   nombre: z.string().min(1).optional(),
+  unidad: z.enum(['g', 'kg']).optional(),
 });
 
 // ─── RutaPasada ───────────────────────────────────────────────────────────────

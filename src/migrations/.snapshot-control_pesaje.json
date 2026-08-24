@@ -368,6 +368,23 @@
           "collation": null,
           "enumItems": [],
           "mappedType": "datetime"
+        },
+        "unidad": {
+          "name": "unidad",
+          "type": "varchar(10)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 10,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
         }
       },
       "indexes": [
@@ -746,7 +763,7 @@
             "ok",
             "fuera_de_rango"
           ],
-          "mappedType": "unknown",
+          "mappedType": "enum",
           "nativeEnumName": "muestra_estado_validacion_enum"
         },
         "etapa_id": {
@@ -1106,7 +1123,7 @@
             "completa",
             "abortada"
           ],
-          "mappedType": "unknown",
+          "mappedType": "enum",
           "nativeEnumName": "pasada_estado_enum"
         },
         "hora_cierre": {
@@ -1812,7 +1829,7 @@
             "visualizacion",
             "administrador"
           ],
-          "mappedType": "unknown",
+          "mappedType": "enum",
           "nativeEnumName": "usuario_rol_enum"
         }
       },
