@@ -53,7 +53,7 @@ export const createDispositivo = async (req: Request, res: Response): Promise<vo
     }
     
     const nombre = data.nombre ?? `Pi-${data.hardwareId.substring(0, 4)}`;
-    const dispositivo = em.create(Dispositivo, { hardwareId: data.hardwareId, nombre });
+    const dispositivo = em.create(Dispositivo, { hardwareId: data.hardwareId, nombre, unidad: data.unidad });
     await em.flush();
     res.status(201).json({ success: true, data: {
       hardwareId: dispositivo.hardwareId,
@@ -90,6 +90,9 @@ export const updateDispositivo = async (req: Request, res: Response): Promise<vo
     
     if (parseRes.data.nombre !== undefined) {
       dispositivo.nombre = parseRes.data.nombre;
+    }
+    if (parseRes.data.unidad !== undefined) {
+      dispositivo.unidad = parseRes.data.unidad;
     }
     await em.flush();
     res.json({ success: true, data: {

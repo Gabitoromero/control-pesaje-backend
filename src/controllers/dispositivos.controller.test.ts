@@ -20,6 +20,9 @@ vi.mock('../socket/device-pairing.handler.js', () => ({
 const mockEm = {
   find: vi.fn(),
   nativeDelete: vi.fn(),
+  create: vi.fn(),
+  findOne: vi.fn(),
+  flush: vi.fn(),
 };
 
 vi.mock('@mikro-orm/core', async (importOriginal) => {
@@ -33,7 +36,9 @@ vi.mock('@mikro-orm/core', async (importOriginal) => {
   };
 });
 
-const { getDispositivosConectados, deleteDispositivo } = await import('./dispositivos.controller.js');
+const { getDispositivosConectados, deleteDispositivo, createDispositivo, updateDispositivo } = await import(
+  './dispositivos.controller.js'
+);
 const { deviceRegistryService } = await import('../services/device-registry.service.js');
 const { getIo } = await import('../socket/index.js');
 const { disconnectDeviceByHardwareId } = await import('../socket/device-pairing.handler.js');
@@ -126,6 +131,55 @@ describe('Dispositivos Controller', () => {
 
       expect(res.status).toHaveBeenCalledWith(500);
       spy.mockRestore();
+    });
+  });
+
+  describe('createDispositivo', () => {
+    it('persists unidad when the caller provides it', async () => {
+      mockEm.findOne.mockResolvedValue(null);
+      mockEm.create.mockImplementation((_entity, data) => data);
+      mockEm.flush.mockResolvedValue(undefined);
+      const req = { body: { hardwareId: 'hw-new', nombre: 'Pi-new', unidad: 'g' } } as unknown as Request;
+      const res = makeRes();
+
+      await createDispositivo(req, res);
+
+      expect(mockEm.create).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ unidad: 'g' })
+      );
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it('succeeds without unidad (optional at create time, matches the nullable migration column)', async () => {
+      mockEm.findOne.mockResolvedValue(null);
+      mockEm.create.mockImplementation((_entity, data) => data);
+      mockEm.flush.mockResolvedValue(undefined);
+      const req = { body: { hardwareId: 'hw-new-2', nombre: 'Pi-new-2' } } as unknown as Request;
+      const res = makeRes();
+
+      await createDispositivo(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.status).not.toHaveBeenCalledWith(400);
+    });
+  });
+
+  describe('updateDispositivo', () => {
+    it('persists unidad when the caller provides it', async () => {
+      const dispositivo = { hardwareId: 'hw-1', nombre: 'Pi-1', unidad: undefined, lineaProduccion: undefined };
+      mockEm.findOne.mockResolvedValue(dispositivo);
+      mockEm.flush.mockResolvedValue(undefined);
+      vi.mocked(deviceRegistryService.isHardwareIdConnected).mockReturnValue(false);
+      const req = { params: { id: 'hw-1' }, body: { unidad: 'kg' } } as unknown as Request;
+      const res = makeRes();
+
+      await updateDispositivo(req, res);
+
+      expect(dispositivo.unidad).toBe('kg');
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true })
+      );
     });
   });
 
