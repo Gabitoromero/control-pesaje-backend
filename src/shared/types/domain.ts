@@ -5,6 +5,9 @@ import type { UsuarioRol } from '../types.js';
 export type EstadoValidacion = 'ok' | 'fuera_de_rango' | 'descartado';
 export type EstadoPasada = 'en_curso' | 'completa' | 'abortada';
 
+/** Source unit of measure a physical scale transmits for weight readings. */
+export type UnidadPeso = 'g' | 'kg';
+
 // ─── Shared detail shapes (used as nested objects in API responses) ───────────
 
 /** Inline etapa reference returned inside RutaPasadaEtapa */
