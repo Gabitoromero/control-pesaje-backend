@@ -76,13 +76,19 @@ export const LineaProduccionDeviceSchema = z.object({
   hardwareId: z.string().uuid().nullable(),
 });
 
+// `unidad` stays optional at create time to match migration 1 (nullable
+// column) — see sdd/unidad-medida-peso/design "Migration / Rollout". It only
+// becomes mandatory once migration 2 (SET NOT NULL) ships, together with the
+// backfill of every existing device.
 export const DispositivoCreateSchema = z.object({
   hardwareId: z.string().min(1),
   nombre: z.string().min(1).optional(),
+  unidad: z.enum(['g', 'kg']).optional(),
 });
 
 export const DispositivoUpdateSchema = z.object({
   nombre: z.string().min(1).optional(),
+  unidad: z.enum(['g', 'kg']).optional(),
 });
 
 // ─── RutaPasada ───────────────────────────────────────────────────────────────

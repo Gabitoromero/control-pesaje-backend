@@ -11,6 +11,7 @@ vi.mock('../services/device-registry.service.js', () => ({
     registerDevice: vi.fn(),
     removeDevice: vi.fn(),
     hasDeviceForLinea: vi.fn(),
+    getUnidad: vi.fn(),
   },
 }));
 
@@ -84,6 +85,9 @@ describe('registerBalanzaHandlers', () => {
     orm = makeMockOrm();
     sesionService = makeMockSesionService();
     vi.clearAllMocks();
+    // Default: device resolved as kg (identity conversion) unless a test
+    // overrides this to exercise the g→kg conversion or fail-closed paths.
+    vi.mocked(deviceRegistryService.getUnidad).mockReturnValue('kg');
   });
 
   describe('join-linea', () => {
@@ -356,6 +360,71 @@ describe('registerBalanzaHandlers', () => {
       const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
       const emittedPayload = emitMock.mock.calls[0][1];
       expect(Object.keys(emittedPayload)).toEqual(['pesoNeto']);
+    });
+
+    // ---- Unit resolution / conversion tests (sdd/unidad-medida-peso) ----
+
+    it('converts pesoNeto to kg when the device unidad is g', () => {
+      (socket.data as Record<string, unknown>).lineaId = 5;
+      (socket.data as Record<string, unknown>).isDevice = true;
+      (socket.data as Record<string, unknown>).hardwareId = 'hw-g-device';
+      vi.mocked(deviceRegistryService.getUnidad).mockReturnValue('g');
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+      const handler = getHandler(socket, 'balanza-data');
+
+      handler({ pesoNeto: 220.0 });
+
+      expect(deviceRegistryService.getUnidad).toHaveBeenCalledWith(socket.id);
+      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
+      expect(emitMock).toHaveBeenCalledWith('balanza-data', { pesoNeto: 0.22 });
+    });
+
+    it('passes pesoNeto through unchanged when the device unidad is kg', () => {
+      (socket.data as Record<string, unknown>).lineaId = 5;
+      (socket.data as Record<string, unknown>).isDevice = true;
+      (socket.data as Record<string, unknown>).hardwareId = 'hw-kg-device';
+      vi.mocked(deviceRegistryService.getUnidad).mockReturnValue('kg');
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+      const handler = getHandler(socket, 'balanza-data');
+
+      handler({ pesoNeto: 0.22 });
+
+      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
+      expect(emitMock).toHaveBeenCalledWith('balanza-data', { pesoNeto: 0.22 });
+    });
+
+    it('rejects the sample and emits an error naming hardwareId when the device unidad is missing (undefined)', () => {
+      (socket.data as Record<string, unknown>).lineaId = 5;
+      (socket.data as Record<string, unknown>).isDevice = true;
+      (socket.data as Record<string, unknown>).hardwareId = 'hw-no-unit';
+      vi.mocked(deviceRegistryService.getUnidad).mockReturnValue(undefined);
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+      const handler = getHandler(socket, 'balanza-data');
+
+      handler({ pesoNeto: 10 });
+
+      expect(io.to).not.toHaveBeenCalled();
+      expect(socket.emit).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ message: expect.stringContaining('hw-no-unit') }),
+      );
+    });
+
+    it('rejects the sample and emits an error naming hardwareId when the device unidad is unrecognized', () => {
+      (socket.data as Record<string, unknown>).lineaId = 5;
+      (socket.data as Record<string, unknown>).isDevice = true;
+      (socket.data as Record<string, unknown>).hardwareId = 'hw-bad-unit';
+      vi.mocked(deviceRegistryService.getUnidad).mockReturnValue('lb' as never);
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+      const handler = getHandler(socket, 'balanza-data');
+
+      handler({ pesoNeto: 10 });
+
+      expect(io.to).not.toHaveBeenCalled();
+      expect(socket.emit).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ message: expect.stringContaining('hw-bad-unit') }),
+      );
     });
 
     // ---- Session guard tests (RF-15) ----

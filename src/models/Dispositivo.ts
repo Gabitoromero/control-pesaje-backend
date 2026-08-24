@@ -4,6 +4,7 @@
 // rationale (decommissioned hardware must be fully forgettable).
 import { Entity, OneToOne, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
 import { LineaProduccion } from './LineaProduccion.js';
+import type { UnidadPeso } from '../shared/types/domain.js';
 
 @Entity({ tableName: 'dispositivo' })
 export class Dispositivo {
@@ -19,5 +20,12 @@ export class Dispositivo {
 
   @Property({ type: 'datetime', nullable: true })
   ultimaConexionAt?: Date | null;
+
+  // Nullable during rollout (migration 1). Made NOT NULL once every existing
+  // device's real unit is confirmed and backfilled (migration 2) — see
+  // sdd/unidad-medida-peso/design "Migration / Rollout". No blanket default:
+  // an unconfirmed device must stay null and fail closed at ingestion.
+  @Property({ type: 'string', length: 10, nullable: true })
+  unidad?: UnidadPeso | null;
 
 }

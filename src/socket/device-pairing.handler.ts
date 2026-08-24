@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
 import { findDispositivoByHardwareId } from '../services/device-pairing.service.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
+import { isUnidadPeso } from '../shared/peso.js';
 
 /**
  * Connection-time device pairing. Runs once per socket connection, right
@@ -40,9 +41,19 @@ export const handleDeviceConnection = async (
     return;
   }
 
+  // Fail closed (spec: "Fail-closed on missing or unknown unit"): a Dispositivo
+  // whose unidad is null or not a recognized value MUST NOT be registered or
+  // joined to its línea. No default unit is ever assumed.
+  if (!isUnidadPeso(dispositivo!.unidad)) {
+    socket.emit('error', {
+      message: `Unidad de peso no configurada para el dispositivo ${hardwareId}`,
+    });
+    return;
+  }
+
   socket.join(`linea-${linea.id}`);
   socket.data.lineaId = linea.id;
-  deviceRegistryService.registerDevice(socket.id, linea.id, hardwareId);
+  deviceRegistryService.registerDevice(socket.id, linea.id, hardwareId, dispositivo!.unidad);
 
   // Durable "last time we saw it connect" signal. Written once per successful
   // pairing (not per balanza-data frame) to avoid hammering the DB — see
