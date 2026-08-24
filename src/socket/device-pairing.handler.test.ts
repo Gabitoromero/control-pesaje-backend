@@ -29,6 +29,7 @@ const makeMockSocket = (overrides: Partial<Socket> = {}): Partial<Socket> => ({
   id: 'socket-1',
   data: {} as Socket['data'],
   join: vi.fn(),
+  emit: vi.fn(),
   ...overrides,
 });
 
@@ -57,6 +58,7 @@ describe('handleDeviceConnection', () => {
       id: 1,
       hardwareId: 'uuid-1',
       lineaProduccion: lineaFixture,
+      unidad: 'kg' as const,
       ultimaConexionAt: undefined as Date | undefined,
     };
     vi.mocked(findDispositivoByHardwareId).mockResolvedValue(dispositivoFixture as never);
@@ -68,7 +70,7 @@ describe('handleDeviceConnection', () => {
     expect(findDispositivoByHardwareId).toHaveBeenCalledWith(expect.anything(), 'uuid-1');
     expect(socket.join).toHaveBeenCalledWith('linea-5');
     expect((socket.data as Record<string, unknown>).lineaId).toBe(5);
-    expect(deviceRegistryService.registerDevice).toHaveBeenCalledWith('socket-1', 5, 'uuid-1');
+    expect(deviceRegistryService.registerDevice).toHaveBeenCalledWith('socket-1', 5, 'uuid-1', 'kg');
     expect(io.to).toHaveBeenCalledWith('linea-5');
     const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
     expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: true });
@@ -80,6 +82,7 @@ describe('handleDeviceConnection', () => {
       id: 1,
       hardwareId: 'uuid-1',
       lineaProduccion: lineaFixture,
+      unidad: 'kg' as const,
       ultimaConexionAt: undefined as Date | undefined,
     };
     vi.mocked(findDispositivoByHardwareId).mockResolvedValue(dispositivoFixture as never);
@@ -103,6 +106,50 @@ describe('handleDeviceConnection', () => {
 
     expect(socket.join).not.toHaveBeenCalled();
     expect(em.flush).not.toHaveBeenCalled();
+  });
+
+  it('does not register the device and emits a socket-level error naming hardwareId when unidad is null', async () => {
+    const lineaFixture = { id: 5, activo: true };
+    const dispositivoFixture = {
+      id: 1,
+      hardwareId: 'uuid-1',
+      lineaProduccion: lineaFixture,
+      unidad: null as null,
+      ultimaConexionAt: undefined as Date | undefined,
+    };
+    vi.mocked(findDispositivoByHardwareId).mockResolvedValue(dispositivoFixture as never);
+    const socket = makeMockSocket({ data: { isDevice: true, hardwareId: 'uuid-1' } as Socket['data'] });
+
+    await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
+
+    expect(socket.join).not.toHaveBeenCalled();
+    expect(deviceRegistryService.registerDevice).not.toHaveBeenCalled();
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ message: expect.stringContaining('uuid-1') }),
+    );
+  });
+
+  it('does not register the device and emits a socket-level error naming hardwareId when unidad is an unrecognized value', async () => {
+    const lineaFixture = { id: 5, activo: true };
+    const dispositivoFixture = {
+      id: 1,
+      hardwareId: 'uuid-2',
+      lineaProduccion: lineaFixture,
+      unidad: 'lb' as never,
+      ultimaConexionAt: undefined as Date | undefined,
+    };
+    vi.mocked(findDispositivoByHardwareId).mockResolvedValue(dispositivoFixture as never);
+    const socket = makeMockSocket({ data: { isDevice: true, hardwareId: 'uuid-2' } as Socket['data'] });
+
+    await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
+
+    expect(socket.join).not.toHaveBeenCalled();
+    expect(deviceRegistryService.registerDevice).not.toHaveBeenCalled();
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ message: expect.stringContaining('uuid-2') }),
+    );
   });
 
   it('emits unknown-device-connected only to the admin room when hardwareId does not resolve to a línea', async () => {

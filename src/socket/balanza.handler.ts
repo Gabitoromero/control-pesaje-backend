@@ -4,6 +4,7 @@ import type { MikroORM } from '@mikro-orm/postgresql';
 import type { SesionService } from '../services/sesion.service.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
+import { toKilogramos, isUnidadPeso } from '../shared/peso.js';
 
 /** Payload validation schemas for the balanza real-time channel. */
 const joinLineaSchema = z.number().int().positive();
@@ -100,6 +101,19 @@ export const registerBalanzaHandlers = (
       return; // device must join a line before sending data
     }
 
+    // Fail closed (spec: "Fail-closed on missing or unknown unit"): the
+    // device's unidad is resolved once at pairing time (see
+    // device-pairing.handler.ts) and cached in deviceRegistryService. A
+    // missing/unknown unit must reject the sample rather than assume kg.
+    const unidad = deviceRegistryService.getUnidad(socket.id);
+    if (!isUnidadPeso(unidad)) {
+      const hardwareId = socket.data.hardwareId as string | undefined;
+      socket.emit('error', {
+        message: `Unidad de peso no configurada para el dispositivo ${hardwareId}`,
+      });
+      return;
+    }
+
     // RF-15 / RN-15: discard weight data during "puesta a punto".
     // Single call: obtenerSesion mutates on lazy expiry, so reuse the reference.
     const sesion = sesionService.obtenerSesion(lineaId);
@@ -107,7 +121,11 @@ export const registerBalanzaHandlers = (
       return; // no active operator session — silently discard
     }
 
+    // Convert to canonical kg before broadcasting. Past this point, every
+    // weight in the system is kg (see sdd/unidad-medida-peso/design).
+    const pesoNetoKg = toKilogramos(payload.pesoNeto, unidad);
+
     // Broadcast ONLY pesoNeto — never spread the full payload to avoid field leakage
-    io.to(`linea-${lineaId}`).emit('balanza-data', { pesoNeto: payload.pesoNeto });
+    io.to(`linea-${lineaId}`).emit('balanza-data', { pesoNeto: pesoNetoKg });
   });
 };
