@@ -60,8 +60,14 @@ export const registerBalanzaHandlers = (
     socket.join(`linea-${lineaId}`);
     socket.data.lineaId = lineaId;
 
-    const hasDevice = deviceRegistryService.hasDeviceForLinea(lineaId);
-    socket.emit('balanza-status', { isConnected: hasDevice });
+    // Extended payload (sdd/unidad-medida-peso Part B, decision B3): additive
+    // hardwareId/unidad fields give the tablet the current unit for free, both
+    // on initial join and after a live correction re-emit (see B2/B3).
+    const device = deviceRegistryService.getDeviceForLinea(lineaId);
+    socket.emit('balanza-status', {
+      isConnected: device !== undefined,
+      ...(device !== undefined ? { hardwareId: device.hardwareId, unidad: device.unidad } : {}),
+    });
   });
 
   socket.on('leave-linea', (lineaId: number) => {

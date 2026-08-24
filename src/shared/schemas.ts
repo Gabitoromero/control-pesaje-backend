@@ -91,6 +91,13 @@ export const DispositivoUpdateSchema = z.object({
   unidad: z.enum(['g', 'kg']).optional(),
 });
 
+// Dedicated schema for the live unidad-correction endpoint (PATCH
+// /dispositivos/:id/unidad — sdd/unidad-medida-peso Part B, decision B1).
+// Same enum domain as create/update, single source of truth.
+export const DispositivoUnidadUpdateSchema = z.object({
+  unidad: z.enum(['g', 'kg']),
+});
+
 // ─── RutaPasada ───────────────────────────────────────────────────────────────
 
 export const RutaPasadaCreateSchema = z.object({

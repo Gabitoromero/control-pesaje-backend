@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { RequestContext } from '@mikro-orm/core';
 import { Dispositivo } from '../models/Dispositivo.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
-import { DispositivoCreateSchema, DispositivoUpdateSchema } from '../shared/schemas.js';
+import { DispositivoCreateSchema, DispositivoUpdateSchema, DispositivoUnidadUpdateSchema } from '../shared/schemas.js';
 import { disconnectDeviceByHardwareId } from '../socket/device-pairing.handler.js';
 import { getIo } from '../socket/index.js';
 
@@ -105,6 +105,58 @@ export const updateDispositivo = async (req: Request, res: Response): Promise<vo
     } });
   } catch (err) {
     console.error('[updateDispositivo error]', err);
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+  }
+};
+
+/**
+ * Live unidad correction (sdd/unidad-medida-peso Part B, decision B6 ordering):
+ * DB flush -> cache write-through -> socket re-emit (best-effort) -> 200.
+ * If the flush fails, nothing else runs — no client ever observes a value the
+ * DB does not hold. The socket emit is wrapped in try/catch, mirroring
+ * deleteDispositivo, so a socket failure never fails a persisted change.
+ */
+export const updateDispositivoUnidad = async (req: Request, res: Response): Promise<void> => {
+  const hardwareId = req.params.id;
+  const em = RequestContext.getEntityManager();
+  if (!em) {
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+    return;
+  }
+  try {
+    const parseRes = DispositivoUnidadUpdateSchema.safeParse(req.body);
+    if (!parseRes.success) {
+      res.status(400).json({ success: false, error: { message: 'Datos inválidos' } });
+      return;
+    }
+
+    const dispositivo = await em.findOne(Dispositivo, { hardwareId }, { populate: ['lineaProduccion'] });
+    if (!dispositivo) {
+      res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
+      return;
+    }
+
+    dispositivo.unidad = parseRes.data.unidad;
+    await em.flush();
+
+    deviceRegistryService.updateUnidadByHardwareId(String(hardwareId), parseRes.data.unidad);
+
+    const lineaId = dispositivo.lineaProduccion?.id;
+    if (lineaId !== undefined) {
+      try {
+        getIo().to(`linea-${lineaId}`).emit('balanza-status', {
+          isConnected: true,
+          hardwareId,
+          unidad: parseRes.data.unidad,
+        });
+      } catch (err) {
+        console.error('[updateDispositivoUnidad] failed to emit balanza-status', err);
+      }
+    }
+
+    res.json({ success: true, data: { hardwareId, unidad: dispositivo.unidad } });
+  } catch (err) {
+    console.error('[updateDispositivoUnidad error]', err);
     res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };

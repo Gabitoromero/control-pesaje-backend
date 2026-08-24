@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDispositivosConectados, deleteDispositivo, createDispositivo, updateDispositivo } from '../controllers/dispositivos.controller.js';
+import { getDispositivosConectados, deleteDispositivo, createDispositivo, updateDispositivo, updateDispositivoUnidad } from '../controllers/dispositivos.controller.js';
 import { authenticateJWT, requireRoles } from '../middlewares/auth.middleware.js';
 import { UsuarioRol } from '../models/Usuario.js';
 
@@ -24,6 +24,17 @@ router.put(
   authenticateJWT,
   requireRoles([UsuarioRol.ADMINISTRADOR, UsuarioRol.JEFE]),
   updateDispositivo
+);
+
+// Wider role set than PUT /:id (admin/jefe device administration): a live
+// unidad correction is a tablet-triggered operator action, mirroring the
+// operatorRoles pattern in muestras.routes.ts (sdd/unidad-medida-peso Part B,
+// decision B4). OPERARIO inclusion is a confirmed product decision.
+router.patch(
+  '/:id/unidad',
+  authenticateJWT,
+  requireRoles([UsuarioRol.ADMINISTRADOR, UsuarioRol.JEFE, UsuarioRol.OPERARIO]),
+  updateDispositivoUnidad
 );
 
 // Jefe/Administrador (not admin-only): decommissioning hardware is an

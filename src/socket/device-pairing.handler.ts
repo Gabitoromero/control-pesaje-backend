@@ -62,7 +62,13 @@ export const handleDeviceConnection = async (
   dispositivo!.ultimaConexionAt = new Date();
   await em.flush();
 
-  io.to(`linea-${linea.id}`).emit('balanza-status', { isConnected: true });
+  // Extended payload (sdd/unidad-medida-peso Part B, decision B3): additive
+  // hardwareId/unidad fields — same shape join-linea emits (balanza.handler.ts).
+  io.to(`linea-${linea.id}`).emit('balanza-status', {
+    isConnected: true,
+    hardwareId,
+    unidad: dispositivo!.unidad,
+  });
 };
 
 /**

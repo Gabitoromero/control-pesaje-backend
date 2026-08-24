@@ -12,6 +12,8 @@ vi.mock('../services/device-registry.service.js', () => ({
     removeDevice: vi.fn(),
     hasDeviceForLinea: vi.fn(),
     getUnidad: vi.fn(),
+    updateUnidadByHardwareId: vi.fn(),
+    getDeviceForLinea: vi.fn(),
   },
 }));
 
@@ -201,15 +203,41 @@ describe('registerBalanzaHandlers', () => {
       const tabletSocket = makeMockSocket({
         data: { user: { id: 1, nombreUsuario: 'test' } } as Socket['data'],
       });
-      vi.mocked(deviceRegistryService.hasDeviceForLinea).mockReturnValue(true);
+      vi.mocked(deviceRegistryService.getDeviceForLinea).mockReturnValue(undefined);
 
       registerBalanzaHandlers(io as Server, tabletSocket as Socket, mockOrm as unknown as MikroORM, sesionService);
       const handler = getHandler(tabletSocket, 'join-linea');
 
       await handler(5);
 
-      expect(deviceRegistryService.hasDeviceForLinea).toHaveBeenCalledWith(5);
-      expect(tabletSocket.emit).toHaveBeenCalledWith('balanza-status', { isConnected: true });
+      expect(deviceRegistryService.getDeviceForLinea).toHaveBeenCalledWith(5);
+      expect(tabletSocket.emit).toHaveBeenCalledWith('balanza-status', { isConnected: false });
+    });
+
+    it('emits balanza-status with hardwareId and unidad when a device is connected for the línea', async () => {
+      const lineaFixture = { id: 5, activo: true };
+      const mockOrm = makeMockOrm(lineaFixture);
+      const tabletSocket = makeMockSocket({
+        data: { user: { id: 1, nombreUsuario: 'test' } } as Socket['data'],
+      });
+      vi.mocked(deviceRegistryService.getDeviceForLinea).mockReturnValue({
+        socketId: 'device-socket-1',
+        lineaId: 5,
+        hardwareId: 'hw-5',
+        unidad: 'g',
+        timestamp: new Date(),
+      });
+
+      registerBalanzaHandlers(io as Server, tabletSocket as Socket, mockOrm as unknown as MikroORM, sesionService);
+      const handler = getHandler(tabletSocket, 'join-linea');
+
+      await handler(5);
+
+      expect(tabletSocket.emit).toHaveBeenCalledWith('balanza-status', {
+        isConnected: true,
+        hardwareId: 'hw-5',
+        unidad: 'g',
+      });
     });
   });
 
@@ -425,6 +453,45 @@ describe('registerBalanzaHandlers', () => {
         'error',
         expect.objectContaining({ message: expect.stringContaining('hw-bad-unit') }),
       );
+    });
+
+    // ---- Live unidad correction / cache invalidation (sdd/unidad-medida-peso Part B) ----
+    // Critical, non-parallel-safe: proves the correction takes effect on the very
+    // next frame from the SAME socket, with NO disconnect/re-pair in between.
+    it('applies a live unidad correction to the very next frame on the same socket, with no reconnect (critical: no-reconnect invalidation)', () => {
+      (socket.data as Record<string, unknown>).lineaId = 5;
+      (socket.data as Record<string, unknown>).isDevice = true;
+      (socket.data as Record<string, unknown>).hardwareId = 'hw-live-correction';
+
+      // Emulate the write-through cache: getUnidad reads whatever
+      // updateUnidadByHardwareId last wrote, exactly like the real
+      // DeviceRegistryService's in-memory Map (unit-tested separately in
+      // device-registry.service.test.ts).
+      let currentUnidad: 'g' | 'kg' = 'kg';
+      vi.mocked(deviceRegistryService.getUnidad).mockImplementation(() => currentUnidad);
+      vi.mocked(deviceRegistryService.updateUnidadByHardwareId).mockImplementation(
+        (hardwareId: string, unidad: 'g' | 'kg') => {
+          if (hardwareId !== 'hw-live-correction') return false;
+          currentUnidad = unidad;
+          return true;
+        },
+      );
+
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+      const handler = getHandler(socket, 'balanza-data');
+      const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
+
+      // First frame: still cached as kg, unconverted.
+      handler({ pesoNeto: 220 });
+      expect(emitMock).toHaveBeenLastCalledWith('balanza-data', { pesoNeto: 220 });
+
+      // Live correction applied — no socket disconnect/re-pair anywhere in this test.
+      const applied = deviceRegistryService.updateUnidadByHardwareId('hw-live-correction', 'g');
+      expect(applied).toBe(true);
+
+      // Very next frame on the SAME socket: converted with the corrected factor.
+      handler({ pesoNeto: 220 });
+      expect(emitMock).toHaveBeenLastCalledWith('balanza-data', { pesoNeto: 0.22 });
     });
 
     // ---- Session guard tests (RF-15) ----

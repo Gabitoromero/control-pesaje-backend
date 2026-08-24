@@ -73,7 +73,11 @@ describe('handleDeviceConnection', () => {
     expect(deviceRegistryService.registerDevice).toHaveBeenCalledWith('socket-1', 5, 'uuid-1', 'kg');
     expect(io.to).toHaveBeenCalledWith('linea-5');
     const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
-    expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: true });
+    expect(emitMock).toHaveBeenCalledWith('balanza-status', {
+      isConnected: true,
+      hardwareId: 'uuid-1',
+      unidad: 'kg',
+    });
   });
 
   it('sets Dispositivo.ultimaConexionAt on the resolved Dispositivo row and flushes exactly once (single query)', async () => {
