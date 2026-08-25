@@ -68,10 +68,10 @@ export const reporteService = {
           { header: 'Estado Pasada', key: 'pasadaEst', width: 15 },
           { header: 'Etapa', key: 'etapa', width: 20 },
           { header: 'Fecha/Hora Muestra', key: 'fechaHora', width: 20 },
-          { header: 'Peso Neto (g)', key: 'peso', width: 15 },
-          { header: 'Límite Mín (g)', key: 'limiteMin', width: 15 },
-          { header: 'Peso Ideal (g)', key: 'pesoIdeal', width: 15 },
-          { header: 'Límite Máx (g)', key: 'limiteMax', width: 15 },
+          { header: 'Peso Neto (kg)', key: 'peso', width: 15 },
+          { header: 'Límite Mín (kg)', key: 'limiteMin', width: 15 },
+          { header: 'Peso Ideal (kg)', key: 'pesoIdeal', width: 15 },
+          { header: 'Límite Máx (kg)', key: 'limiteMax', width: 15 },
           { header: 'Validación', key: 'validacion', width: 15 },
           { header: 'Observación Muestra', key: 'obs', width: 30 },
           { header: 'Operario', key: 'operario', width: 20 },
@@ -170,7 +170,7 @@ export const reporteService = {
           { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
           { header: 'Etapa', key: 'etapa', width: 20 },
           { header: 'Total Muestras', key: 'total', width: 15 },
-          { header: 'Promedio Peso Neto (g)', key: 'promedio', width: 20 },
+          { header: 'Promedio Peso Neto (kg)', key: 'promedio', width: 20 },
         ];
         etapaSheet.getRow(1).font = { bold: true };
 

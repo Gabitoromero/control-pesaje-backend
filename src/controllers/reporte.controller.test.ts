@@ -119,9 +119,9 @@ describe('Reporte Controller', () => {
       expect(pasadasSheet).toBeDefined();
 
       const headersMuestras = muestrasSheet!.getRow(1).values as string[];
-      expect(headersMuestras).toContain('Límite Mín (g)');
-      expect(headersMuestras).toContain('Peso Ideal (g)');
-      expect(headersMuestras).toContain('Límite Máx (g)');
+      expect(headersMuestras).toContain('Límite Mín (kg)');
+      expect(headersMuestras).toContain('Peso Ideal (kg)');
+      expect(headersMuestras).toContain('Límite Máx (kg)');
 
       const rowMuestra = muestrasSheet!.getRow(2).values as any[];
       expect(rowMuestra).toContain(90);
