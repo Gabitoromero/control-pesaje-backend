@@ -136,6 +136,77 @@ describe('LineaProduccionService', () => {
       expect(result).toBeDefined();
       expect(mockEm.findOne).toHaveBeenCalledTimes(4);
     });
+
+    it('sets rutaAsignadaAt to a Date when rutaPasadaActiva is provided', async () => {
+      const mockRoute = {
+        id: 3,
+        activo: true,
+        etapas: { length: 1 },
+      };
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
+        if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
+        if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
+        return mockRoute;
+      });
+      mockEm.create.mockReturnValue({ id: 1, rutaPasadaActiva: mockRoute });
+      mockEm.flush.mockResolvedValue(undefined);
+
+      const fixedNow = new Date('2026-01-01T00:00:00.000Z');
+      vi.useFakeTimers().setSystemTime(fixedNow);
+
+      try {
+        await service.create({
+          nombre: 'Linea 1',
+          idBalanza: 5,
+          articuloId: 6,
+          rutaPasadaActiva: 3,
+        } as any);
+
+        expect(mockEm.create.mock.calls[0][1].rutaAsignadaAt).toEqual(fixedNow);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('leaves rutaAsignadaAt null when rutaPasadaActiva is omitted', async () => {
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
+        if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
+        if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
+        return null;
+      });
+      mockEm.create.mockReturnValue({ id: 1 });
+      mockEm.flush.mockResolvedValue(undefined);
+
+      await service.create({
+        nombre: 'Linea 1',
+        idBalanza: 5,
+        articuloId: 6,
+      } as any);
+
+      expect(mockEm.create.mock.calls[0][1].rutaAsignadaAt).toBeNull();
+    });
+
+    it('leaves rutaAsignadaAt null when rutaPasadaActiva is explicitly null', async () => {
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
+        if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
+        if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
+        return null;
+      });
+      mockEm.create.mockReturnValue({ id: 1 });
+      mockEm.flush.mockResolvedValue(undefined);
+
+      await service.create({
+        nombre: 'Linea 1',
+        idBalanza: 5,
+        articuloId: 6,
+        rutaPasadaActiva: null,
+      } as any);
+
+      expect(mockEm.create.mock.calls[0][1].rutaAsignadaAt).toBeNull();
+    });
   });
 
   describe('update validations', () => {
