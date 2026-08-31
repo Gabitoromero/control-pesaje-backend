@@ -112,7 +112,12 @@ describe('handleDeviceConnection', () => {
     expect(em.flush).not.toHaveBeenCalled();
   });
 
-  it('does not register the device and emits a socket-level error naming hardwareId when unidad is null', async () => {
+  it('joins and registers the device with unidad null, broadcasts balanza-status without a unidad field, and still emits a socket-level error naming hardwareId when unidad is null', async () => {
+    // Fail-closed applies only to weight ingestion (balanza.handler.ts re-checks
+    // unidad per frame): pairing itself still joins + registers the device so
+    // the tablet learns its hardwareId and can configure the unit via PATCH
+    // /dispositivos/:id/unidad — otherwise a brand-new device could never be
+    // corrected from the tablet (chicken-and-egg on hardwareId).
     const lineaFixture = { id: 5, activo: true };
     const dispositivoFixture = {
       id: 1,
@@ -126,15 +131,19 @@ describe('handleDeviceConnection', () => {
 
     await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
 
-    expect(socket.join).not.toHaveBeenCalled();
-    expect(deviceRegistryService.registerDevice).not.toHaveBeenCalled();
+    expect(socket.join).toHaveBeenCalledWith('linea-5');
+    expect(deviceRegistryService.registerDevice).toHaveBeenCalledWith('socket-1', 5, 'uuid-1', null);
     expect(socket.emit).toHaveBeenCalledWith(
       'error',
       expect.objectContaining({ message: expect.stringContaining('uuid-1') }),
     );
+    expect(io._toEmit).toHaveBeenCalledWith('balanza-status', {
+      isConnected: true,
+      hardwareId: 'uuid-1',
+    });
   });
 
-  it('does not register the device and emits a socket-level error naming hardwareId when unidad is an unrecognized value', async () => {
+  it('joins and registers the device with unidad null, and emits the same balanza-status/error pair when unidad is an unrecognized value', async () => {
     const lineaFixture = { id: 5, activo: true };
     const dispositivoFixture = {
       id: 1,
@@ -148,12 +157,16 @@ describe('handleDeviceConnection', () => {
 
     await handleDeviceConnection(io as Server, socket as Socket, orm as unknown as MikroORM);
 
-    expect(socket.join).not.toHaveBeenCalled();
-    expect(deviceRegistryService.registerDevice).not.toHaveBeenCalled();
+    expect(socket.join).toHaveBeenCalledWith('linea-5');
+    expect(deviceRegistryService.registerDevice).toHaveBeenCalledWith('socket-1', 5, 'uuid-2', null);
     expect(socket.emit).toHaveBeenCalledWith(
       'error',
       expect.objectContaining({ message: expect.stringContaining('uuid-2') }),
     );
+    expect(io._toEmit).toHaveBeenCalledWith('balanza-status', {
+      isConnected: true,
+      hardwareId: 'uuid-2',
+    });
   });
 
   it('emits unknown-device-connected only to the admin room when hardwareId does not resolve to a línea', async () => {

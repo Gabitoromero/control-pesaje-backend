@@ -4,14 +4,15 @@ export interface ConnectedDevice {
   socketId: string;
   lineaId: number;
   hardwareId: string;
-  unidad: UnidadPeso;
+  /** null while the device is connected but its unidad has not been configured yet (see device-pairing.handler.ts). */
+  unidad: UnidadPeso | null;
   timestamp: Date;
 }
 
 export class DeviceRegistryService {
   private devices = new Map<string, ConnectedDevice>();
 
-  registerDevice(socketId: string, lineaId: number, hardwareId: string, unidad: UnidadPeso): void {
+  registerDevice(socketId: string, lineaId: number, hardwareId: string, unidad: UnidadPeso | null): void {
     this.devices.set(socketId, {
       socketId,
       lineaId,
@@ -39,7 +40,7 @@ export class DeviceRegistryService {
   }
 
   /** Resolves the source unit cached at pairing time for a connected device's socket. */
-  getUnidad(socketId: string): UnidadPeso | undefined {
+  getUnidad(socketId: string): UnidadPeso | null | undefined {
     return this.devices.get(socketId)?.unidad;
   }
 

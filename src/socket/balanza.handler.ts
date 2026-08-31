@@ -66,7 +66,8 @@ export const registerBalanzaHandlers = (
     const device = deviceRegistryService.getDeviceForLinea(lineaId);
     socket.emit('balanza-status', {
       isConnected: device !== undefined,
-      ...(device !== undefined ? { hardwareId: device.hardwareId, unidad: device.unidad } : {}),
+      ...(device !== undefined ? { hardwareId: device.hardwareId } : {}),
+      ...(device?.unidad != null ? { unidad: device.unidad } : {}),
     });
   });
 

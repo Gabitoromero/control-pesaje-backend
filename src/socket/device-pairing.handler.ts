@@ -41,19 +41,22 @@ export const handleDeviceConnection = async (
     return;
   }
 
-  // Fail closed (spec: "Fail-closed on missing or unknown unit"): a Dispositivo
-  // whose unidad is null or not a recognized value MUST NOT be registered or
-  // joined to its línea. No default unit is ever assumed.
-  if (!isUnidadPeso(dispositivo!.unidad)) {
-    socket.emit('error', {
-      message: `Unidad de peso no configurada para el dispositivo ${hardwareId}`,
-    });
-    return;
-  }
+  // Fail closed on weight ingestion (spec: "Fail-closed on missing or unknown
+  // unit"): a Dispositivo whose unidad is null or not a recognized value must
+  // never have its balanza-data frames accepted (see balanza.handler.ts,
+  // which re-checks unidad per frame via deviceRegistryService.getUnidad).
+  //
+  // It IS still joined to its línea and registered here (with unidad: null)
+  // so the tablet learns its hardwareId through the normal balanza-status
+  // channel and can configure the unit via PATCH /dispositivos/:id/unidad —
+  // otherwise hardwareId would never reach the tablet (only devices that
+  // already paired ever get broadcast), and the operator would have no way
+  // to set the unit for a brand-new device in the first place.
+  const unidadConfigurada = isUnidadPeso(dispositivo!.unidad) ? dispositivo!.unidad : null;
 
   socket.join(`linea-${linea.id}`);
   socket.data.lineaId = linea.id;
-  deviceRegistryService.registerDevice(socket.id, linea.id, hardwareId, dispositivo!.unidad);
+  deviceRegistryService.registerDevice(socket.id, linea.id, hardwareId, unidadConfigurada);
 
   // Durable "last time we saw it connect" signal. Written once per successful
   // pairing (not per balanza-data frame) to avoid hammering the DB — see
@@ -62,12 +65,20 @@ export const handleDeviceConnection = async (
   dispositivo!.ultimaConexionAt = new Date();
   await em.flush();
 
+  if (unidadConfigurada === null) {
+    socket.emit('error', {
+      message: `Unidad de peso no configurada para el dispositivo ${hardwareId}`,
+    });
+  }
+
   // Extended payload (sdd/unidad-medida-peso Part B, decision B3): additive
   // hardwareId/unidad fields — same shape join-linea emits (balanza.handler.ts).
+  // unidad is omitted (not sent as null) when still unconfigured, matching
+  // the optional `unidad?: UnidadPeso` contract the tablet expects.
   io.to(`linea-${linea.id}`).emit('balanza-status', {
     isConnected: true,
     hardwareId,
-    unidad: dispositivo!.unidad,
+    ...(unidadConfigurada !== null ? { unidad: unidadConfigurada } : {}),
   });
 };
 
