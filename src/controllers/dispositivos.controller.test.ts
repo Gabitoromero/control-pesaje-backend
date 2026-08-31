@@ -61,6 +61,7 @@ describe('Dispositivos Controller', () => {
         nombre: 'Pi-hw-1',
         lineaProduccion: { id: 5, nombre: 'Línea A' },
         ultimaConexionAt: new Date('2026-01-01T00:00:00Z'),
+        unidad: 'kg' as const,
       };
       mockEm.find.mockResolvedValue([dispositivo]);
       vi.mocked(deviceRegistryService.isHardwareIdConnected).mockReturnValue(true);
@@ -86,17 +87,19 @@ describe('Dispositivos Controller', () => {
             lineaNombre: 'Línea A',
             estado: 'Conectado',
             ultimaConexionAt: new Date('2026-01-01T00:00:00Z'),
+            unidad: 'kg',
           },
         ]
       });
     });
 
-    it('returns estado Desconectado and null línea fields for an unpaired offline device (row stays visible)', async () => {
+    it('returns estado Desconectado, null línea fields, and null unidad for an unpaired offline device that never confirmed its unit (row stays visible)', async () => {
       const dispositivo = {
         hardwareId: 'hw-2',
         nombre: 'Pi-hw-2',
         lineaProduccion: undefined,
         ultimaConexionAt: null,
+        unidad: null,
       };
       mockEm.find.mockResolvedValue([dispositivo]);
       vi.mocked(deviceRegistryService.isHardwareIdConnected).mockReturnValue(false);
@@ -116,6 +119,7 @@ describe('Dispositivos Controller', () => {
             lineaNombre: null,
             estado: 'Desconectado',
             ultimaConexionAt: null,
+            unidad: null,
           },
         ]
       });

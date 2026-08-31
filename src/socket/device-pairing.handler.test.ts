@@ -137,7 +137,8 @@ describe('handleDeviceConnection', () => {
       'error',
       expect.objectContaining({ message: expect.stringContaining('uuid-1') }),
     );
-    expect(io._toEmit).toHaveBeenCalledWith('balanza-status', {
+    const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
+    expect(emitMock).toHaveBeenCalledWith('balanza-status', {
       isConnected: true,
       hardwareId: 'uuid-1',
     });
@@ -163,7 +164,8 @@ describe('handleDeviceConnection', () => {
       'error',
       expect.objectContaining({ message: expect.stringContaining('uuid-2') }),
     );
-    expect(io._toEmit).toHaveBeenCalledWith('balanza-status', {
+    const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
+    expect(emitMock).toHaveBeenCalledWith('balanza-status', {
       isConnected: true,
       hardwareId: 'uuid-2',
     });

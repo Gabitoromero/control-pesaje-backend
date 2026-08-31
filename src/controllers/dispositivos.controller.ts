@@ -24,6 +24,7 @@ export const getDispositivosConectados = async (req: Request, res: Response): Pr
         ? 'Conectado'
         : 'Desconectado',
       ultimaConexionAt: dispositivo.ultimaConexionAt ?? null,
+      unidad: dispositivo.unidad ?? null,
     }));
     res.json({ success: true, data });
   } catch (err) {
