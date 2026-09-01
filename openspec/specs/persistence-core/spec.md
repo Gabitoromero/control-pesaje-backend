@@ -56,3 +56,23 @@ The `Usuario` and `Muestra` entities MUST feature a `datos_adicionales` field ut
 - GIVEN a `Muestra` with custom key-value pairs inside `datos_adicionales`
 - WHEN the record is persisted and subsequently loaded from the database
 - THEN the returned `datos_adicionales` MUST preserve the original nested structure and types.
+## ADDED Requirements
+
+### Requirement: Pasada and LineaProduccion Observacion Columns
+
+The system MUST persist two new nullable text columns: `pasada.observacion` and `linea_produccion.observacion`, added via a reversible migration (`up()` adds both columns as `text null`, `down()` drops both). Neither column has a length cap or an audit trail of edits.
+
+#### Scenario: Persist pasada with null observacion by default
+- GIVEN a new `Pasada` created without an `observacion` value
+- WHEN the pasada is persisted
+- THEN the `observacion` column MUST be `null`
+
+#### Scenario: Persist linea_produccion with a non-null observacion
+- GIVEN a new `LineaProduccion` created with `observacion: "línea reservada para lote especial"`
+- WHEN the línea is persisted
+- THEN the `observacion` column MUST store that exact text value with no truncation
+
+#### Scenario: Migration rollback removes both columns
+- GIVEN the migration adding both `observacion` columns has been applied
+- WHEN the migration's `down()` is run
+- THEN both `pasada.observacion` and `linea_produccion.observacion` columns MUST no longer exist, with no data-loss handling required since both are additive and nullable

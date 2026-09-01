@@ -49,6 +49,9 @@ export class Pasada {
   @Property({ type: 'string', columnType: 'text', nullable: true })
   observacionCierre?: string;
 
+  @Property({ type: 'string', columnType: 'text', nullable: true })
+  observacion?: string | null;
+
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
 }

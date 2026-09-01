@@ -67,6 +67,7 @@ export class LineaProduccionService extends BaseService<LineaProduccion> {
       nombre: rest.nombre ?? '',
       rutaPasadaActiva: rest.rutaPasadaActiva,
       activo: rest.activo ?? true,
+      observacion: rest.observacion ?? null,
       rutaAsignadaAt: rest.rutaPasadaActiva != null ? new Date() : null,
       balanza: em.getReference(Balanza, idBalanza),
       articulo: em.getReference(Articulo, articuloId),

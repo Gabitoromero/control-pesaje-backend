@@ -620,6 +620,23 @@
           "enumItems": [],
           "mappedType": "string"
         },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
         "ruta_asignada_at": {
           "name": "ruta_asignada_at",
           "type": "timestamptz(6)",
@@ -763,7 +780,7 @@
             "ok",
             "fuera_de_rango"
           ],
-          "mappedType": "enum",
+          "mappedType": "unknown",
           "nativeEnumName": "muestra_estado_validacion_enum"
         },
         "etapa_id": {
@@ -1123,7 +1140,7 @@
             "completa",
             "abortada"
           ],
-          "mappedType": "enum",
+          "mappedType": "unknown",
           "nativeEnumName": "pasada_estado_enum"
         },
         "hora_cierre": {
@@ -1227,6 +1244,23 @@
           "collation": null,
           "enumItems": [],
           "mappedType": "integer"
+        },
+        "observacion": {
+          "name": "observacion",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
         },
         "observacion_cierre": {
           "name": "observacion_cierre",
@@ -1829,7 +1863,7 @@
             "visualizacion",
             "administrador"
           ],
-          "mappedType": "enum",
+          "mappedType": "unknown",
           "nativeEnumName": "usuario_rol_enum"
         }
       },

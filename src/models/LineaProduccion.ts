@@ -28,6 +28,9 @@ export class LineaProduccion {
   @Property({ type: 'boolean', default: true })
   activo: boolean = true;
 
+  @Property({ type: 'string', columnType: 'text', nullable: true })
+  observacion?: string | null;
+
   @Property({ type: 'datetime', nullable: true, columnType: 'timestamptz', fieldName: 'ruta_asignada_at' })
   rutaAsignadaAt: Date | null = null;
 }

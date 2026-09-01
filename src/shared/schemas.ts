@@ -68,6 +68,7 @@ export const LineaProduccionCreateSchema = z.object({
   idBalanza: z.number().int().positive(),
   rutaPasadaActiva: z.number().int().positive().nullable().optional(),
   activo: z.boolean().optional(),
+  observacion: z.string().min(1).nullable().optional(),
 });
 
 export const LineaProduccionUpdateSchema = LineaProduccionCreateSchema.partial();
@@ -138,12 +139,14 @@ export const ArticuloRutaPasadaUpdateSchema = ArticuloRutaPasadaCreateSchema.par
 export const PasadaIniciarSchema = z.object({
   lineaProduccionId: z.number().int().positive(),
   idBalanza: z.number().int().positive(),
+  observacion: z.string().min(1).optional(),
 });
 
 export const PasadaUpdateSchema = z.object({
   action: z.enum(['completar', 'abortar']).optional(),
   motivoCierre: z.string().min(1).optional(),
   observacionCierre: z.string().min(1).nullable().optional(),
+  observacion: z.string().min(1).nullable().optional(),
 }).refine(
   (data) => data.action !== 'abortar' || (data.motivoCierre?.trim()?.length ?? 0) > 0,
   { message: 'motivoCierre is required to abort a pasada', path: ['motivoCierre'] }

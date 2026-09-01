@@ -256,6 +256,16 @@ describe('LineaProduccionCreateSchema', () => {
     });
     expect(parsed.rutaPasadaActiva).toBe(5);
   });
+
+  it('accepts optional observacion', () => {
+    const parsed = LineaProduccionCreateSchema.parse({
+      nombre: 'Linea 1',
+      articuloId: 2,
+      idBalanza: 3,
+      observacion: 'linea reservada para lote especial',
+    });
+    expect(parsed.observacion).toBe('linea reservada para lote especial');
+  });
 });
 
 describe('LineaProduccionUpdateSchema', () => {
@@ -272,6 +282,16 @@ describe('LineaProduccionUpdateSchema', () => {
   it('accepts partial update with only nombre', () => {
     const parsed = LineaProduccionUpdateSchema.parse({ nombre: 'Linea 2' });
     expect(parsed.nombre).toBe('Linea 2');
+  });
+
+  it('accepts null observacion to clear the value', () => {
+    const parsed = LineaProduccionUpdateSchema.parse({ observacion: null });
+    expect(parsed.observacion).toBeNull();
+  });
+
+  it('rejects empty string observacion', () => {
+    const result = LineaProduccionUpdateSchema.safeParse({ observacion: '' });
+    expect(result.success).toBe(false);
   });
 });
 
@@ -301,6 +321,29 @@ describe('PasadaIniciarSchema', () => {
 
   it('rejects zero or negative ids', () => {
     const result = PasadaIniciarSchema.safeParse({ lineaProduccionId: 0, articuloId: -1 });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts optional observacion', () => {
+    const parsed = PasadaIniciarSchema.parse({
+      lineaProduccionId: 1,
+      idBalanza: 3,
+      observacion: 'lote nuevo de materia prima',
+    });
+    expect(parsed.observacion).toBe('lote nuevo de materia prima');
+  });
+
+  it('accepts omitted observacion', () => {
+    const parsed = PasadaIniciarSchema.parse({ lineaProduccionId: 1, idBalanza: 3 });
+    expect(parsed.observacion).toBeUndefined();
+  });
+
+  it('rejects empty string observacion', () => {
+    const result = PasadaIniciarSchema.safeParse({
+      lineaProduccionId: 1,
+      idBalanza: 3,
+      observacion: '',
+    });
     expect(result.success).toBe(false);
   });
 });
@@ -343,6 +386,21 @@ describe('PasadaUpdateSchema', () => {
   it('accepts optional observacionCierre', () => {
     const parsed = PasadaUpdateSchema.parse({ observacionCierre: 'nota adicional' });
     expect(parsed.observacionCierre).toBe('nota adicional');
+  });
+
+  it('accepts observacion as a string', () => {
+    const parsed = PasadaUpdateSchema.parse({ observacion: 'nota actualizada' });
+    expect(parsed.observacion).toBe('nota actualizada');
+  });
+
+  it('accepts observacion as null to clear the value', () => {
+    const parsed = PasadaUpdateSchema.parse({ observacion: null });
+    expect(parsed.observacion).toBeNull();
+  });
+
+  it('rejects empty string observacion', () => {
+    const result = PasadaUpdateSchema.safeParse({ observacion: '' });
+    expect(result.success).toBe(false);
   });
 });
 

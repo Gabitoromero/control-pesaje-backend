@@ -77,7 +77,7 @@ describe('createPasadaHandlers', () => {
 
       await handlers.iniciar(req, mock as unknown as Response, vi.fn());
 
-      expect(service.iniciarPasada).toHaveBeenCalledWith(3, 5, 7);
+      expect(service.iniciarPasada).toHaveBeenCalledWith(3, 5, 7, undefined);
       expect(mock.status).toHaveBeenCalledWith(201);
       expect(mock.json).toHaveBeenCalledWith({ success: true, data: pasada });
     });
@@ -95,6 +95,21 @@ describe('createPasadaHandlers', () => {
         success: false,
         error: { message: 'No hay sesión activa' },
       });
+    });
+
+    it('forwards observacion from the body as the 4th service arg', async () => {
+      const pasada = { id: 10, estado: 'en_curso' };
+      service.iniciarPasada.mockResolvedValue(pasada);
+
+      const req = makeReq({
+        body: { lineaProduccionId: 3, idBalanza: 5, observacion: 'lote nuevo de materia prima' },
+        user: { id: 7, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
+      });
+      const { mock } = makeRes();
+
+      await handlers.iniciar(req, mock as unknown as Response, vi.fn());
+
+      expect(service.iniciarPasada).toHaveBeenCalledWith(3, 5, 7, 'lote nuevo de materia prima');
     });
   });
 
@@ -131,6 +146,23 @@ describe('createPasadaHandlers', () => {
       expect((service as any).findAllPopulated).toHaveBeenCalledWith({});
       expect(mock.json).toHaveBeenCalledWith({ success: true, data: pasadas });
     });
+
+    it('includes the observacion field on each pasada in the list response', async () => {
+      const pasadas = [
+        { id: 1, estado: 'en_curso', observacion: 'lote nuevo de materia prima' },
+        { id: 2, estado: 'completa', observacion: null },
+      ];
+      (service as any).findAllPopulated = vi.fn().mockResolvedValue(pasadas);
+
+      const req = makeReq({ query: {} });
+      const { mock } = makeRes();
+
+      await handlers.list(req, mock as unknown as Response, vi.fn());
+
+      const responseData = mock.json.mock.calls[0][0].data;
+      expect(responseData[0].observacion).toBe('lote nuevo de materia prima');
+      expect(responseData[1].observacion).toBeNull();
+    });
   });
 
   // ─── getOne ────────────────────────────────────────────────────────────────
@@ -163,6 +195,19 @@ describe('createPasadaHandlers', () => {
         error: { message: 'Registro no encontrado' },
       });
     });
+
+    it('includes the observacion field in the detail response when present', async () => {
+      const pasada = { id: 5, estado: 'en_curso', observacion: 'nota de arranque' };
+      service.findById.mockResolvedValue(pasada);
+
+      const req = makeReq({ params: { id: '5' } });
+      const { mock } = makeRes();
+
+      await handlers.getOne(req, mock as unknown as Response, vi.fn());
+
+      expect(mock.json).toHaveBeenCalledWith({ success: true, data: pasada });
+      expect(mock.json.mock.calls[0][0].data.observacion).toBe('nota de arranque');
+    });
   });
 
   // ─── update ────────────────────────────────────────────────────────────────
@@ -181,6 +226,22 @@ describe('createPasadaHandlers', () => {
       await handlers.update(req, mock as unknown as Response, vi.fn());
 
       expect(service.update).toHaveBeenCalledWith(3, { observacionCierre: 'test' });
+      expect(mock.json).toHaveBeenCalledWith({ success: true, data: updatedPasada });
+    });
+
+    it('forwards observacion inside rest to service.update', async () => {
+      const updatedPasada = { id: 3, estado: 'completa', observacion: 'nota post-cierre' };
+      service.update.mockResolvedValue(updatedPasada);
+
+      const req = makeReq({
+        params: { id: '3' },
+        body: { observacion: 'nota post-cierre' },
+      });
+      const { mock } = makeRes();
+
+      await handlers.update(req, mock as unknown as Response, vi.fn());
+
+      expect(service.update).toHaveBeenCalledWith(3, { observacion: 'nota post-cierre' });
       expect(mock.json).toHaveBeenCalledWith({ success: true, data: updatedPasada });
     });
 

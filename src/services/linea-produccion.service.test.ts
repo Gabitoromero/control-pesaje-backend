@@ -207,6 +207,45 @@ describe('LineaProduccionService', () => {
 
       expect(mockEm.create.mock.calls[0][1].rutaAsignadaAt).toBeNull();
     });
+
+    it('persists observacion when provided', async () => {
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
+        if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
+        if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
+        return null;
+      });
+      mockEm.create.mockReturnValue({ id: 1 });
+      mockEm.flush.mockResolvedValue(undefined);
+
+      await service.create({
+        nombre: 'Linea 1',
+        idBalanza: 5,
+        articuloId: 6,
+        observacion: 'linea reservada para lote especial',
+      } as any);
+
+      expect(mockEm.create.mock.calls[0][1].observacion).toBe('linea reservada para lote especial');
+    });
+
+    it('stores observacion as null when omitted', async () => {
+      mockEm.findOne.mockImplementation(async (entity: any) => {
+        if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
+        if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
+        if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
+        return null;
+      });
+      mockEm.create.mockReturnValue({ id: 1 });
+      mockEm.flush.mockResolvedValue(undefined);
+
+      await service.create({
+        nombre: 'Linea 1',
+        idBalanza: 5,
+        articuloId: 6,
+      } as any);
+
+      expect(mockEm.create.mock.calls[0][1].observacion).toBeNull();
+    });
   });
 
   describe('update validations', () => {
@@ -257,6 +296,32 @@ describe('LineaProduccionService', () => {
       ).rejects.toThrow('No se puede cambiar la ruta mientras haya pasadas en curso en esta línea');
 
       expect(mockEm.count).toHaveBeenCalledOnce();
+    });
+
+    it('sets a new observacion value', async () => {
+      const entity: any = { id: 1, observacion: null };
+      mockEm.findOne.mockImplementation(async (target: any) => {
+        if (target === LineaProduccion || target.name === 'LineaProduccion') return entity;
+        return null;
+      });
+      mockEm.flush.mockResolvedValue(undefined);
+
+      const result = await service.update(1, { observacion: 'nota actualizada' } as any);
+
+      expect(result!.observacion).toBe('nota actualizada');
+    });
+
+    it('clears observacion when null is passed', async () => {
+      const entity: any = { id: 1, observacion: 'nota vieja' };
+      mockEm.findOne.mockImplementation(async (target: any) => {
+        if (target === LineaProduccion || target.name === 'LineaProduccion') return entity;
+        return null;
+      });
+      mockEm.flush.mockResolvedValue(undefined);
+
+      const result = await service.update(1, { observacion: null } as any);
+
+      expect(result!.observacion).toBeNull();
     });
   });
 

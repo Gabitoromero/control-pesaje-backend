@@ -139,6 +139,23 @@ describe('PasadaService Tests', () => {
       expect(pasada2.numero).toBe(2);
       expect(pasada2.estado).toBe(PasadaEstado.EN_CURSO);
     }));
+
+    it('should persist observacion when the 4th arg is passed', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(
+        testLine.id,
+        testBalanza.id,
+        testUser.id,
+        'lote nuevo de materia prima'
+      );
+      expect(pasada.observacion).toBe('lote nuevo de materia prima');
+    }));
+
+    it('should leave observacion as null when the 4th arg is omitted', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+      expect(pasada.observacion).toBeNull();
+    }));
   });
 
   describe('Restrictions on Completed Records (Pasada Only)', () => {
@@ -168,6 +185,41 @@ describe('PasadaService Tests', () => {
         .rejects.toThrow('No se puede actualizar una pasada completada o abortada');
       await expect(pasadaService.softDelete(pasada.id))
         .rejects.toThrow('No se puede eliminar una pasada completada o abortada');
+    }));
+
+    it('should allow updating observacion on a completed pasada', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+
+      await pasadaService.completarPasada(pasada.id);
+
+      const updated = await pasadaService.update(pasada.id, { observacion: 'nota post-cierre' });
+      expect(updated!.observacion).toBe('nota post-cierre');
+    }));
+
+    it('should allow updating observacion on an aborted pasada', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+
+      await pasadaService.abortarPasada(pasada.id, 'Motivo de prueba');
+
+      const updated = await pasadaService.update(pasada.id, { observacion: 'nota post-aborto' });
+      expect(updated!.observacion).toBe('nota post-aborto');
+    }));
+
+    it('should reject a mixed payload with observacion and another field on a closed pasada, persisting neither', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+
+      await pasadaService.completarPasada(pasada.id);
+
+      await expect(
+        pasadaService.update(pasada.id, { observacion: 'nota mixta', numero: 42 })
+      ).rejects.toThrow('No se puede actualizar una pasada completada o abortada');
+
+      const reloaded = await pasadaService.findById(pasada.id);
+      expect(reloaded!.observacion ?? null).toBeNull();
+      expect(reloaded!.numero).toBe(pasada.numero);
     }));
   });
 });

@@ -134,5 +134,116 @@ describe('Reporte Controller', () => {
       const rowPasada = pasadasSheet!.getRow(2).values as any[];
       expect(rowPasada).toContain('Balanza 1');
     });
+
+    it('debe incluir la columna Observación de inicio justo después de N° Pasada, distinta de Observación Cierre', async () => {
+      const { reporteService: realReporteService } = await vi.importActual<typeof import('../services/reporte.service.js')>('../services/reporte.service.js');
+
+      const emMock = {
+        find: vi.fn().mockImplementation((entityClass: any) => {
+          if (entityClass.name === 'Muestra') {
+            return Promise.resolve([]);
+          }
+          if (entityClass.name === 'Pasada') {
+            return Promise.resolve([{
+              id: 1,
+              lineaProduccion: { id: 1, nombre: 'Linea 1' },
+              rutaPasada: { nombre: 'Ruta 1' },
+              balanza: { nombre: 'Balanza 1' },
+              numero: 'P-001',
+              articulo: { codigo: 'A-001', nombre: 'Articulo 1' },
+              estado: 'EN CURSO',
+              horaInicio: new Date('2023-01-01T09:00:00Z'),
+              horaCierre: new Date('2023-01-01T11:00:00Z'),
+              usuario: { nombreApellido: 'Juan Perez' },
+              motivoCierre: '',
+              observacionCierre: 'nota cierre',
+              observacion: 'nota inicio'
+            }]);
+          }
+          return Promise.resolve([]);
+        })
+      };
+
+      const workbook = await realReporteService.generateReportePasadasMuestras(emMock as any, new Date(), new Date());
+      const pasadasSheet = workbook.getWorksheet('Pasadas - Linea 1');
+
+      const headersPasadas = pasadasSheet!.getRow(1).values as string[];
+      // values[0] is undefined (1-indexed); position 5 = right after N° Pasada (position 4)
+      expect(headersPasadas[4]).toBe('N° Pasada');
+      expect(headersPasadas[5]).toBe('Observación');
+      expect(headersPasadas[headersPasadas.length - 1]).toBe('Observación Cierre');
+
+      const rowPasada = pasadasSheet!.getRow(2).values as any[];
+      expect(rowPasada[5]).toBe('nota inicio');
+      expect(rowPasada[rowPasada.length - 1]).toBe('nota cierre');
+    });
+
+    it('debe mostrar "-" en la columna Observación cuando la pasada no tiene observacion', async () => {
+      const { reporteService: realReporteService } = await vi.importActual<typeof import('../services/reporte.service.js')>('../services/reporte.service.js');
+
+      const emMock = {
+        find: vi.fn().mockImplementation((entityClass: any) => {
+          if (entityClass.name === 'Muestra') {
+            return Promise.resolve([]);
+          }
+          if (entityClass.name === 'Pasada') {
+            return Promise.resolve([{
+              id: 1,
+              lineaProduccion: { id: 1, nombre: 'Linea 1' },
+              rutaPasada: { nombre: 'Ruta 1' },
+              balanza: { nombre: 'Balanza 1' },
+              numero: 'P-001',
+              articulo: { codigo: 'A-001', nombre: 'Articulo 1' },
+              estado: 'EN CURSO',
+              horaInicio: new Date('2023-01-01T09:00:00Z'),
+              horaCierre: new Date('2023-01-01T11:00:00Z'),
+              usuario: { nombreApellido: 'Juan Perez' },
+              motivoCierre: '',
+              observacionCierre: '',
+              observacion: null
+            }]);
+          }
+          return Promise.resolve([]);
+        })
+      };
+
+      const workbook = await realReporteService.generateReportePasadasMuestras(emMock as any, new Date(), new Date());
+      const pasadasSheet = workbook.getWorksheet('Pasadas - Linea 1');
+      const rowPasada = pasadasSheet!.getRow(2).values as any[];
+      expect(rowPasada[5]).toBe('-');
+    });
+
+    it('no debe referenciar LineaProduccion.observacion en ninguna hoja', async () => {
+      const { reporteService: realReporteService } = await vi.importActual<typeof import('../services/reporte.service.js')>('../services/reporte.service.js');
+
+      const emMock = {
+        find: vi.fn().mockImplementation((entityClass: any) => {
+          if (entityClass.name === 'Muestra') return Promise.resolve([]);
+          if (entityClass.name === 'Pasada') {
+            return Promise.resolve([{
+              id: 1,
+              lineaProduccion: { id: 1, nombre: 'Linea 1', observacion: 'nota de linea que no debe aparecer' },
+              rutaPasada: { nombre: 'Ruta 1' },
+              balanza: { nombre: 'Balanza 1' },
+              numero: 'P-001',
+              articulo: { codigo: 'A-001', nombre: 'Articulo 1' },
+              estado: 'EN CURSO',
+              horaInicio: new Date('2023-01-01T09:00:00Z'),
+              horaCierre: new Date('2023-01-01T11:00:00Z'),
+              usuario: { nombreApellido: 'Juan Perez' },
+              motivoCierre: '',
+              observacionCierre: '',
+              observacion: null
+            }]);
+          }
+          return Promise.resolve([]);
+        })
+      };
+
+      const workbook = await realReporteService.generateReportePasadasMuestras(emMock as any, new Date(), new Date());
+      const pasadasSheet = workbook.getWorksheet('Pasadas - Linea 1');
+      const rowPasada = pasadasSheet!.getRow(2).values as any[];
+      expect(rowPasada).not.toContain('nota de linea que no debe aparecer');
+    });
   });
 });

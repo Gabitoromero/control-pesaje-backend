@@ -25,7 +25,8 @@ export class PasadaService extends BaseService<Pasada> {
   async iniciarPasada(
     lineaProduccionId: number,
     idBalanza: number,
-    usuarioId: number
+    usuarioId: number,
+    observacion?: string
   ): Promise<Pasada> {
     const em = this.getEm();
 
@@ -101,6 +102,7 @@ export class PasadaService extends BaseService<Pasada> {
       pasada.estado = PasadaEstado.EN_CURSO;
       pasada.horaInicio = new Date();
       pasada.activo = true;
+      pasada.observacion = observacion ?? null;
 
       txEm.persist(pasada);
       await txEm.flush();
@@ -172,12 +174,23 @@ export class PasadaService extends BaseService<Pasada> {
     });
   }
 
+  // Fields that stay editable after the pasada is closed (completa/abortada).
+  private static readonly CAMPOS_EDITABLES_TRAS_CIERRE: readonly string[] = ['observacion'];
+
   override async update(id: number, data: Partial<Pasada>): Promise<Pasada | null> {
     const pasada = await this.findById(id);
     if (!pasada) return null;
 
-    if (pasada.estado === PasadaEstado.COMPLETA || pasada.estado === PasadaEstado.ABORTADA) {
-      throw new Error('No se puede actualizar una pasada completada o abortada');
+    const cerrada =
+      pasada.estado === PasadaEstado.COMPLETA || pasada.estado === PasadaEstado.ABORTADA;
+
+    if (cerrada) {
+      const keys = Object.keys(data);
+      const soloCamposPermitidos =
+        keys.length > 0 && keys.every((k) => PasadaService.CAMPOS_EDITABLES_TRAS_CIERRE.includes(k));
+      if (!soloCamposPermitidos) {
+        throw new Error('No se puede actualizar una pasada completada o abortada');
+      }
     }
 
     return super.update(id, data);

@@ -41,6 +41,7 @@ function toLineaDto(linea: LineaProduccion) {
     dispositivo: toDispositivoDto(linea.dispositivo),
     idBalanza: linea.balanza?.id,
     articuloId: linea.articulo?.id,
+    observacion: linea.observacion ?? null,
   };
 }
 
@@ -130,6 +131,7 @@ export function createLineaProduccionHandlers(
         nombre: linea.nombre,
         rutaPasadaActiva: linea.rutaPasadaActiva,
         activo: linea.activo,
+        observacion: linea.observacion ?? null,
         dispositivo: toDispositivoDto(dispositivo),
       };
 

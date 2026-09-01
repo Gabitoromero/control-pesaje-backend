@@ -6,6 +6,7 @@ Este archivo es la fuente de verdad para el desarrollo del backend de **Control 
 - **Lenguaje:** Node.js con TypeScript.
 - **Base de Datos:** PostgreSQL.
 - **ORM:** MikroORM.
+- **Import de decoradores en entidades:** `@mikro-orm/decorators/legacy` (NO `@mikro-orm/core`). Es la convención deliberada y establecida en 11 de las 12 entidades del proyecto — no es un desvío puntual ni deuda técnica. `RutaPasada.ts` es la única excepción histórica y no debe tomarse como referencia.
 - **Patrón:** MVC (Model-View-Controller).
   - **Models:** Entidades de MikroORM y acceso a datos.
   - **Controllers:** Orquestación de la lógica de negocio y respuesta HTTP.
