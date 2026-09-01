@@ -161,6 +161,7 @@ export interface Pasada {
   numero?: number;
   motivoCierre?: string;
   observacionCierre?: string;
+  observacion?: string | null;
   idBalanza?: number;
   // Nested relations the backend populates on eager load
   articulo?: ArticuloDetalle;
