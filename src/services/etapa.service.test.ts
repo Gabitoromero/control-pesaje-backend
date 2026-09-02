@@ -54,7 +54,7 @@ describe('EtapaService.softDelete', () => {
     // 1 pivot record exists (for an active route)
     mockEm.count.mockResolvedValue(1);
 
-    await expect(service.softDelete(etapaId)).rejects.toThrow(/Cannot delete etapa/);
+    await expect(service.softDelete(etapaId)).rejects.toThrow(/está en uso en/);
 
     // Guard must count WITHOUT filtering by activo
     expect(mockEm.count).toHaveBeenCalledOnce();
@@ -68,7 +68,7 @@ describe('EtapaService.softDelete', () => {
     // 1 pivot record exists even though the route is inactive
     mockEm.count.mockResolvedValue(1);
 
-    await expect(service.softDelete(etapaId)).rejects.toThrow(/Cannot delete etapa/);
+    await expect(service.softDelete(etapaId)).rejects.toThrow(/está en uso en/);
 
     const [, where] = mockEm.count.mock.calls[0];
     expect(where).not.toHaveProperty('activo');

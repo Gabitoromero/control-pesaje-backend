@@ -18,7 +18,7 @@ export class ArticuloService extends BaseService<Articulo> {
     if (data.codigo && data.nombre !== undefined) {
       const existing = await em.findOne(Articulo, { codigo: data.codigo, nombre: data.nombre });
       if (existing) {
-        throw new ValidationError(`Articulo with codigo '${data.codigo}' and nombre '${data.nombre}' already exists`);
+        throw new ValidationError(`Ya existe un artículo con el código '${data.codigo}' y el nombre '${data.nombre}'`);
       }
     }
     return super.create(data);
@@ -35,7 +35,7 @@ export class ArticuloService extends BaseService<Articulo> {
         
         const existing = await em.findOne(Articulo, { codigo: codigoToCheck, nombre: nombreToCheck });
         if (existing && existing.id !== id) {
-          throw new ValidationError(`Articulo with codigo '${codigoToCheck}' and nombre '${nombreToCheck}' already exists`);
+          throw new ValidationError(`Ya existe un artículo con el código '${codigoToCheck}' y el nombre '${nombreToCheck}'`);
         }
       }
     }
@@ -53,7 +53,7 @@ export class ArticuloService extends BaseService<Articulo> {
     const pivotRefs = await em.count(ArticuloRutaPasada, { articulo: { id } });
     if (pivotRefs > 0) {
       throw new RestrictError(
-        `Cannot delete articulo ${id}: ${pivotRefs} ruta(s) reference it`,
+        `No se puede eliminar: este artículo está en uso en ${pivotRefs} ruta(s). Quitalo de esa(s) ruta(s) antes de eliminarlo.`,
       );
     }
 

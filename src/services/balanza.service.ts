@@ -36,14 +36,14 @@ export class BalanzaService extends BaseService<Balanza> {
     const lineaRefs = await em.count(LineaProduccion, { balanza: id });
     if (lineaRefs > 0) {
       throw new RestrictError(
-        `Cannot delete balanza ${id}: ${lineaRefs} linea(s) reference it`
+        `No se puede eliminar: esta balanza está asignada a ${lineaRefs} línea(s) de producción. Reasigná esa(s) línea(s) a otra balanza antes de eliminarla.`
       );
     }
 
     const pasadaRefs = await em.count(Pasada, { balanza: id });
     if (pasadaRefs > 0) {
       throw new RestrictError(
-        `Cannot delete balanza ${id}: ${pasadaRefs} pasada(s) reference it`
+        `No se puede eliminar: esta balanza tiene ${pasadaRefs} pasada(s) registradas. Las balanzas usadas en pasadas se conservan para no perder el historial.`
       );
     }
 

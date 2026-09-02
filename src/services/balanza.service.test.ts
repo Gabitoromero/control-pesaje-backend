@@ -46,13 +46,13 @@ describe('BalanzaService', () => {
   describe('softDelete', () => {
     it('throws RestrictError when balanza is referenced by a LineaProduccion', async () => {
       mockEm.count.mockResolvedValueOnce(1); // lineas
-      await expect(service.softDelete(1)).rejects.toThrow(/Cannot delete balanza 1: 1 linea/);
+      await expect(service.softDelete(1)).rejects.toThrow(/asignada a 1 línea/);
     });
 
     it('throws RestrictError when balanza is referenced by a Pasada', async () => {
       mockEm.count.mockResolvedValueOnce(0); // lineas
       mockEm.count.mockResolvedValueOnce(1); // pasadas
-      await expect(service.softDelete(1)).rejects.toThrow(/Cannot delete balanza 1: 1 pasada/);
+      await expect(service.softDelete(1)).rejects.toThrow(/tiene 1 pasada/);
     });
 
     it('succeeds when no records reference the balanza', async () => {

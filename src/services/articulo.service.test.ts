@@ -38,7 +38,7 @@ describe('ArticuloService.create validations', () => {
         codigo: 'A1',
         nombre: 'M1',
       } as any)
-    ).rejects.toThrow(/already exists/);
+    ).rejects.toThrow(/Ya existe un artículo/);
   });
 });
 
@@ -59,7 +59,7 @@ describe('ArticuloService.update validations', () => {
       service.update(1, {
         codigo: 'A1',
       } as any)
-    ).rejects.toThrow(/already exists/);
+    ).rejects.toThrow(/Ya existe un artículo/);
   });
 });
 
@@ -76,7 +76,7 @@ describe('ArticuloService.softDelete', () => {
     // 1 pivot record exists (for an active route)
     mockEm.count.mockResolvedValue(1);
 
-    await expect(service.softDelete(articuloId)).rejects.toThrow(/Cannot delete articulo/);
+    await expect(service.softDelete(articuloId)).rejects.toThrow(/está en uso en/);
 
     // Guard must count WITHOUT filtering by activo
     expect(mockEm.count).toHaveBeenCalledOnce();
@@ -90,7 +90,7 @@ describe('ArticuloService.softDelete', () => {
     // 1 pivot record exists even though the route is inactive
     mockEm.count.mockResolvedValue(1);
 
-    await expect(service.softDelete(articuloId)).rejects.toThrow(/Cannot delete articulo/);
+    await expect(service.softDelete(articuloId)).rejects.toThrow(/está en uso en/);
 
     const [, where] = mockEm.count.mock.calls[0];
     expect(where).not.toHaveProperty('activo');

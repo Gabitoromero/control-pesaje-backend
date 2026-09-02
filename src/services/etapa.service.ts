@@ -39,7 +39,7 @@ export class EtapaService extends BaseService<Etapa> {
     const pivotRefs = await em.count(RutaPasadaEtapa, { etapa: { id } });
     if (pivotRefs > 0) {
       throw new RestrictError(
-        `Cannot delete etapa ${id}: ${pivotRefs} ruta(s) reference it`,
+        `No se puede eliminar: esta etapa está en uso en ${pivotRefs} ruta(s). Quitala de esa(s) ruta(s) antes de eliminarla.`,
       );
     }
 
