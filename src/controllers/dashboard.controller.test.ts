@@ -91,6 +91,21 @@ describe('dashboard.controller', () => {
         expect.objectContaining({ populate: expect.arrayContaining(['rutaPasadaActiva', 'dispositivo']) })
       );
     });
+
+    it('includes the observacion field, defaulting to null when unset', async () => {
+      const req = {} as Request;
+      const { captured, mock: res } = makeRes();
+
+      mockEm.find.mockResolvedValue([
+        { id: 1, nombre: 'Linea 1', observacion: 'Cuidado con el sensor de peso' },
+        { id: 2, nombre: 'Linea 2' },
+      ]);
+
+      await getLineas(req, res, vi.fn());
+
+      expect((captured.body as any).data[0].observacion).toBe('Cuidado con el sensor de peso');
+      expect((captured.body as any).data[1].observacion).toBeNull();
+    });
   });
 
   describe('getResumen', () => {

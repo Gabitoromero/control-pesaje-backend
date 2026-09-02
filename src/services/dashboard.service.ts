@@ -13,6 +13,7 @@ export interface LineaDto {
   rutaPasadaActiva: { id: number; nombre: string } | null;
   rutaAsignadaAt: Date | null;
   dispositivo: { id: string } | null;
+  observacion: string | null;
 }
 
 export interface PasadaEnCursoDto {
@@ -74,6 +75,7 @@ export const dashboardService = {
         : null,
       rutaAsignadaAt: l.rutaAsignadaAt || null,
       dispositivo: l.dispositivo ? { id: l.dispositivo.hardwareId } : null,
+      observacion: l.observacion ?? null,
     }));
   },
 
