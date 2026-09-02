@@ -103,7 +103,7 @@ describe('Domain Entities Integration Tests', () => {
     });
   });
 
-  it('should enforce decimal precision (8,3) and rounding on RutaPasadaEtapa', async () => {
+  it('should enforce decimal precision (8,4) and rounding on RutaPasadaEtapa', async () => {
     const em = orm.em.fork();
 
     // Create required relations
@@ -120,10 +120,10 @@ describe('Domain Entities Integration Tests', () => {
     rutaEtapa.rutaPasada = rutaPasada;
     rutaEtapa.etapa = etapa;
     rutaEtapa.orden = 1;
-    // Set 4 decimal places to verify DB-level rounding
-    rutaEtapa.pesoIdeal = 12.3456;
-    rutaEtapa.pesoMinimo = 10.1111;
-    rutaEtapa.pesoMaximo = 15.9999;
+    // Set 5 decimal places to verify DB-level rounding to the column's 4-decimal precision
+    rutaEtapa.pesoIdeal = 12.34562;
+    rutaEtapa.pesoMinimo = 10.11116;
+    rutaEtapa.pesoMaximo = 15.99996;
     rutaEtapa.cantidadMuestrasRequeridas = 5;
 
     await em.persist(rutaEtapa).flush();
@@ -136,12 +136,12 @@ describe('Domain Entities Integration Tests', () => {
     });
 
     expect(retrieved).not.toBeNull();
-    // Serialized weights should be rounded to 3 decimal places
+    // Serialized weights should be rounded to 4 decimal places
     const serialized = wrap(retrieved!).toJSON();
 
-    expect(serialized.pesoIdeal).toBe(12.346);
-    expect(serialized.pesoMinimo).toBe(10.111);
-    expect(serialized.pesoMaximo).toBe(16.000);
+    expect(serialized.pesoIdeal).toBe(12.3456);
+    expect(serialized.pesoMinimo).toBe(10.1112);
+    expect(serialized.pesoMaximo).toBe(16.0000);
   });
 
   it('should create and retrieve a Pasada and Muestra with decimal rounding on pesoNeto', async () => {
@@ -195,7 +195,7 @@ describe('Domain Entities Integration Tests', () => {
     muestra.rutaPasada = rutaPasada;
     muestra.etapa = etapa;
     muestra.lineaProduccion = linea;
-    muestra.pesoNeto = 85.1236; // 4 decimals, should round to 85.124
+    muestra.pesoNeto = 85.12356; // 5 decimals, should round to 85.1236
     muestra.pesoIdeal = 85.000;
     muestra.pesoMinimo = 80.000;
     muestra.pesoMaximo = 90.000;
@@ -219,7 +219,7 @@ describe('Domain Entities Integration Tests', () => {
     expect(retrievedMuestra!.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
 
     const serialized = wrap(retrievedMuestra!).toJSON();
-    expect(serialized.pesoNeto).toBe(85.124);
+    expect(serialized.pesoNeto).toBe(85.1236);
   });
 
   it('should support a nullable string nombre on Articulo', async () => {
