@@ -88,7 +88,7 @@ export class MuestraService {
           const count = await em.count(Muestra, {
             pasada: pasadaId,
             etapa: r.etapa.id,
-            estadoValidacion: MuestraEstadoValidacion.OK,
+            estadoValidacion: { $in: [MuestraEstadoValidacion.OK, MuestraEstadoValidacion.FUERA_DE_RANGO] },
           });
           if (count < r.cantidadMuestrasRequeridas) {
             throw new Error(`Preceding stage '${r.etapa.id}' is not complete (progress: ${count}/${r.cantidadMuestrasRequeridas})`);

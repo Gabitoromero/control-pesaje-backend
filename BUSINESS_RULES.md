@@ -44,7 +44,7 @@ Toda la lógica de negocio del sistema está definida aquí. Antes de implementa
 
 **RN-13** — El sistema guía al operario de forma secuencial por las etapas de la ruta de pasada. **No se permite saltar etapas pendientes.**
 
-**RN-14** — Si se registran muestras fuera de rango (por debajo del mínimo o por encima del máximo), se solicitarán más muestras hasta cumplir con la cantidad de muestras **con valores aceptables** que corresponden a la etapa.
+**RN-14** — El mínimo de muestras configurado para una etapa (`cantidadMuestrasRequeridas`) se cumple con **cualquier muestra registrada** en esa etapa, sin importar si su estado de validación es `OK` o `FUERA_DE_RANGO`. Una muestra fuera de rango queda registrada como tal (no se descarta ni se pide reemplazo), y cuenta igual que una `OK` para habilitar el avance a la siguiente etapa de la ruta.
 
 ---
 

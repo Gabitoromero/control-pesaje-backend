@@ -238,27 +238,8 @@ describe('PasadaService and MuestraService Integration Tests', () => {
         pasada.id
       );
 
-      // Preceding stage check should still see Etapa 1 as incomplete (progress: 1/2)
-      await expect(
-        muestraService.registrarMuestra(
-          testUser.id,
-          testEtapa2.id,
-          testLine.id,
-          70.000,
-          pasada.id
-        )
-      ).rejects.toThrow(`Preceding stage '${testEtapa1.id}' is not complete`);
-
-      // Register 2nd OK sample for Etapa 1 -> Etapa 1 is complete!
-      await muestraService.registrarMuestra(
-        testUser.id,
-        testEtapa1.id,
-        testLine.id,
-        52.000,
-        pasada.id
-      );
-
-      // Now Etapa 2 sample should be accepted
+      // Preceding stage check should now see Etapa 1 as complete: OK + FUERA_DE_RANGO
+      // both count toward the required sample quota (progress: 2/2)
       const mEtapa2 = await muestraService.registrarMuestra(
         testUser.id,
         testEtapa2.id,
@@ -277,6 +258,37 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       // The in-memory session should still hold the active pasadaId
       const session = sesionService.obtenerSesion(testLine.id);
       expect(session!.pasadaId).toBe(pasada.id);
+    }));
+
+    it('should allow advancing to the next stage when 100% of samples are FUERA_DE_RANGO', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+
+      // Register two out-of-range samples for Etapa 1 (requires 2 samples, none OK)
+      await muestraService.registrarMuestra(
+        testUser.id,
+        testEtapa1.id,
+        testLine.id,
+        60.000, // fuera de rango
+        pasada.id
+      );
+      await muestraService.registrarMuestra(
+        testUser.id,
+        testEtapa1.id,
+        testLine.id,
+        42.000, // fuera de rango
+        pasada.id
+      );
+
+      // Etapa 1 quota is met purely with FUERA_DE_RANGO samples, so Etapa 2 is accepted
+      const mEtapa2 = await muestraService.registrarMuestra(
+        testUser.id,
+        testEtapa2.id,
+        testLine.id,
+        72.000, // OK sample for Etapa 2 [65, 75]
+        pasada.id
+      );
+      expect(mEtapa2.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
     }));
 
     it('T-15: registrarMuestra throws when user does not have puedeTomarMuestrasLibres', () => runInContext(async () => {
