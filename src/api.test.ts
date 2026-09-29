@@ -729,7 +729,7 @@ describe('Phase 3 - Rutas Pasadas Integration', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
-    expect(res.body.error.message).toMatch(/Cannot delete etapa/);
+    expect(res.body.error.message).toMatch(/No se puede eliminar: esta etapa está en uso/);
   });
 });
 
