@@ -9,6 +9,7 @@ import { ArticuloRutaPasada } from './models/ArticuloRutaPasada.js';
 import { RutaPasadaEtapa } from './models/RutaPasadaEtapa.js';
 import { Dispositivo } from './models/Dispositivo.js';
 import { Balanza } from './models/Balanza.js';
+import { ConfigSistema, CONFIG_SISTEMA_ID } from './models/ConfigSistema.js';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 
@@ -409,6 +410,15 @@ async function run() {
       nombre: 'Pi-3',
       lineaProduccion: undefined,
       ultimaConexionAt: null,
+    });
+
+    // 10. Create global config singleton (tolerance 20%, no updater yet)
+    console.log('[seed]: Creating config sistema...');
+    em.create(ConfigSistema, {
+      id: CONFIG_SISTEMA_ID,
+      toleranciaPct: 20,
+      updatedAt: new Date(),
+      updatedByUsuario: null,
     });
 
     console.log('[seed]: Persisting seed to database...');

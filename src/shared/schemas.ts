@@ -166,3 +166,13 @@ export const MuestraUpdateSchema = z.object({
   pesoNeto: z.number().positive().optional(),
   observacion: z.string().min(1).nullable().optional(),
 });
+
+// ─── Tolerancia (config global) ───────────────────────────────────────────────
+
+// The max is a technical storage bound for the decimal(8,2) column, NOT a
+// business cap: SC-001 product decision is that the backend imposes no upper
+// limit on tolerance (the 0-50 range is enforced by the UI only). Without it,
+// an overflowing value would surface as a DB error (500) instead of a 400.
+export const ToleranciaConfigUpdateSchema = z.object({
+  toleranciaPct: z.number().min(0).max(999999.99),
+});

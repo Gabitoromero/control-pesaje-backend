@@ -14,6 +14,7 @@ import dispositivosRoutes from './dispositivos.routes.js';
 
 import dashboardRoutes from './dashboard.routes.js';
 import reportesRoutes from './reportes.routes.js';
+import configuracionRoutes from './configuracion.routes.js';
 
 const router: Router = Router();
 
@@ -31,5 +32,6 @@ router.use('/muestras', muestrasRoutes);
 router.use('/dispositivos', dispositivosRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reportes', reportesRoutes);
+router.use('/configuracion', configuracionRoutes);
 
 export default router;

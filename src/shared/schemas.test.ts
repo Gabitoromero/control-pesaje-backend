@@ -14,6 +14,7 @@ import {
   MuestraRegistrarSchema,
   MuestraUpdateSchema,
   UsuarioCreateSchema,
+  ToleranciaConfigUpdateSchema,
 } from './schemas.js';
 import { UsuarioRol } from './types.js';
 
@@ -504,5 +505,28 @@ describe('RutaPasadaEtapaCreateSchema', () => {
       cantidadMuestrasRequeridas: 5,
     });
     expect(parsed.rutaPasada).toBe(1);
+  });
+});
+
+describe('ToleranciaConfigUpdateSchema', () => {
+  it.each([0, 20, 12.5, 75, 500])('accepts %s', (value) => {
+    const parsed = ToleranciaConfigUpdateSchema.parse({ toleranciaPct: value });
+    expect(parsed.toleranciaPct).toBe(value);
+  });
+
+  it.each([
+    ['negative', -1],
+    ['numeric string', '20'],
+    ['null', null],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['above the decimal(8,2) storage bound', 1e7],
+  ])('rejects %s', (_label, value) => {
+    const result = ToleranciaConfigUpdateSchema.safeParse({ toleranciaPct: value });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a missing field', () => {
+    expect(ToleranciaConfigUpdateSchema.safeParse({}).success).toBe(false);
   });
 });

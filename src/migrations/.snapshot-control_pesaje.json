@@ -315,6 +315,109 @@
       "comment": null
     },
     {
+      "name": "config_sistema",
+      "schema": "public",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "1",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "tolerancia_pct": {
+          "name": "tolerancia_pct",
+          "type": "numeric(8,2)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": 8,
+          "scale": 2,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "decimal"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "updated_by_usuario_id": {
+          "name": "updated_by_usuario_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "config_sistema_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {
+        "config_sistema_updated_by_usuario_id_foreign": {
+          "columnNames": [
+            "updated_by_usuario_id"
+          ],
+          "constraintName": "config_sistema_updated_by_usuario_id_foreign",
+          "localTableName": "public.config_sistema",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.usuario",
+          "deleteRule": "restrict"
+        }
+      },
+      "comment": null
+    },
+    {
       "name": "dispositivo",
       "schema": "public",
       "columns": {
@@ -780,7 +883,7 @@
             "ok",
             "fuera_de_rango"
           ],
-          "mappedType": "unknown",
+          "mappedType": "enum",
           "nativeEnumName": "muestra_estado_validacion_enum"
         },
         "etapa_id": {
@@ -1140,7 +1243,7 @@
             "completa",
             "abortada"
           ],
-          "mappedType": "unknown",
+          "mappedType": "enum",
           "nativeEnumName": "pasada_estado_enum"
         },
         "hora_cierre": {
@@ -1863,7 +1966,7 @@
             "visualizacion",
             "administrador"
           ],
-          "mappedType": "unknown",
+          "mappedType": "enum",
           "nativeEnumName": "usuario_rol_enum"
         }
       },
