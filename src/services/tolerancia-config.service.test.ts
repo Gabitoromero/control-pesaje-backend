@@ -7,7 +7,7 @@ import { Usuario } from '../models/Usuario.js';
 
 const mockEm = {
   findOne: vi.fn(),
-  create: vi.fn(),
+  upsert: vi.fn(),
   getReference: vi.fn(),
   flush: vi.fn(),
   populate: vi.fn(),
@@ -97,25 +97,28 @@ describe('toleranciaConfigService.get', () => {
 });
 
 describe('toleranciaConfigService.update', () => {
-  it('updates pct, updatedAt and updatedByUsuario, flushes and returns the DTO', async () => {
+  it('atomically upserts id=1 with pct, updatedAt and updatedByUsuario and returns the DTO', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-29T12:00:00Z'));
     const row = {
       id: 1,
-      toleranciaPct: 20,
-      updatedAt: new Date('2026-01-01T00:00:00Z'),
-      updatedByUsuario: null as unknown,
+      toleranciaPct: 25,
+      updatedAt: new Date('2026-09-29T12:00:00Z'),
+      updatedByUsuario: ana as unknown,
     };
-    mockEm.findOne.mockResolvedValue(row);
     mockEm.getReference.mockReturnValue(ana);
+    mockEm.upsert.mockResolvedValue(row);
 
     const dto = await toleranciaConfigService.update(em, { toleranciaPct: 25, usuarioId: 7 });
 
     expect(mockEm.getReference).toHaveBeenCalledWith(Usuario, 7);
-    expect(row.toleranciaPct).toBe(25);
-    expect(row.updatedAt).toEqual(new Date('2026-09-29T12:00:00Z'));
-    expect(row.updatedByUsuario).toBe(ana);
-    expect(mockEm.flush).toHaveBeenCalledTimes(1);
+    expect(mockEm.upsert).toHaveBeenCalledTimes(1);
+    expect(mockEm.upsert).toHaveBeenCalledWith(ConfigSistema, {
+      id: CONFIG_SISTEMA_ID,
+      toleranciaPct: 25,
+      updatedAt: new Date('2026-09-29T12:00:00Z'),
+      updatedByUsuario: ana,
+    });
     // getReference returns an uninitialized proxy: it must be loaded to build the DTO.
     expect(mockEm.populate).toHaveBeenCalledWith(row, ['updatedByUsuario']);
     expect(dto).toEqual({
@@ -125,46 +128,33 @@ describe('toleranciaConfigService.update', () => {
     });
   });
 
-  it('overwrites a previous updater (last write wins)', async () => {
-    const row = {
+  it('does not do a find-then-create (race-free)', async () => {
+    mockEm.getReference.mockReturnValue(ana);
+    mockEm.upsert.mockResolvedValue({
       id: 1,
-      toleranciaPct: 25,
-      updatedAt: new Date('2026-09-01T00:00:00Z'),
+      toleranciaPct: 30,
+      updatedAt: new Date(),
       updatedByUsuario: ana,
-    };
+    });
+
+    await toleranciaConfigService.update(em, { toleranciaPct: 30, usuarioId: 7 });
+
+    expect(mockEm.findOne).not.toHaveBeenCalled();
+  });
+
+  it('reflects the last writer (last write wins)', async () => {
     const beto = { id: 9, nombreUsuario: 'beto', nombreApellido: 'Beto Gomez' };
-    mockEm.findOne.mockResolvedValue(row);
     mockEm.getReference.mockReturnValue(beto);
+    mockEm.upsert.mockResolvedValue({
+      id: 1,
+      toleranciaPct: 0,
+      updatedAt: new Date('2026-09-29T12:00:00Z'),
+      updatedByUsuario: beto,
+    });
 
     const dto = await toleranciaConfigService.update(em, { toleranciaPct: 0, usuarioId: 9 });
 
     expect(dto.toleranciaPct).toBe(0);
     expect(dto.updatedBy).toEqual({ id: 9, nombreUsuario: 'beto', nombreApellido: 'Beto Gomez' });
-  });
-
-  it('creates the row with id=1 when it is missing (upsert, D7)', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-29T12:00:00Z'));
-    mockEm.findOne.mockResolvedValue(null);
-    mockEm.getReference.mockReturnValue(ana);
-    const created = {
-      id: 1,
-      toleranciaPct: 30,
-      updatedAt: new Date('2026-09-29T12:00:00Z'),
-      updatedByUsuario: ana,
-    };
-    mockEm.create.mockReturnValue(created);
-
-    const dto = await toleranciaConfigService.update(em, { toleranciaPct: 30, usuarioId: 7 });
-
-    expect(mockEm.create).toHaveBeenCalledWith(ConfigSistema, {
-      id: CONFIG_SISTEMA_ID,
-      toleranciaPct: 30,
-      updatedAt: new Date('2026-09-29T12:00:00Z'),
-      updatedByUsuario: ana,
-    });
-    expect(mockEm.flush).toHaveBeenCalledTimes(1);
-    expect(dto.toleranciaPct).toBe(30);
-    expect(dto.updatedBy?.id).toBe(7);
   });
 });

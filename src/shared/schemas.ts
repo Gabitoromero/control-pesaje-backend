@@ -173,6 +173,14 @@ export const MuestraUpdateSchema = z.object({
 // business cap: SC-001 product decision is that the backend imposes no upper
 // limit on tolerance (the 0-50 range is enforced by the UI only). Without it,
 // an overflowing value would surface as a DB error (500) instead of a 400.
+// At most 2 decimals: decimal(8,2) would otherwise round silently and the
+// PUT response would differ from a later GET. Float-safe check (no `% 0.01`).
 export const ToleranciaConfigUpdateSchema = z.object({
-  toleranciaPct: z.number().min(0).max(999999.99),
+  toleranciaPct: z
+    .number()
+    .min(0)
+    .max(999999.99)
+    .refine((v) => Math.round(v * 100) / 100 === v, {
+      message: 'toleranciaPct must have at most 2 decimal places',
+    }),
 });

@@ -33,31 +33,22 @@ export const toleranciaConfigService = {
     return row ? toDto(row) : null;
   },
 
-  /** Upserts the singleton row (id = 1) and records who changed it and when. */
+  /** Atomically upserts the singleton row (id = 1) and records who changed it and when. */
   async update(
     em: EntityManager,
     input: { toleranciaPct: number; usuarioId: number },
   ): Promise<ToleranciaConfigDto> {
     const updatedAt = new Date();
     const updatedByUsuario = em.getReference(Usuario, input.usuarioId);
-    const existing = await em.findOne(ConfigSistema, { id: CONFIG_SISTEMA_ID });
+    // Single INSERT ... ON CONFLICT (id) DO UPDATE: atomic, so concurrent PUTs
+    // on a missing row cannot fail with a PK conflict (last write wins).
+    const row = await em.upsert(ConfigSistema, {
+      id: CONFIG_SISTEMA_ID,
+      toleranciaPct: input.toleranciaPct,
+      updatedAt,
+      updatedByUsuario,
+    });
 
-    let row: ConfigSistema;
-    if (existing) {
-      existing.toleranciaPct = input.toleranciaPct;
-      existing.updatedAt = updatedAt;
-      existing.updatedByUsuario = updatedByUsuario;
-      row = existing;
-    } else {
-      row = em.create(ConfigSistema, {
-        id: CONFIG_SISTEMA_ID,
-        toleranciaPct: input.toleranciaPct,
-        updatedAt,
-        updatedByUsuario,
-      });
-    }
-
-    await em.flush();
     // The reference is an uninitialized proxy; load it so the DTO has the user's name.
     await em.populate(row, ['updatedByUsuario']);
     return toDto(row);

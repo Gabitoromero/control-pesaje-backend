@@ -509,7 +509,7 @@ describe('RutaPasadaEtapaCreateSchema', () => {
 });
 
 describe('ToleranciaConfigUpdateSchema', () => {
-  it.each([0, 20, 12.5, 75, 500])('accepts %s', (value) => {
+  it.each([0, 20, 12.5, 12.35, 0.01, 1.1, 75, 500, 999999.99])('accepts %s', (value) => {
     const parsed = ToleranciaConfigUpdateSchema.parse({ toleranciaPct: value });
     expect(parsed.toleranciaPct).toBe(value);
   });
@@ -521,6 +521,8 @@ describe('ToleranciaConfigUpdateSchema', () => {
     ['NaN', Number.NaN],
     ['Infinity', Number.POSITIVE_INFINITY],
     ['above the decimal(8,2) storage bound', 1e7],
+    ['more than 2 decimals (12.345)', 12.345],
+    ['more than 2 decimals (0.001)', 0.001],
   ])('rejects %s', (_label, value) => {
     const result = ToleranciaConfigUpdateSchema.safeParse({ toleranciaPct: value });
     expect(result.success).toBe(false);

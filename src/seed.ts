@@ -414,7 +414,8 @@ async function run() {
 
     // 10. Create global config singleton (tolerance 20%, no updater yet)
     console.log('[seed]: Creating config sistema...');
-    em.create(ConfigSistema, {
+    // Upsert (not create): idempotent if the row already exists (e.g. inserted by the migration).
+    await em.upsert(ConfigSistema, {
       id: CONFIG_SISTEMA_ID,
       toleranciaPct: 20,
       updatedAt: new Date(),

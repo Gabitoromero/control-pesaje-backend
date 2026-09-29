@@ -46,7 +46,7 @@ let store: FakeRow | null;
 
 const mockEm = {
   findOne: vi.fn(),
-  create: vi.fn(),
+  upsert: vi.fn(),
   getReference: vi.fn(),
   populate: vi.fn(),
   flush: vi.fn(),
@@ -83,8 +83,9 @@ beforeEach(() => {
   mockEm.getReference.mockImplementation((_cls: unknown, id: number) => USERS[id] ?? { id });
   mockEm.populate.mockResolvedValue(undefined);
   mockEm.flush.mockResolvedValue(undefined);
-  mockEm.create.mockImplementation((_cls: unknown, data: FakeRow) => {
-    store = { ...data };
+  // Fake atomic upsert: creates or overwrites the singleton row.
+  mockEm.upsert.mockImplementation(async (_cls: unknown, data: FakeRow) => {
+    store = { ...(store ?? {}), ...data };
     return store;
   });
 });
@@ -169,6 +170,7 @@ describe('PUT /api/configuracion/tolerancia', () => {
     ['null', { toleranciaPct: null }],
     ['missing field', {}],
     ['above the storage bound', { toleranciaPct: 1e7 }],
+    ['more than 2 decimals', { toleranciaPct: 12.345 }],
   ])('returns 400 for %s with no mutation', async (_label, body) => {
     store = { id: 1, toleranciaPct: '25.00', updatedAt: T1, updatedByUsuario: USERS[7] };
 
@@ -183,7 +185,7 @@ describe('PUT /api/configuracion/tolerancia', () => {
     expect(store).toEqual({ id: 1, toleranciaPct: '25.00', updatedAt: T1, updatedByUsuario: USERS[7] });
   });
 
-  it.each([0, 12.5, 30, 500])(
+  it.each([0, 12.5, 12.35, 30, 500])(
     'returns 200 for ADMINISTRADOR with %s and binds updatedByUsuario to req.user.id',
     async (value) => {
       const res = await request(app)
@@ -200,7 +202,7 @@ describe('PUT /api/configuracion/tolerancia', () => {
         nombreApellido: 'Ana Perez',
       });
       expect(mockEm.getReference).toHaveBeenCalledWith(expect.anything(), 7);
-      expect(mockEm.flush).toHaveBeenCalledTimes(1);
+      expect(mockEm.upsert).toHaveBeenCalledTimes(1);
       expect(Number(store?.toleranciaPct)).toBe(value);
     },
   );
@@ -232,7 +234,7 @@ describe('PUT /api/configuracion/tolerancia', () => {
       .send({ toleranciaPct: 30 });
 
     expect(res.status).toBe(200);
-    expect(mockEm.create).toHaveBeenCalledWith(ConfigSistema, expect.objectContaining({ id: 1, toleranciaPct: 30 }));
+    expect(mockEm.upsert).toHaveBeenCalledWith(ConfigSistema, expect.objectContaining({ id: 1, toleranciaPct: 30 }));
     expect(res.body.data.toleranciaPct).toBe(30);
   });
 });
