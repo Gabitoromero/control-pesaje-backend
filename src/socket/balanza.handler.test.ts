@@ -455,6 +455,107 @@ describe('registerBalanzaHandlers', () => {
       );
     });
 
+    // ---- Optional frame unit (peso-unidad-en-trama) ----
+
+    describe('frame unidad', () => {
+      const setupDevice = (deviceUnidad: 'g' | 'kg' | undefined, hardwareId = 'hw-frame') => {
+        (socket.data as Record<string, unknown>).lineaId = 5;
+        (socket.data as Record<string, unknown>).isDevice = true;
+        (socket.data as Record<string, unknown>).hardwareId = hardwareId;
+        vi.mocked(deviceRegistryService.getUnidad).mockReturnValue(deviceUnidad);
+        registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+        return getHandler(socket, 'balanza-data');
+      };
+      const getEmit = () => (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
+
+      it.each(['g', 'kg'] as const)(
+        'converts 69.2 g to 0.0692 kg when the frame unit is g and the device unit is %s',
+        (deviceUnidad) => {
+          vi.spyOn(console, 'warn').mockImplementation(() => {});
+          const handler = setupDevice(deviceUnidad);
+
+          handler({ pesoNeto: 69.2, unidad: 'g' });
+
+          expect(getEmit()).toHaveBeenCalledWith('balanza-data', { pesoNeto: 0.0692 });
+        },
+      );
+
+      it('warns once with hardwareId, frame unit and device unit when units differ, and uses the frame unit', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const handler = setupDevice('kg', 'hw-mismatch');
+
+        handler({ pesoNeto: 220, unidad: 'g' });
+
+        expect(getEmit()).toHaveBeenCalledWith('balanza-data', { pesoNeto: 0.22 });
+        expect(warn).toHaveBeenCalledTimes(1);
+        const message = String(warn.mock.calls[0][0]);
+        expect(message).toContain('hw-mismatch');
+        expect(message).toContain('g');
+        expect(message).toContain('kg');
+      });
+
+      it('does not warn again for a second mismatching frame on the same socket', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const handler = setupDevice('kg');
+
+        handler({ pesoNeto: 220, unidad: 'g' });
+        handler({ pesoNeto: 230, unidad: 'g' });
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(getEmit()).toHaveBeenCalledTimes(2);
+      });
+
+      it('does not warn when the frame unit equals the device unit', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const handler = setupDevice('g');
+
+        handler({ pesoNeto: 220, unidad: 'g' });
+
+        expect(warn).not.toHaveBeenCalled();
+        expect(getEmit()).toHaveBeenCalledWith('balanza-data', { pesoNeto: 0.22 });
+      });
+
+      it('uses the device unit and does not warn when the frame has no unit', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const handler = setupDevice('g');
+
+        handler({ pesoNeto: 220 });
+
+        expect(warn).not.toHaveBeenCalled();
+        expect(getEmit()).toHaveBeenCalledWith('balanza-data', { pesoNeto: 0.22 });
+      });
+
+      it.each(['lb', 123, null])('rejects an invalid frame unit (%s) with an error and no broadcast', (bad) => {
+        const handler = setupDevice('kg');
+
+        handler({ pesoNeto: 10, unidad: bad });
+
+        expect(socket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.any(String) }));
+        expect(io.to).not.toHaveBeenCalled();
+      });
+
+      it('still rejects (fail-closed) when the device has no configured unit, even if the frame carries one', () => {
+        const handler = setupDevice(undefined, 'hw-no-unit-frame');
+
+        handler({ pesoNeto: 10, unidad: 'g' });
+
+        expect(io.to).not.toHaveBeenCalled();
+        expect(socket.emit).toHaveBeenCalledWith(
+          'error',
+          expect.objectContaining({ message: expect.stringContaining('hw-no-unit-frame') }),
+        );
+      });
+
+      it('broadcasts only pesoNeto, never the frame unit', () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const handler = setupDevice('kg');
+
+        handler({ pesoNeto: 5, unidad: 'g' });
+
+        expect(Object.keys(getEmit().mock.calls[0][1])).toEqual(['pesoNeto']);
+      });
+    });
+
     // ---- Live unidad correction / cache invalidation (sdd/unidad-medida-peso Part B) ----
     // Critical, non-parallel-safe: proves the correction takes effect on the very
     // next frame from the SAME socket, with NO disconnect/re-pair in between.

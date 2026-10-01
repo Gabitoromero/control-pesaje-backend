@@ -44,6 +44,8 @@ El sistema requiere comunicación bidireccional en tiempo real para:
 
 **Restricción importante:** Si no hay sesión activa de operario en una línea, el servidor descarta los datos que llegan de esa Raspberry. No se almacenan, no se procesan.
 
+**Evento `balanza-data` (Raspberry → Servidor):** payload `{ pesoNeto: number, unidad?: 'g' | 'kg' }`. El backend es el único punto de conversión a kg. Unidad efectiva = `unidad` de la trama (si viene y es válida) o, en su defecto, la `unidad` configurada del dispositivo. Un `unidad` inválido se rechaza con `error`. El dispositivo debe tener unidad configurada igualmente (fail-closed). Si ambas existen y difieren, se usa la de la trama y se emite un `console.warn` una sola vez por socket. Al tablet se retransmite solo `{ pesoNeto }` en kg.
+
 ---
 
 ## Autenticación (capa única, contrato v1.5)

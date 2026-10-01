@@ -5,14 +5,21 @@ import type { SesionService } from '../services/sesion.service.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 import { toKilogramos, isUnidadPeso } from '../shared/peso.js';
+import type { UnidadPeso } from '../shared/types/domain.js';
 
 /** Payload validation schemas for the balanza real-time channel. */
 const joinLineaSchema = z.number().int().positive();
-const balanzaDataSchema = z.object({ pesoNeto: z.number().finite() });
+const balanzaDataSchema = z.object({
+  pesoNeto: z.number().finite(),
+  // Optional unit declared by the frame itself (the device reports what it read).
+  unidad: z.string().refine(isUnidadPeso, { message: 'Invalid unidad' }).optional(),
+});
 
 /** Payload emitted by devices on `balanza-data`. */
 interface BalanzaDataPayload {
   pesoNeto: number;
+  /** Unit of `pesoNeto` when the scale transmits one; absent for unitless frames. */
+  unidad?: UnidadPeso;
 }
 
 /**
@@ -99,7 +106,9 @@ export const registerBalanzaHandlers = (
     }
 
     if (!balanzaDataSchema.safeParse(payload).success) {
-      socket.emit('error', { message: 'Invalid pesoNeto: must be a finite number' });
+      socket.emit('error', {
+        message: 'Invalid payload: pesoNeto must be a finite number and unidad, if present, must be g or kg',
+      });
       return;
     }
 
@@ -112,13 +121,25 @@ export const registerBalanzaHandlers = (
     // device's unidad is resolved once at pairing time (see
     // device-pairing.handler.ts) and cached in deviceRegistryService. A
     // missing/unknown unit must reject the sample rather than assume kg.
-    const unidad = deviceRegistryService.getUnidad(socket.id);
-    if (!isUnidadPeso(unidad)) {
+    const deviceUnidad = deviceRegistryService.getUnidad(socket.id);
+    if (!isUnidadPeso(deviceUnidad)) {
       const hardwareId = socket.data.hardwareId as string | undefined;
       socket.emit('error', {
         message: `Unidad de peso no configurada para el dispositivo ${hardwareId}`,
       });
       return;
+    }
+
+    // Effective unit: the frame's own unit wins (single conversion point is the
+    // backend), otherwise fall back to the device's configured unit.
+    const effectiveUnidad: UnidadPeso = payload.unidad ?? deviceUnidad;
+    if (effectiveUnidad !== deviceUnidad && !socket.data.unidadMismatchWarned) {
+      // Frames arrive many times per second: warn once per socket only.
+      socket.data.unidadMismatchWarned = true;
+      console.warn(
+        `[balanza] Unit mismatch for device ${socket.data.hardwareId}: frame unidad=${effectiveUnidad}, ` +
+          `device unidad=${deviceUnidad}. Using the frame unit.`,
+      );
     }
 
     // RF-15 / RN-15: discard weight data during "puesta a punto".
@@ -130,7 +151,7 @@ export const registerBalanzaHandlers = (
 
     // Convert to canonical kg before broadcasting. Past this point, every
     // weight in the system is kg (see sdd/unidad-medida-peso/design).
-    const pesoNetoKg = toKilogramos(payload.pesoNeto, unidad);
+    const pesoNetoKg = toKilogramos(payload.pesoNeto, effectiveUnidad);
 
     // Broadcast ONLY pesoNeto — never spread the full payload to avoid field leakage
     io.to(`linea-${lineaId}`).emit('balanza-data', { pesoNeto: pesoNetoKg });
