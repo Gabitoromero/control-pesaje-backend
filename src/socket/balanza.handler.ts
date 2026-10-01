@@ -133,13 +133,17 @@ export const registerBalanzaHandlers = (
     // Effective unit: the frame's own unit wins (single conversion point is the
     // backend), otherwise fall back to the device's configured unit.
     const effectiveUnidad: UnidadPeso = payload.unidad ?? deviceUnidad;
-    if (effectiveUnidad !== deviceUnidad && !socket.data.unidadMismatchWarned) {
-      // Frames arrive many times per second: warn once per socket only.
-      socket.data.unidadMismatchWarned = true;
-      console.warn(
-        `[balanza] Unit mismatch for device ${socket.data.hardwareId}: frame unidad=${effectiveUnidad}, ` +
-          `device unidad=${deviceUnidad}. Using the frame unit.`,
-      );
+    if (effectiveUnidad !== deviceUnidad) {
+      // Frames arrive many times per second: warn once per (frame, device) unit
+      // pair per socket, so a live unit correction that changes the pair warns again.
+      const pair = `${effectiveUnidad}->${deviceUnidad}`;
+      if (socket.data.unidadMismatchWarnedPair !== pair) {
+        socket.data.unidadMismatchWarnedPair = pair;
+        console.warn(
+          `[balanza] Unit mismatch for device ${socket.data.hardwareId}: frame unidad=${effectiveUnidad}, ` +
+            `device unidad=${deviceUnidad}. Using the frame unit.`,
+        );
+      }
     }
 
     // RF-15 / RN-15: discard weight data during "puesta a punto".

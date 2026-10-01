@@ -490,8 +490,66 @@ describe('registerBalanzaHandlers', () => {
         expect(warn).toHaveBeenCalledTimes(1);
         const message = String(warn.mock.calls[0][0]);
         expect(message).toContain('hw-mismatch');
-        expect(message).toContain('g');
-        expect(message).toContain('kg');
+        expect(message).toContain('frame unidad=g');
+        expect(message).toContain('device unidad=kg');
+      });
+
+      it('passes a kg frame on a g device through unchanged (no /1000) and warns once', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const handler = setupDevice('g', 'hw-kg-on-g');
+
+        handler({ pesoNeto: 0.0692, unidad: 'kg' });
+
+        expect(getEmit()).toHaveBeenCalledWith('balanza-data', { pesoNeto: 0.0692 });
+        expect(warn).toHaveBeenCalledTimes(1);
+        const message = String(warn.mock.calls[0][0]);
+        expect(message).toContain('hw-kg-on-g');
+        expect(message).toContain('frame unidad=kg');
+        expect(message).toContain('device unidad=g');
+      });
+
+      it('warns again when the unit pair changes after a live device unit correction', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        let currentUnidad: 'g' | 'kg' = 'kg';
+        const handler = setupDevice(undefined, 'hw-pair-change');
+        vi.mocked(deviceRegistryService.getUnidad).mockImplementation(() => currentUnidad);
+
+        // Pair g -> kg (frame g, device kg): warns once, repeats stay silent.
+        handler({ pesoNeto: 220, unidad: 'g' });
+        handler({ pesoNeto: 230, unidad: 'g' });
+        expect(warn).toHaveBeenCalledTimes(1);
+
+        // Live correction of the device unit plus a frame with the opposite unit:
+        // the pair is now kg -> g, which is a new mismatch.
+        currentUnidad = 'g';
+        handler({ pesoNeto: 0.22, unidad: 'kg' });
+        handler({ pesoNeto: 0.23, unidad: 'kg' });
+
+        expect(warn).toHaveBeenCalledTimes(2);
+        expect(String(warn.mock.calls[0][0])).toContain('frame unidad=g, device unidad=kg');
+        expect(String(warn.mock.calls[1][0])).toContain('frame unidad=kg, device unidad=g');
+      });
+
+      it('pins the exact validation error text for an invalid pesoNeto', () => {
+        const handler = setupDevice('kg');
+
+        handler({ pesoNeto: 'abc' });
+
+        expect(socket.emit).toHaveBeenCalledWith('error', {
+          message: 'Invalid payload: pesoNeto must be a finite number and unidad, if present, must be g or kg',
+        });
+        expect(io.to).not.toHaveBeenCalled();
+      });
+
+      it('pins the exact validation error text for an invalid unidad', () => {
+        const handler = setupDevice('kg');
+
+        handler({ pesoNeto: 10, unidad: 'lb' });
+
+        expect(socket.emit).toHaveBeenCalledWith('error', {
+          message: 'Invalid payload: pesoNeto must be a finite number and unidad, if present, must be g or kg',
+        });
+        expect(io.to).not.toHaveBeenCalled();
       });
 
       it('does not warn again for a second mismatching frame on the same socket', () => {
