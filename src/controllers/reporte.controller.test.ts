@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getReportePasadasMuestras } from './reporte.controller.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { getReportePasadasMuestras, getReporteRutasPasada } from './reporte.controller.js';
 import { RequestContext } from '@mikro-orm/core';
 import { reporteService } from '../services/reporte.service.js';
 import { Request, Response } from 'express';
@@ -13,6 +13,7 @@ vi.mock('@mikro-orm/core', () => ({
 vi.mock('../services/reporte.service.js', () => ({
   reporteService: {
     generateReportePasadasMuestras: vi.fn(),
+    generateReporteRutasPasada: vi.fn(),
   },
 }));
 
@@ -245,5 +246,98 @@ describe('Reporte Controller', () => {
       const rowPasada = pasadasSheet!.getRow(2).values as any[];
       expect(rowPasada).not.toContain('nota de linea que no debe aparecer');
     });
+  });
+});
+
+describe('getReporteRutasPasada', () => {
+  const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let next: ReturnType<typeof vi.fn>;
+  let statusMock: ReturnType<typeof vi.fn>;
+  let jsonMock: ReturnType<typeof vi.fn>;
+  let setHeaderMock: ReturnType<typeof vi.fn>;
+  let endMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    jsonMock = vi.fn();
+    statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+    setHeaderMock = vi.fn();
+    endMock = vi.fn();
+    req = { query: {} };
+    res = { status: statusMock, setHeader: setHeaderMock, end: endMock } as any;
+    next = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('calls the service with the entity manager and streams the workbook', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-08T15:00:00Z'));
+    const emMock = {};
+    (RequestContext.getEntityManager as any).mockReturnValue(emMock);
+    const mockWorkbook = { xlsx: { write: vi.fn() } };
+    (reporteService.generateReporteRutasPasada as any).mockResolvedValue(mockWorkbook);
+
+    await getReporteRutasPasada(req as Request, res as Response, next as any);
+
+    expect(reporteService.generateReporteRutasPasada).toHaveBeenCalledWith(emMock);
+    expect(mockWorkbook.xlsx.write).toHaveBeenCalledWith(res);
+    expect(endMock).toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('sets the XLSX content type and a dated attachment filename', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-08T15:00:00Z'));
+    (RequestContext.getEntityManager as any).mockReturnValue({});
+    (reporteService.generateReporteRutasPasada as any).mockResolvedValue({ xlsx: { write: vi.fn() } });
+
+    await getReporteRutasPasada(req as Request, res as Response, next as any);
+
+    expect(setHeaderMock).toHaveBeenCalledWith('Content-Type', XLSX_MIME);
+    expect(setHeaderMock).toHaveBeenCalledWith(
+      'Content-Disposition',
+      'attachment; filename="reporte-rutas-pasada-2026-10-08.xlsx"',
+    );
+  });
+
+  it('uses the Buenos Aires date late in the evening UTC', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-09T01:30:00Z'));
+    (RequestContext.getEntityManager as any).mockReturnValue({});
+    (reporteService.generateReporteRutasPasada as any).mockResolvedValue({ xlsx: { write: vi.fn() } });
+
+    await getReporteRutasPasada(req as Request, res as Response, next as any);
+
+    expect(setHeaderMock).toHaveBeenCalledWith(
+      'Content-Disposition',
+      'attachment; filename="reporte-rutas-pasada-2026-10-08.xlsx"',
+    );
+  });
+
+  it('returns 500 when the entity manager is not available', async () => {
+    (RequestContext.getEntityManager as any).mockReturnValue(undefined);
+
+    await getReporteRutasPasada(req as Request, res as Response, next as any);
+
+    expect(statusMock).toHaveBeenCalledWith(500);
+    expect(jsonMock).toHaveBeenCalledWith({ success: false, error: 'EntityManager not available' });
+    expect(reporteService.generateReporteRutasPasada).not.toHaveBeenCalled();
+  });
+
+  it('forwards service errors to next without partial headers', async () => {
+    const err = new Error('db down');
+    (RequestContext.getEntityManager as any).mockReturnValue({});
+    (reporteService.generateReporteRutasPasada as any).mockRejectedValue(err);
+
+    await getReporteRutasPasada(req as Request, res as Response, next as any);
+
+    expect(next).toHaveBeenCalledWith(err);
+    expect(setHeaderMock).not.toHaveBeenCalled();
+    expect(endMock).not.toHaveBeenCalled();
   });
 });

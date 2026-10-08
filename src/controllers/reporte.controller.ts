@@ -58,3 +58,35 @@ export const getReportePasadasMuestras = async (req: Request, res: Response, nex
     next(err);
   }
 };
+
+const PLANT_TIME_ZONE = 'America/Argentina/Buenos_Aires';
+
+function formatIsoDateInTz(date: Date, timeZone: string = PLANT_TIME_ZONE): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+export const getReporteRutasPasada = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const em = RequestContext.getEntityManager();
+    if (!em) {
+      res.status(500).json({ success: false, error: 'EntityManager not available' });
+      return;
+    }
+
+    const workbook = await reporteService.generateReporteRutasPasada(em);
+
+    const fecha = formatIsoDateInTz(new Date());
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="reporte-rutas-pasada-${fecha}.xlsx"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    next(err);
+  }
+};
