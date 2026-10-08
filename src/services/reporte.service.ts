@@ -3,7 +3,13 @@ import exceljs from 'exceljs';
 import { Muestra, MuestraEstadoValidacion } from '../models/Muestra.js';
 import { Pasada } from '../models/Pasada.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
+import { RutaPasada } from '../models/RutaPasada.js';
+import { ArticuloRutaPasada } from '../models/ArticuloRutaPasada.js';
 import { PESO_DECIMALS } from '../shared/constants.js';
+
+const collator = new Intl.Collator('es', { sensitivity: 'base', numeric: true });
+const boolLabel = (b: boolean): 'Sí' | 'No' => (b ? 'Sí' : 'No');
+const PESO_NUMFMT = `0.${'0'.repeat(PESO_DECIMALS)}`;
 
 function formatDateTime(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
@@ -196,6 +202,141 @@ export const reporteService = {
             });
           }
         }
+      }
+    }
+
+    return workbook;
+  },
+  async generateReporteRutasPasada(em: EntityManager): Promise<exceljs.Workbook> {
+    const rutas = await em.find(
+      RutaPasada,
+      {},
+      { populate: ['etapas', 'etapas.etapa'] as const, orderBy: { nombre: 'asc' } }
+    );
+    const asignaciones = await em.find(ArticuloRutaPasada, {}, { populate: ['articulo'] as const });
+
+    const sortedRutas = [...rutas].sort((a, b) => collator.compare(a.nombre, b.nombre) || a.id - b.id);
+
+    const articulosPorRuta = new Map<number, ArticuloRutaPasada['articulo'][]>();
+    for (const a of asignaciones) {
+      const list = articulosPorRuta.get(a.rutaPasada.id) ?? [];
+      list.push(a.articulo);
+      articulosPorRuta.set(a.rutaPasada.id, list);
+    }
+
+    const workbook = new exceljs.Workbook();
+
+    const rutasSheet = workbook.addWorksheet('Rutas y etapas');
+    rutasSheet.columns = [
+      { header: 'ID Ruta', key: 'ruta_id', width: 10 },
+      { header: 'Ruta', key: 'ruta_nombre', width: 25 },
+      { header: 'Descripción Ruta', key: 'ruta_descripcion', width: 30 },
+      { header: 'Ruta Activa', key: 'ruta_activa', width: 12 },
+      { header: 'ID Ruta-Etapa', key: 'ruta_etapa_id', width: 14 },
+      { header: 'Orden', key: 'orden', width: 8 },
+      { header: 'ID Etapa', key: 'etapa_id', width: 10 },
+      { header: 'Etapa', key: 'etapa_nombre', width: 25 },
+      { header: 'Descripción Etapa', key: 'etapa_descripcion', width: 30 },
+      { header: 'Etapa Activa', key: 'etapa_activa', width: 12 },
+      { header: 'Peso Ideal (kg)', key: 'peso_ideal', width: 16 },
+      { header: 'Peso Mínimo (kg)', key: 'peso_minimo', width: 16 },
+      { header: 'Peso Máximo (kg)', key: 'peso_maximo', width: 16 },
+      { header: 'Muestras Requeridas', key: 'cantidad_muestras_requeridas', width: 20 },
+    ];
+    rutasSheet.getRow(1).font = { bold: true };
+    rutasSheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    for (const ruta of sortedRutas) {
+      const rutaCells = {
+        ruta_id: ruta.id,
+        ruta_nombre: ruta.nombre,
+        ruta_descripcion: ruta.descripcion ?? null,
+        ruta_activa: boolLabel(ruta.activo),
+      };
+      const etapas = [...ruta.etapas].sort((a, b) => a.orden - b.orden || a.id - b.id);
+
+      if (etapas.length === 0) {
+        rutasSheet.addRow({
+          ...rutaCells,
+          ruta_etapa_id: null,
+          orden: null,
+          etapa_id: null,
+          etapa_nombre: null,
+          etapa_descripcion: null,
+          etapa_activa: null,
+          peso_ideal: null,
+          peso_minimo: null,
+          peso_maximo: null,
+          cantidad_muestras_requeridas: null,
+        });
+        continue;
+      }
+
+      for (const rpe of etapas) {
+        const row = rutasSheet.addRow({
+          ...rutaCells,
+          ruta_etapa_id: rpe.id,
+          orden: rpe.orden,
+          etapa_id: rpe.etapa.id,
+          etapa_nombre: rpe.etapa.nombre,
+          etapa_descripcion: rpe.etapa.descripcion ?? null,
+          etapa_activa: boolLabel(rpe.etapa.activo),
+          peso_ideal: Number(rpe.pesoIdeal),
+          peso_minimo: Number(rpe.pesoMinimo),
+          peso_maximo: Number(rpe.pesoMaximo),
+          cantidad_muestras_requeridas: rpe.cantidadMuestrasRequeridas,
+        });
+        for (const key of ['peso_ideal', 'peso_minimo', 'peso_maximo']) {
+          row.getCell(key).numFmt = PESO_NUMFMT;
+        }
+      }
+    }
+
+    const articulosSheet = workbook.addWorksheet('Articulos');
+    articulosSheet.columns = [
+      { header: 'ID Ruta', key: 'ruta_id', width: 10 },
+      { header: 'Ruta', key: 'ruta_nombre', width: 25 },
+      { header: 'Ruta Activa', key: 'ruta_activa', width: 12 },
+      { header: 'ID Artículo', key: 'articulo_id', width: 12 },
+      { header: 'Código', key: 'articulo_codigo', width: 18 },
+      { header: 'Artículo', key: 'articulo_nombre', width: 25 },
+      { header: 'Descripción Artículo', key: 'articulo_descripcion', width: 30 },
+      { header: 'Artículo Activo', key: 'articulo_activo', width: 15 },
+    ];
+    articulosSheet.getRow(1).font = { bold: true };
+    articulosSheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    for (const ruta of sortedRutas) {
+      const rutaCells = {
+        ruta_id: ruta.id,
+        ruta_nombre: ruta.nombre,
+        ruta_activa: boolLabel(ruta.activo),
+      };
+      const articulos = [...(articulosPorRuta.get(ruta.id) ?? [])].sort(
+        (a, b) => collator.compare(a.codigo, b.codigo) || a.id - b.id
+      );
+
+      if (articulos.length === 0) {
+        articulosSheet.addRow({
+          ...rutaCells,
+          articulo_id: null,
+          articulo_codigo: null,
+          articulo_nombre: null,
+          articulo_descripcion: null,
+          articulo_activo: null,
+        });
+        continue;
+      }
+
+      for (const art of articulos) {
+        articulosSheet.addRow({
+          ...rutaCells,
+          articulo_id: art.id,
+          articulo_codigo: art.codigo,
+          articulo_nombre: art.nombre ?? null,
+          articulo_descripcion: art.descripcion ?? null,
+          articulo_activo: boolLabel(art.activo),
+        });
       }
     }
 
