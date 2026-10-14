@@ -540,5 +540,25 @@ describe('PasadaService and MuestraService Integration Tests', () => {
       routeEtapa.pesoMaximo = 55.000;
       await em.flush();
     }));
+
+    it('update() with only observacion keeps pesoNeto and its validation status (undefined keys are ignored)', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+
+      // Out-of-range sample (limits 45-55) so a lost pesoNeto would also flip the status
+      const m = await muestraService.registrarMuestra(testUser.id, testEtapa1.id, testLine.id, 60.000, pasada.id);
+      expect(m.estadoValidacion).toBe(MuestraEstadoValidacion.FUERA_DE_RANGO);
+
+      // The controller passes `pesoNeto: undefined` when the body only has observacion
+      const updated = await muestraService.update(m.id, { pesoNeto: undefined, observacion: 'nota' });
+
+      expect(updated!.observacion).toBe('nota');
+      expect(Number(updated!.pesoNeto)).toBe(60.000);
+      expect(updated!.estadoValidacion).toBe(MuestraEstadoValidacion.FUERA_DE_RANGO);
+
+      const persisted = await orm.em.fork().findOneOrFail(Muestra, m.id);
+      expect(Number(persisted.pesoNeto)).toBe(60.000);
+      expect(persisted.observacion).toBe('nota');
+    }));
   });
 });

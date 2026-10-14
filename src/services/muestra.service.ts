@@ -151,7 +151,12 @@ export class MuestraService {
       muestra.estadoValidacion = isOk ? MuestraEstadoValidacion.OK : MuestraEstadoValidacion.FUERA_DE_RANGO;
     }
 
-    Object.assign(muestra, data);
+    // Object.assign copies keys whose value is `undefined` and would null out
+    // NOT NULL columns (e.g. pesoNeto when only observacion is sent).
+    const definedData = Object.fromEntries(
+      Object.entries(data).filter(([, value]) => value !== undefined)
+    );
+    Object.assign(muestra, definedData);
     await em.flush();
     return muestra;
   }
