@@ -308,6 +308,91 @@ describe('registerBalanzaHandlers', () => {
   });
 
   describe('balanza-data', () => {
+    describe('discard logging', () => {
+      const setupDevice = (data: Record<string, unknown>) => {
+        Object.assign(socket.data as Record<string, unknown>, { isDevice: true, hardwareId: 'hw-1' }, data);
+        registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+        return getHandler(socket, 'balanza-data');
+      };
+
+      it('warns once with reason no-linea across repeated frames', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const handler = setupDevice({});
+        handler({ pesoNeto: 1 });
+        handler({ pesoNeto: 2 });
+        handler({ pesoNeto: 3 });
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toContain('no-linea');
+        expect(warn.mock.calls[0][0]).toContain('hw-1');
+        expect(io.to).not.toHaveBeenCalled();
+        warn.mockRestore();
+      });
+
+      it('warns once with reason sin-unidad and still emits the error to the device', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.mocked(deviceRegistryService.getUnidad).mockReturnValue(undefined as never);
+        const handler = setupDevice({ lineaId: 5 });
+        handler({ pesoNeto: 1 });
+        handler({ pesoNeto: 2 });
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toContain('sin-unidad');
+        expect(warn.mock.calls[0][0]).toContain('lineaId=5');
+        expect(socket.emit).toHaveBeenCalledTimes(2);
+        warn.mockRestore();
+      });
+
+      it('warns once with reason sin-sesion', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        sesionService = makeMockSesionService(null);
+        const handler = setupDevice({ lineaId: 5 });
+        handler({ pesoNeto: 1 });
+        handler({ pesoNeto: 2 });
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toContain('sin-sesion');
+        expect(io.to).not.toHaveBeenCalled();
+        warn.mockRestore();
+      });
+
+      it('warns again when the discard reason changes', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        sesionService = makeMockSesionService(null);
+        const handler = setupDevice({});
+        handler({ pesoNeto: 1 });
+        (socket.data as Record<string, unknown>).lineaId = 5;
+        handler({ pesoNeto: 2 });
+        expect(warn).toHaveBeenCalledTimes(2);
+        expect(warn.mock.calls[0][0]).toContain('no-linea');
+        expect(warn.mock.calls[1][0]).toContain('sin-sesion');
+        warn.mockRestore();
+      });
+
+      it('logs once that frames are accepted again after a discard and clears the reason', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const handler = setupDevice({});
+        handler({ pesoNeto: 1 });
+        (socket.data as Record<string, unknown>).lineaId = 5;
+        handler({ pesoNeto: 2 });
+        handler({ pesoNeto: 3 });
+        expect(log).toHaveBeenCalledTimes(1);
+        expect(log.mock.calls[0][0]).toContain('hw-1');
+        expect((socket.data as Record<string, unknown>).lastDiscardReason).toBeUndefined();
+        warn.mockRestore();
+        log.mockRestore();
+      });
+
+      it('does not log anything for frames accepted without a prior discard', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const handler = setupDevice({ lineaId: 5 });
+        handler({ pesoNeto: 1 });
+        expect(warn).not.toHaveBeenCalled();
+        expect(log).not.toHaveBeenCalled();
+        warn.mockRestore();
+        log.mockRestore();
+      });
+    });
+
     it('registers balanza-data handler on socket', () => {
       registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
       expect(getHandler(socket, 'balanza-data')).toBeDefined();

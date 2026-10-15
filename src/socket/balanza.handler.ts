@@ -22,6 +22,29 @@ interface BalanzaDataPayload {
   unidad?: UnidadPeso;
 }
 
+type DiscardReason = 'no-linea' | 'sin-unidad' | 'sin-sesion';
+
+/**
+ * Frames arrive ~19 times per second per device, so a discard is logged only
+ * when the reason for this socket changes (tracked in `socket.data`).
+ */
+const logDiscardOnTransition = (socket: Socket, reason: DiscardReason): void => {
+  if (socket.data.lastDiscardReason === reason) return;
+  socket.data.lastDiscardReason = reason;
+  console.warn(
+    `[balanza] Frame discarded (${reason}) for device ${socket.data.hardwareId} lineaId=${socket.data.lineaId ?? 'none'}`,
+  );
+};
+
+/** Logs once when frames flow again after a discard, then clears the tracked reason. */
+const logAcceptedAfterDiscard = (socket: Socket): void => {
+  if (socket.data.lastDiscardReason === undefined) return;
+  console.log(
+    `[balanza] Frames accepted again for device ${socket.data.hardwareId} lineaId=${socket.data.lineaId ?? 'none'}`,
+  );
+  socket.data.lastDiscardReason = undefined;
+};
+
 /**
  * Registers domain event handlers for the balanza (scale) real-time channel.
  *
@@ -114,6 +137,7 @@ export const registerBalanzaHandlers = (
 
     const lineaId = socket.data.lineaId as number | undefined;
     if (lineaId === undefined) {
+      logDiscardOnTransition(socket, 'no-linea');
       return; // device must join a line before sending data
     }
 
@@ -124,6 +148,7 @@ export const registerBalanzaHandlers = (
     const deviceUnidad = deviceRegistryService.getUnidad(socket.id);
     if (!isUnidadPeso(deviceUnidad)) {
       const hardwareId = socket.data.hardwareId as string | undefined;
+      logDiscardOnTransition(socket, 'sin-unidad');
       socket.emit('error', {
         message: `Unidad de peso no configurada para el dispositivo ${hardwareId}`,
       });
@@ -150,8 +175,11 @@ export const registerBalanzaHandlers = (
     // Single call: obtenerSesion mutates on lazy expiry, so reuse the reference.
     const sesion = sesionService.obtenerSesion(lineaId);
     if (!sesion || sesion.usuarioId === null) {
-      return; // no active operator session — silently discard
+      logDiscardOnTransition(socket, 'sin-sesion');
+      return; // no active operator session — discard
     }
+
+    logAcceptedAfterDiscard(socket);
 
     // Convert to canonical kg before broadcasting. Past this point, every
     // weight in the system is kg (see sdd/unidad-medida-peso/design).
