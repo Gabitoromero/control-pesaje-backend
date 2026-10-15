@@ -7,6 +7,11 @@ import { registerBalanzaHandlers } from './balanza.handler.js';
 import { handleDeviceConnection } from './device-pairing.handler.js';
 import { sesionService } from '../services/sesion.service.js';
 import { UsuarioRol } from '../models/Usuario.js';
+import { LineaProduccion } from '../models/LineaProduccion.js';
+import { deviceRegistryService } from '../services/device-registry.service.js';
+import { balanzaFlowMonitor, type AlertContext } from '../services/balanza-flow-monitor.service.js';
+
+const BALANZA_FLOW_CHECK_INTERVAL = 30_000;
 
 let ioInstance: Server | null = null;
 
@@ -44,6 +49,48 @@ export const onSocketConnection = (
 
   registerBalanzaHandlers(io, socket, orm, sesionSvc);
 };
+
+/**
+ * Builds the resolver the flow monitor uses to enrich alerts. Each lookup is
+ * independent and best-effort: a DB failure still yields the registry/room data.
+ */
+export const createFlowContextResolver =
+  (io: Server, orm: MikroORM) =>
+  async (lineaId: number): Promise<AlertContext> => {
+    const ctx: AlertContext = {};
+
+    const device = deviceRegistryService.getDeviceForLinea(lineaId);
+    ctx.rbConnected = device !== undefined;
+    if (device) ctx.rbHardwareId = device.hardwareId;
+
+    try {
+      const room = io.sockets.adapter.rooms.get(`linea-${lineaId}`);
+      let tablets = 0;
+      for (const id of room ?? []) {
+        if (io.sockets.sockets.get(id)?.data?.isDevice !== true) tablets++;
+      }
+      ctx.tabletSockets = tablets;
+    } catch {
+      // leave unknown
+    }
+
+    try {
+      const linea = await orm.em
+        .fork()
+        .findOne(LineaProduccion, { id: lineaId }, { populate: ['dispositivo'] });
+      if (linea) {
+        ctx.lineaNombre = linea.nombre;
+        if (linea.dispositivo) {
+          ctx.rbNombre = linea.dispositivo.nombre;
+          ctx.rbHardwareId ??= linea.dispositivo.hardwareId;
+        }
+      }
+    } catch {
+      // names stay unknown; the alert is still sent
+    }
+
+    return ctx;
+  };
 
 /**
  * Initializes the Socket.IO server bound to the given HTTP server.
@@ -98,8 +145,19 @@ export const initSocket = (
     sesionSvc.verificarInactividad();
   }, INACTIVITY_CHECK_INTERVAL);
 
-  // Clean up the interval when the process exits (tests, graceful shutdown)
-  const cleanupTimer = () => clearInterval(inactivityTimer);
+  // Balanza flow watchdog: alerts (log + optional Discord) when an operator
+  // session is active but no frames are accepted. check() never throws.
+  balanzaFlowMonitor.setContextResolver(createFlowContextResolver(io, orm));
+  const flowTimer = setInterval(() => {
+    void balanzaFlowMonitor.check();
+  }, BALANZA_FLOW_CHECK_INTERVAL);
+  flowTimer.unref();
+
+  // Clean up the intervals when the process exits (tests, graceful shutdown)
+  const cleanupTimer = () => {
+    clearInterval(inactivityTimer);
+    clearInterval(flowTimer);
+  };
   process.once('SIGTERM', cleanupTimer);
   process.once('SIGINT', cleanupTimer);
   // Expose for test teardown

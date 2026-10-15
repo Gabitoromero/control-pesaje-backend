@@ -6,6 +6,10 @@ import { LineaProduccion } from '../models/LineaProduccion.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 import { toKilogramos, isUnidadPeso } from '../shared/peso.js';
 import type { UnidadPeso } from '../shared/types/domain.js';
+import { balanzaFlowMonitor, type BalanzaFlowMonitor } from '../services/balanza-flow-monitor.service.js';
+
+/** The subset of the flow monitor the handler depends on (eases testing). */
+type FlowMonitor = Pick<BalanzaFlowMonitor, 'recordAcceptedFrame' | 'recordDiscard'>;
 
 /** Payload validation schemas for the balanza real-time channel. */
 const joinLineaSchema = z.number().int().positive();
@@ -45,6 +49,15 @@ const logAcceptedAfterDiscard = (socket: Socket): void => {
   socket.data.lastDiscardReason = undefined;
 };
 
+/** Observability must never break the frame path. */
+const safeMonitor = (fn: () => void): void => {
+  try {
+    fn();
+  } catch (err) {
+    console.error('[balanza] flow monitor hook failed', err);
+  }
+};
+
 /**
  * Registers domain event handlers for the balanza (scale) real-time channel.
  *
@@ -57,6 +70,7 @@ export const registerBalanzaHandlers = (
   socket: Socket,
   orm: MikroORM,
   sesionService: SesionService,
+  flowMonitor: FlowMonitor = balanzaFlowMonitor,
 ): void => {
   socket.on('join-linea', async (lineaId: number) => {
     if (!joinLineaSchema.safeParse(lineaId).success) {
@@ -149,6 +163,7 @@ export const registerBalanzaHandlers = (
     if (!isUnidadPeso(deviceUnidad)) {
       const hardwareId = socket.data.hardwareId as string | undefined;
       logDiscardOnTransition(socket, 'sin-unidad');
+      safeMonitor(() => flowMonitor.recordDiscard(lineaId, 'sin-unidad'));
       socket.emit('error', {
         message: `Unidad de peso no configurada para el dispositivo ${hardwareId}`,
       });
@@ -176,6 +191,7 @@ export const registerBalanzaHandlers = (
     const sesion = sesionService.obtenerSesion(lineaId);
     if (!sesion || sesion.usuarioId === null) {
       logDiscardOnTransition(socket, 'sin-sesion');
+      safeMonitor(() => flowMonitor.recordDiscard(lineaId, 'sin-sesion'));
       return; // no active operator session — discard
     }
 
@@ -187,5 +203,6 @@ export const registerBalanzaHandlers = (
 
     // Broadcast ONLY pesoNeto — never spread the full payload to avoid field leakage
     io.to(`linea-${lineaId}`).emit('balanza-data', { pesoNeto: pesoNetoKg });
+    safeMonitor(() => flowMonitor.recordAcceptedFrame(lineaId));
   });
 };

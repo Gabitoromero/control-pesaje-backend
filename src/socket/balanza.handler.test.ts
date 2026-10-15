@@ -792,5 +792,60 @@ describe('registerBalanzaHandlers', () => {
       expect((activeSesion as unknown as { obtenerSesion: ReturnType<typeof vi.fn> }).obtenerSesion).toHaveBeenCalledOnce();
       expect((activeSesion as unknown as { obtenerSesion: ReturnType<typeof vi.fn> }).obtenerSesion).toHaveBeenCalledWith(5);
     });
+
+    describe('flow monitor hooks', () => {
+      const makeMonitor = () => ({ recordAcceptedFrame: vi.fn(), recordDiscard: vi.fn() });
+      const setup = (monitor: ReturnType<typeof makeMonitor>, sesion: SesionService, unidad: 'kg' | null = 'kg') => {
+        Object.assign(socket.data as Record<string, unknown>, { isDevice: true, hardwareId: 'hw-1', lineaId: 5 });
+        vi.mocked(deviceRegistryService.getUnidad).mockReturnValue(unidad);
+        registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesion, monitor);
+        return getHandler(socket, 'balanza-data');
+      };
+
+      it('records an accepted frame for the línea when it is broadcast', () => {
+        const monitor = makeMonitor();
+        const handler = setup(monitor, makeMockSesionService(makeActiveSesion({ usuarioId: 42 })));
+        handler({ pesoNeto: 10 });
+        expect(monitor.recordAcceptedFrame).toHaveBeenCalledWith(5);
+        expect(monitor.recordDiscard).not.toHaveBeenCalled();
+      });
+
+      it('records sin-sesion discards and does not count them as accepted', () => {
+        const monitor = makeMonitor();
+        const handler = setup(monitor, makeMockSesionService(null));
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        handler({ pesoNeto: 10 });
+        handler({ pesoNeto: 10 });
+        expect(monitor.recordDiscard).toHaveBeenCalledWith(5, 'sin-sesion');
+        expect(monitor.recordAcceptedFrame).not.toHaveBeenCalled();
+      });
+
+      it('records sin-unidad discards and does not count them as accepted', () => {
+        const monitor = makeMonitor();
+        const handler = setup(monitor, makeMockSesionService(), null);
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        handler({ pesoNeto: 10 });
+        expect(monitor.recordDiscard).toHaveBeenCalledWith(5, 'sin-unidad');
+        expect(monitor.recordAcceptedFrame).not.toHaveBeenCalled();
+      });
+
+      it('does not count puesta a punto (usuarioId null) frames as accepted', () => {
+        const monitor = makeMonitor();
+        const handler = setup(monitor, makeMockSesionService(makeActiveSesion({ usuarioId: null })));
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        handler({ pesoNeto: 10 });
+        expect(monitor.recordAcceptedFrame).not.toHaveBeenCalled();
+      });
+
+      it('never lets a monitor failure break the broadcast', () => {
+        const monitor = makeMonitor();
+        monitor.recordAcceptedFrame.mockImplementation(() => {
+          throw new Error('boom');
+        });
+        const handler = setup(monitor, makeMockSesionService(makeActiveSesion({ usuarioId: 42 })));
+        expect(() => handler({ pesoNeto: 10 })).not.toThrow();
+        expect(io.to).toHaveBeenCalledWith('linea-5');
+      });
+    });
   });
 });
