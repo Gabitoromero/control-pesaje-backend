@@ -27,7 +27,9 @@ vi.mock('@mikro-orm/core', async (importOriginal) => {
   };
 });
 
-import { assignHardwareIdToLinea } from '../services/device-pairing.service.js';
+import { assignHardwareIdToLinea, unassignDeviceFromLinea } from '../services/device-pairing.service.js';
+import { disconnectDeviceByHardwareId } from '../socket/device-pairing.handler.js';
+import { RequestContext } from '@mikro-orm/core';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -142,6 +144,43 @@ describe('createLineaProduccionHandlers', () => {
 
       const data = (mock.body as { data: { observacion?: string } }).data;
       expect(data.observacion).toBe('nota de la linea');
+    });
+  });
+  describe('unassignDevice', () => {
+    const hardwareId = '123e4567-e89b-12d3-a456-426614174000';
+    const lineaRow = { id: 1, nombre: 'Linea 1', activo: true, observacion: null };
+
+    const run = async (previousDevice: unknown) => {
+      const em = { findOne: vi.fn().mockResolvedValue({ ...lineaRow, dispositivo: previousDevice }) };
+      vi.mocked(RequestContext.getEntityManager).mockReturnValue(em as never);
+      vi.mocked(unassignDeviceFromLinea).mockResolvedValue({ ...lineaRow, dispositivo: null } as never);
+      const req = makeReq({ params: { id: '1' }, body: { hardwareId: null } });
+      const { mock } = makeRes();
+      await handlers.assignDevice(req, mock as unknown as Response, vi.fn());
+      return mock;
+    };
+
+    it('disconnects the previously paired device socket after a successful unassign', async () => {
+      const mock = await run({ hardwareId });
+      expect(disconnectDeviceByHardwareId).toHaveBeenCalledWith(undefined, hardwareId);
+      expect((mock.body as { success: boolean }).success).toBe(true);
+    });
+
+    it('does nothing when the línea had no device', async () => {
+      const mock = await run(null);
+      expect(disconnectDeviceByHardwareId).not.toHaveBeenCalled();
+      expect((mock.body as { success: boolean }).success).toBe(true);
+    });
+
+    it('never fails the HTTP response when the disconnect throws', async () => {
+      vi.mocked(disconnectDeviceByHardwareId).mockImplementation(() => {
+        throw new Error('io down');
+      });
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const mock = await run({ hardwareId });
+      expect((mock.body as { success: boolean }).success).toBe(true);
+      expect(mock.status).not.toHaveBeenCalled();
+      errSpy.mockRestore();
     });
   });
 });

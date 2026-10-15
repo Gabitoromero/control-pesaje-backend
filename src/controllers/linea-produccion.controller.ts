@@ -95,10 +95,24 @@ export function createLineaProduccionHandlers(
     if (hardwareId === null) {
       try {
         const em = RequestContext.getEntityManager()!;
+        // Capture the paired device BEFORE the unassign clears the link, so its
+        // live socket can be disconnected afterwards.
+        const previous = await em.findOne(LineaProduccion, { id }, { populate: ['dispositivo'] });
+        const previousHardwareId = previous?.dispositivo?.hardwareId;
         const linea = await unassignDeviceFromLinea(em, id);
         if (!linea) {
           res.status(404).json({ success: false, error: { message: 'Registro no encontrado' } });
           return;
+        }
+
+        // Best-effort: drop the stale in-memory pairing now instead of when the
+        // device next reconnects. Never fails the already-successful unassign.
+        if (previousHardwareId) {
+          try {
+            disconnectDeviceByHardwareId(getIo(), previousHardwareId);
+          } catch (err) {
+            console.error('[unassignDevice] failed to disconnect device socket', err);
+          }
         }
         res.json({ success: true, data: toLineaDto(linea) });
       } catch (err) {
