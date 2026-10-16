@@ -6,6 +6,7 @@ import { LineaProduccion } from '../models/LineaProduccion.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 import { toKilogramos, isUnidadPeso } from '../shared/peso.js';
 import type { UnidadPeso } from '../shared/types/domain.js';
+import { balanzaFrameRing, type BalanzaFrameRing } from '../services/balanza-frame-ring.service.js';
 
 /** Payload validation schemas for the balanza real-time channel. */
 const joinLineaSchema = z.number().int().positive();
@@ -57,7 +58,17 @@ export const registerBalanzaHandlers = (
   socket: Socket,
   orm: MikroORM,
   sesionService: SesionService,
+  frameRing: Pick<BalanzaFrameRing, 'record'> = balanzaFrameRing,
 ): void => {
+  // The ring is diagnostics only: a failure here must never affect frame handling.
+  const safeRecord = (lineaId: number, entry: Parameters<BalanzaFrameRing['record']>[1]): void => {
+    try {
+      frameRing.record(lineaId, entry);
+    } catch (err) {
+      console.error('[balanza] Failed to record frame in ring', err instanceof Error ? err.name : 'UnknownError');
+    }
+  };
+
   socket.on('join-linea', async (lineaId: number) => {
     if (!joinLineaSchema.safeParse(lineaId).success) {
       socket.emit('error', { message: 'Invalid lineaId: must be a positive integer' });
@@ -129,6 +140,16 @@ export const registerBalanzaHandlers = (
     }
 
     if (!balanzaDataSchema.safeParse(payload).success) {
+      const invalidLineaId = socket.data.lineaId as number | undefined;
+      if (invalidLineaId !== undefined) {
+        const raw = (payload as { pesoNeto?: unknown } | null | undefined)?.pesoNeto;
+        safeRecord(invalidLineaId, {
+          pesoNeto: typeof raw === 'number' && Number.isFinite(raw) ? raw : null,
+          unidad: null,
+          aceptada: false,
+          motivo: 'payload-invalido',
+        });
+      }
       socket.emit('error', {
         message: 'Invalid payload: pesoNeto must be a finite number and unidad, if present, must be g or kg',
       });
@@ -149,6 +170,7 @@ export const registerBalanzaHandlers = (
     if (!isUnidadPeso(deviceUnidad)) {
       const hardwareId = socket.data.hardwareId as string | undefined;
       logDiscardOnTransition(socket, 'sin-unidad');
+      safeRecord(lineaId, { pesoNeto: payload.pesoNeto, unidad: null, aceptada: false, motivo: 'sin-unidad' });
       socket.emit('error', {
         message: `Unidad de peso no configurada para el dispositivo ${hardwareId}`,
       });
@@ -176,10 +198,12 @@ export const registerBalanzaHandlers = (
     const sesion = sesionService.obtenerSesion(lineaId);
     if (!sesion || sesion.usuarioId === null) {
       logDiscardOnTransition(socket, 'sin-sesion');
+      safeRecord(lineaId, { pesoNeto: payload.pesoNeto, unidad: effectiveUnidad, aceptada: false, motivo: 'sin-sesion' });
       return; // no active operator session — discard
     }
 
     logAcceptedAfterDiscard(socket);
+    safeRecord(lineaId, { pesoNeto: payload.pesoNeto, unidad: effectiveUnidad, aceptada: true });
 
     // Convert to canonical kg before broadcasting. Past this point, every
     // weight in the system is kg (see sdd/unidad-medida-peso/design).

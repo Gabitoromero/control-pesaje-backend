@@ -1,9 +1,10 @@
 import 'reflect-metadata';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import type { Server, Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
 import type { SesionService, SesionActiva } from '../services/sesion.service.js';
 import { registerBalanzaHandlers } from './balanza.handler.js';
+import type { BalanzaFrameRing } from '../services/balanza-frame-ring.service.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 
 vi.mock('../services/device-registry.service.js', () => ({
@@ -792,5 +793,111 @@ describe('registerBalanzaHandlers', () => {
       expect((activeSesion as unknown as { obtenerSesion: ReturnType<typeof vi.fn> }).obtenerSesion).toHaveBeenCalledOnce();
       expect((activeSesion as unknown as { obtenerSesion: ReturnType<typeof vi.fn> }).obtenerSesion).toHaveBeenCalledWith(5);
     });
+  });
+});
+
+describe('registerBalanzaHandlers frame ring recording', () => {
+  let io: ReturnType<typeof makeMockIo>;
+  let socket: ReturnType<typeof makeMockSocket>;
+  let orm: ReturnType<typeof makeMockOrm>;
+  let sesionService: SesionService;
+  let frameRing: { record: Mock<BalanzaFrameRing['record']> };
+
+  beforeEach(() => {
+    io = makeMockIo();
+    socket = makeMockSocket();
+    orm = makeMockOrm();
+    sesionService = makeMockSesionService();
+    frameRing = { record: vi.fn<BalanzaFrameRing['record']>() };
+    vi.clearAllMocks();
+    vi.mocked(deviceRegistryService.getUnidad).mockReturnValue('kg');
+  });
+
+  const setup = (data: Record<string, unknown>) => {
+    Object.assign(socket.data as Record<string, unknown>, { isDevice: true, hardwareId: 'hw-1' }, data);
+    registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService, frameRing);
+    return getHandler(socket, 'balanza-data');
+  };
+
+  it('records an accepted frame with the raw device value and the effective unit (before kg conversion)', () => {
+    vi.mocked(deviceRegistryService.getUnidad).mockReturnValue('g');
+    const handler = setup({ lineaId: 5 });
+    handler({ pesoNeto: 1500 });
+    expect(frameRing.record).toHaveBeenCalledTimes(1);
+    expect(frameRing.record).toHaveBeenCalledWith(5, { pesoNeto: 1500, unidad: 'g', aceptada: true });
+    expect((io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit).toHaveBeenCalledWith('balanza-data', { pesoNeto: 1.5 });
+  });
+
+  it('uses the frame unit as effective unit when it overrides the device unit', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const handler = setup({ lineaId: 5 });
+    handler({ pesoNeto: 2000, unidad: 'g' });
+    expect(frameRing.record).toHaveBeenCalledWith(5, { pesoNeto: 2000, unidad: 'g', aceptada: true });
+  });
+
+  it('records sin-unidad discards', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(deviceRegistryService.getUnidad).mockReturnValue(undefined as never);
+    const handler = setup({ lineaId: 5 });
+    handler({ pesoNeto: 7 });
+    expect(frameRing.record).toHaveBeenCalledWith(5, { pesoNeto: 7, unidad: null, aceptada: false, motivo: 'sin-unidad' });
+  });
+
+  it('records sin-sesion discards (no session and puesta a punto)', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    sesionService = makeMockSesionService(null);
+    setup({ lineaId: 5 })({ pesoNeto: 7 });
+    expect(frameRing.record).toHaveBeenLastCalledWith(5, { pesoNeto: 7, unidad: 'kg', aceptada: false, motivo: 'sin-sesion' });
+
+    frameRing.record.mockClear();
+    sesionService = makeMockSesionService(makeActiveSesion({ usuarioId: null }));
+    const other = makeMockSocket();
+    Object.assign(other.data as Record<string, unknown>, { isDevice: true, hardwareId: 'hw-2', lineaId: 5 });
+    registerBalanzaHandlers(io as Server, other as Socket, orm as unknown as MikroORM, sesionService, frameRing);
+    getHandler(other, 'balanza-data')({ pesoNeto: 8 });
+    expect(frameRing.record).toHaveBeenCalledWith(5, { pesoNeto: 8, unidad: 'kg', aceptada: false, motivo: 'sin-sesion' });
+  });
+
+  it('records payload-invalido only when the línea is known, with null when pesoNeto is not finite', () => {
+    const handler = setup({ lineaId: 5 });
+    handler({ pesoNeto: 'abc' });
+    handler({ pesoNeto: 4, unidad: 'lb' });
+    expect(frameRing.record).toHaveBeenNthCalledWith(1, 5, { pesoNeto: null, unidad: null, aceptada: false, motivo: 'payload-invalido' });
+    expect(frameRing.record).toHaveBeenNthCalledWith(2, 5, { pesoNeto: 4, unidad: null, aceptada: false, motivo: 'payload-invalido' });
+  });
+
+  it('does not record payload-invalido or no-linea frames when there is no línea', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const handler = setup({});
+    handler({ pesoNeto: 'abc' });
+    handler({ pesoNeto: 3 });
+    expect(frameRing.record).not.toHaveBeenCalled();
+  });
+
+  it('does not record frames from non-device sockets', () => {
+    Object.assign(socket.data as Record<string, unknown>, { lineaId: 5 });
+    registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService, frameRing);
+    getHandler(socket, 'balanza-data')({ pesoNeto: 3 });
+    expect(frameRing.record).not.toHaveBeenCalled();
+  });
+
+  it('a throwing record() does not stop the broadcast or the discard behaviour', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    frameRing.record.mockImplementation(() => {
+      throw new Error('ring down');
+    });
+
+    setup({ lineaId: 5 })({ pesoNeto: 9 });
+    expect((io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit).toHaveBeenCalledWith('balanza-data', { pesoNeto: 9 });
+    expect(err).toHaveBeenCalled();
+
+    // discard path still returns normally and still logs the transition warning
+    vi.mocked(deviceRegistryService.getUnidad).mockReturnValue(undefined as never);
+    const other = makeMockSocket();
+    Object.assign(other.data as Record<string, unknown>, { isDevice: true, hardwareId: 'hw-3', lineaId: 5 });
+    registerBalanzaHandlers(io as Server, other as Socket, orm as unknown as MikroORM, sesionService, frameRing);
+    expect(() => getHandler(other, 'balanza-data')({ pesoNeto: 1 })).not.toThrow();
+    expect(other.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.stringContaining('hw-3') }));
   });
 });
