@@ -12,5 +12,7 @@ test-*.mjs
 coverage
 .gga
 .atl/
+# Local ODD task trackers
+odd/
 .antigravitycli/*
 api-tests/*
