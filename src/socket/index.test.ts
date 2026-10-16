@@ -4,8 +4,7 @@ import http from 'node:http';
 import { Server, type Socket } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
 import type { SesionService } from '../services/sesion.service.js';
-import { onSocketConnection, getIo, initSocket, createFlowContextResolver } from './index.js';
-import { balanzaFlowMonitor } from '../services/balanza-flow-monitor.service.js';
+import { onSocketConnection, getIo, initSocket } from './index.js';
 import { registerBalanzaHandlers } from './balanza.handler.js';
 import { handleDeviceConnection } from './device-pairing.handler.js';
 
@@ -169,59 +168,25 @@ describe('initSocket wires inactivity callbacks to socket emissions', () => {
   });
 });
 
-describe('createFlowContextResolver', () => {
-  const makeIo = (room: string[], devices: Record<string, boolean>) =>
-    ({
-      sockets: {
-        adapter: { rooms: new Map([['linea-5', new Set(room)]]) },
-        sockets: new Map(Object.entries(devices).map(([id, isDevice]) => [id, { data: { isDevice } }])),
-      },
-    }) as unknown as Server;
-
-  it('counts only non-device sockets in the room and resolves names from the DB', async () => {
-    const io = makeIo(['a', 'b', 'c'], { a: true, b: false, c: false });
-    const orm = {
-      em: {
-        fork: () => ({
-          findOne: vi.fn().mockResolvedValue({ nombre: 'Linea 5', dispositivo: { nombre: 'RB-05', hardwareId: 'hw-5' } }),
-        }),
-      },
-    } as unknown as MikroORM;
-    const ctx = await createFlowContextResolver(io, orm)(5);
-    expect(ctx).toMatchObject({ tabletSockets: 2, lineaNombre: 'Linea 5', rbNombre: 'RB-05', rbHardwareId: 'hw-5' });
-    expect(ctx.rbConnected).toBe(false);
-  });
-
-  it('keeps registry/room data when the DB lookup fails', async () => {
-    const io = makeIo(['b'], { b: false });
-    const orm = {
-      em: { fork: () => ({ findOne: vi.fn().mockRejectedValue(new Error('db down')) }) },
-    } as unknown as MikroORM;
-    const ctx = await createFlowContextResolver(io, orm)(5);
-    expect(ctx.tabletSockets).toBe(1);
-    expect(ctx.lineaNombre).toBeUndefined();
-  });
-});
-
-describe('initSocket flow monitor wiring', () => {
+describe('initSocket timers', () => {
   afterEach(() => vi.useRealTimers());
 
-  it('runs the monitor check periodically and clears the timer on cleanup', async () => {
+  it('only schedules the inactivity check (no balanza flow timer) and clears it on cleanup', () => {
     vi.useFakeTimers();
-    const spy = vi.spyOn(balanzaFlowMonitor, 'check').mockResolvedValue(undefined);
+    const verificarInactividad = vi.fn();
     const io = initSocket(http.createServer(), {} as MikroORM, {
       setInactivityWarningCallback: vi.fn(),
       setInactivityCloseCallback: vi.fn(),
-      verificarInactividad: vi.fn(),
+      verificarInactividad,
     } as unknown as SesionService);
 
-    vi.advanceTimersByTime(30_000);
-    expect(spy).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(1);
+
+    vi.advanceTimersByTime(10_000);
+    expect(verificarInactividad).toHaveBeenCalledTimes(1);
 
     (io as unknown as { __cleanupInactivityTimer: () => void }).__cleanupInactivityTimer();
-    vi.advanceTimersByTime(60_000);
-    expect(spy).toHaveBeenCalledTimes(1);
-    spy.mockRestore();
+    expect(vi.getTimerCount()).toBe(0);
     io.close();
   });
 });
