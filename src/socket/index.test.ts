@@ -7,6 +7,8 @@ import type { SesionService } from '../services/sesion.service.js';
 import { onSocketConnection, getIo, initSocket } from './index.js';
 import { registerBalanzaHandlers } from './balanza.handler.js';
 import { handleDeviceConnection } from './device-pairing.handler.js';
+import { registerWeightIssueReportHandler } from './weight-issue-report.handler.js';
+import type { WeightIssueReporter } from '../services/weight-issue-report.service.js';
 
 vi.mock('./balanza.handler.js', () => ({
   registerBalanzaHandlers: vi.fn(),
@@ -14,6 +16,10 @@ vi.mock('./balanza.handler.js', () => ({
 
 vi.mock('./device-pairing.handler.js', () => ({
   handleDeviceConnection: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('./weight-issue-report.handler.js', () => ({
+  registerWeightIssueReportHandler: vi.fn(),
 }));
 
 const makeMockSocket = (data: Record<string, unknown> = {}): Partial<Socket> => ({
@@ -60,6 +66,18 @@ describe('onSocketConnection', () => {
     expect(handleDeviceConnection).toHaveBeenCalledWith(io, socket, orm);
     expect(registerBalanzaHandlers).toHaveBeenCalledWith(io, socket, orm, sesionSvc);
   });
+
+  it('registers the weight issue report handler when a reporter is provided', () => {
+    const socket = makeMockSocket({ user: { rol: 'operario' } });
+    const reporter = { submit: vi.fn() } as unknown as WeightIssueReporter;
+    onSocketConnection(io, socket as Socket, orm, sesionSvc, reporter);
+    expect(registerWeightIssueReportHandler).toHaveBeenCalledWith(socket, reporter);
+  });
+
+  it('does not register the weight issue report handler without a reporter', () => {
+    onSocketConnection(io, makeMockSocket({ user: { rol: 'operario' } }) as Socket, orm, sesionSvc);
+    expect(registerWeightIssueReportHandler).not.toHaveBeenCalled();
+  });
 });
 
 describe('getIo and initSocket', () => {
@@ -82,6 +100,28 @@ describe('getIo and initSocket', () => {
     expect(getIo()).toBe(io);
 
     // Cleanup
+    io.close();
+  });
+});
+
+describe('initSocket reporter wiring', () => {
+  it('builds the reporter once and registers the report handler on every connection', () => {
+    vi.mocked(registerWeightIssueReportHandler).mockClear();
+    const io = initSocket(http.createServer(), {} as MikroORM, {
+      setInactivityWarningCallback: vi.fn(),
+      setInactivityCloseCallback: vi.fn(),
+      verificarInactividad: vi.fn(),
+    } as unknown as SesionService);
+
+    const [onConnection] = io.sockets.listeners('connection') as Array<(socket: Socket) => void>;
+    onConnection(makeMockSocket({ user: { rol: 'operario' } }) as Socket);
+    onConnection(makeMockSocket({ user: { rol: 'operario' } }) as Socket);
+
+    const calls = vi.mocked(registerWeightIssueReportHandler).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(typeof calls[0][1].submit).toBe('function');
+    expect(calls[0][1]).toBe(calls[1][1]);
+    clearInterval((io as unknown as { __inactivityTimer: NodeJS.Timeout }).__inactivityTimer);
     io.close();
   });
 });

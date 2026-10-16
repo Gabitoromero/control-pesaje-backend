@@ -52,4 +52,47 @@ describe('createLineaContextResolver', () => {
     expect(ctx.rbConnected).toBe(true);
     expect(ctx.rbHardwareId).toBe('hw-reg');
   });
+
+  describe('RB socket facts', () => {
+    const orm = { em: { fork: () => ({ findOne: vi.fn().mockResolvedValue(null) }) } } as unknown as MikroORM;
+    const registry = { getDeviceForLinea: vi.fn().mockReturnValue({ socketId: 'rb-1', hardwareId: 'hw-1' }) };
+    const makeIoWithRb = (rbSocket: { connected: boolean; rooms: Set<string> } | undefined) =>
+      ({
+        sockets: {
+          adapter: { rooms: new Map([['linea-5', new Set(['rb-1'])]]) },
+          sockets: new Map(rbSocket ? [['rb-1', { data: { isDevice: true }, ...rbSocket }]] : []),
+        },
+      }) as unknown as Server;
+
+    it('reports an active RB socket that is in the línea room', async () => {
+      const io = makeIoWithRb({ connected: true, rooms: new Set(['rb-1', 'linea-5']) });
+      const ctx = await createLineaContextResolver(io, orm, registry as never)(5);
+      expect(ctx).toMatchObject({ rbConnected: true, rbSocketActivo: true, rbEnSala: true });
+    });
+
+    it('reports an active RB socket that is not in the room', async () => {
+      const io = makeIoWithRb({ connected: true, rooms: new Set(['rb-1']) });
+      const ctx = await createLineaContextResolver(io, orm, registry as never)(5);
+      expect(ctx).toMatchObject({ rbSocketActivo: true, rbEnSala: false });
+    });
+
+    it('reports a disconnected RB socket as inactive', async () => {
+      const io = makeIoWithRb({ connected: false, rooms: new Set(['linea-5']) });
+      const ctx = await createLineaContextResolver(io, orm, registry as never)(5);
+      expect(ctx).toMatchObject({ rbSocketActivo: false, rbEnSala: true });
+    });
+
+    it('reports both false when the registered RB socket cannot be found', async () => {
+      const ctx = await createLineaContextResolver(makeIoWithRb(undefined), orm, registry as never)(5);
+      expect(ctx).toMatchObject({ rbConnected: true, rbSocketActivo: false, rbEnSala: false });
+    });
+
+    it('leaves the RB socket facts unset when no RB is registered', async () => {
+      const none = { getDeviceForLinea: vi.fn().mockReturnValue(undefined) };
+      const ctx = await createLineaContextResolver(makeIoWithRb(undefined), orm, none as never)(5);
+      expect(ctx.rbConnected).toBe(false);
+      expect(ctx.rbSocketActivo).toBeUndefined();
+      expect(ctx.rbEnSala).toBeUndefined();
+    });
+  });
 });

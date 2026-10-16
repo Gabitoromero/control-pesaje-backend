@@ -10,6 +10,10 @@ export interface LineaContext {
   rbHardwareId?: string;
   /** Whether the RB socket is currently registered in the device registry. */
   rbConnected?: boolean;
+  /** Whether the registered RB's socket is currently connected. Unset when no RB is registered. */
+  rbSocketActivo?: boolean;
+  /** Whether the registered RB's socket is in room `linea-<id>`. Unset when no RB is registered. */
+  rbEnSala?: boolean;
   /** Non-device (tablet) sockets currently in room `linea-<id>`. */
   tabletSockets?: number;
 }
@@ -25,7 +29,16 @@ export const createLineaContextResolver =
 
     const device = registry.getDeviceForLinea(lineaId);
     ctx.rbConnected = device !== undefined;
-    if (device) ctx.rbHardwareId = device.hardwareId;
+    if (device) {
+      ctx.rbHardwareId = device.hardwareId;
+      try {
+        const rbSocket = io.sockets.sockets.get(device.socketId);
+        ctx.rbSocketActivo = rbSocket?.connected === true;
+        ctx.rbEnSala = rbSocket?.rooms?.has(`linea-${lineaId}`) === true;
+      } catch {
+        // leave unknown
+      }
+    }
 
     try {
       const room = io.sockets.adapter.rooms.get(`linea-${lineaId}`);

@@ -5,7 +5,13 @@ import type { SesionService } from '../services/sesion.service.js';
 import { deviceAuthMiddleware, tabletJwtMiddleware } from './auth.middleware.js';
 import { registerBalanzaHandlers } from './balanza.handler.js';
 import { handleDeviceConnection } from './device-pairing.handler.js';
+import { registerWeightIssueReportHandler } from './weight-issue-report.handler.js';
 import { sesionService } from '../services/sesion.service.js';
+import { balanzaFrameRing } from '../services/balanza-frame-ring.service.js';
+import { deviceRegistryService } from '../services/device-registry.service.js';
+import { createDiscordNotifier } from '../services/discord-notifier.service.js';
+import { createLineaContextResolver } from '../services/linea-context.service.js';
+import { createWeightIssueReporter, type WeightIssueReporter } from '../services/weight-issue-report.service.js';
 import { UsuarioRol } from '../models/Usuario.js';
 
 let ioInstance: Server | null = null;
@@ -22,7 +28,8 @@ export const getIo = (): Server => {
  * emit required — the JWT role is already decoded onto socket.data.user by
  * tabletJwtMiddleware before `connection` fires), device pairing (connects
  * a device socket to its línea room based on hardwareId), and the balanza
- * domain handlers.
+ * domain handlers. The "No veo el peso" report handler is registered only when
+ * a `reporter` is provided.
  *
  * Extracted as a standalone export so it can be unit tested without
  * spinning up a real Socket.IO server/client pair.
@@ -32,6 +39,7 @@ export const onSocketConnection = (
   socket: Socket,
   orm: MikroORM,
   sesionSvc: SesionService = sesionService,
+  reporter?: WeightIssueReporter,
 ): void => {
   const rol = socket.data.user?.rol;
   if (rol === UsuarioRol.ADMINISTRADOR || rol === UsuarioRol.JEFE) {
@@ -43,6 +51,8 @@ export const onSocketConnection = (
   });
 
   registerBalanzaHandlers(io, socket, orm, sesionSvc);
+
+  if (reporter) registerWeightIssueReportHandler(socket, reporter);
 };
 
 /**
@@ -112,8 +122,19 @@ export const initSocket = (
   ioWithTestHooks.__inactivityTimer = inactivityTimer;
   ioWithTestHooks.__cleanupInactivityTimer = cleanupTimer;
 
+  // One reporter for the whole server: it owns the per-línea cooldown state.
+  const reporter = createWeightIssueReporter({
+    io,
+    orm,
+    registry: deviceRegistryService,
+    sesion: sesionSvc,
+    frameRing: balanzaFrameRing,
+    resolveLineaContext: createLineaContextResolver(io, orm),
+    notifier: createDiscordNotifier({ webhookUrl: process.env.DISCORD_WEBHOOK_URL }),
+  });
+
   io.on('connection', (socket) => {
-    onSocketConnection(io, socket, orm);
+    onSocketConnection(io, socket, orm, sesionSvc, reporter);
   });
 
   return io;
