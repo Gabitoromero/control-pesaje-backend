@@ -144,6 +144,16 @@ export class SesionService {
     return session;
   }
 
+  /**
+   * Pure read for diagnostics. Unlike `obtenerSesion` it never deletes an
+   * expired session, never invokes the inactivity callbacks and never touches
+   * `warningSent`/`ultimaActividadAt`. Returns a shallow copy or null.
+   */
+  peekSesion(lineaProduccionId: number): SesionActiva | null {
+    const session = this.lineSessions.get(lineaProduccionId);
+    return session ? { ...session } : null;
+  }
+
   obtenerSesionPorUsuario(usuarioId: number): SesionActiva | null {
     for (const [lineId, session] of this.lineSessions.entries()) {
       this.obtenerSesion(lineId); // Trigger lazy expiry check

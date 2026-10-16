@@ -336,5 +336,101 @@ describe('SesionService (In-Memory Session Registry)', () => {
       expect(warningCb).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('peekSesion (side-effect free read)', () => {
+    const originalEnv = process.env.INACTIVITY_TIMEOUT_MINUTES;
+
+    beforeEach(() => {
+      sesionService.limpiar();
+      sesionService.setInactivityCloseCallback(null);
+      sesionService.setInactivityWarningCallback(null);
+      process.env.INACTIVITY_TIMEOUT_MINUTES = '1';
+    });
+
+    afterEach(() => {
+      sesionService.setInactivityCloseCallback(null);
+      sesionService.setInactivityWarningCallback(null);
+      if (originalEnv === undefined) delete process.env.INACTIVITY_TIMEOUT_MINUTES;
+      else process.env.INACTIVITY_TIMEOUT_MINUTES = originalEnv;
+      vi.useRealTimers();
+    });
+
+    it('returns null when the línea has no session', () => {
+      expect(sesionService.peekSesion(99)).toBeNull();
+    });
+
+    it('returns a shallow copy of the stored session, not the stored object', () => {
+      sesionService.iniciarSesion(1, 20, UsuarioRol.OPERARIO);
+
+      const peeked = sesionService.peekSesion(1);
+      expect(peeked).not.toBeNull();
+      expect(peeked).toMatchObject({ lineaProduccionId: 1, usuarioId: 20, warningSent: false });
+
+      // Mutating the copy must not leak into the stored session.
+      peeked!.usuarioId = 999;
+      peeked!.warningSent = true;
+      expect(sesionService.peekSesion(1)).toMatchObject({ usuarioId: 20, warningSent: false });
+    });
+
+    it('does not delete an expired session and does not fire the close callback', () => {
+      vi.useFakeTimers();
+      const now = new Date('2026-06-01T12:00:00Z');
+      vi.setSystemTime(now);
+      sesionService.iniciarSesion(1, 21, UsuarioRol.OPERARIO);
+      const closeCb = vi.fn();
+      sesionService.setInactivityCloseCallback(closeCb);
+
+      vi.setSystemTime(new Date(now.getTime() + 2 * 60 * 1000)); // past the 1 min timeout
+
+      const peeked = sesionService.peekSesion(1);
+      expect(peeked).not.toBeNull();
+      expect(peeked!.usuarioId).toBe(21);
+      expect(closeCb).not.toHaveBeenCalled();
+      // Still registered afterwards: peek never expires anything.
+      expect(sesionService.obtenerTodasLasSesiones()).toHaveLength(1);
+    });
+
+    it('does not fire the warning callback nor set warningSent inside the warning window', () => {
+      vi.useFakeTimers();
+      const now = new Date('2026-06-01T12:00:00Z');
+      vi.setSystemTime(now);
+      sesionService.iniciarSesion(1, 22, UsuarioRol.OPERARIO);
+      const warningCb = vi.fn();
+      sesionService.setInactivityWarningCallback(warningCb);
+
+      vi.setSystemTime(new Date(now.getTime() + 35 * 1000)); // inside the 30 s lead
+
+      expect(sesionService.peekSesion(1)!.warningSent).toBe(false);
+      expect(warningCb).not.toHaveBeenCalled();
+      expect(sesionService.obtenerTodasLasSesiones()[0].warningSent).toBe(false);
+    });
+
+    it('does not touch ultimaActividadAt', () => {
+      vi.useFakeTimers();
+      const now = new Date('2026-06-01T12:00:00Z');
+      vi.setSystemTime(now);
+      sesionService.iniciarSesion(1, 23, UsuarioRol.OPERARIO);
+
+      vi.setSystemTime(new Date(now.getTime() + 10 * 1000));
+      sesionService.peekSesion(1);
+
+      expect(sesionService.obtenerTodasLasSesiones()[0].ultimaActividadAt?.getTime()).toBe(now.getTime());
+    });
+
+    it('does not change what obtenerSesion does afterwards (it still expires and fires the callback)', () => {
+      vi.useFakeTimers();
+      const now = new Date('2026-06-01T12:00:00Z');
+      vi.setSystemTime(now);
+      sesionService.iniciarSesion(1, 24, UsuarioRol.OPERARIO);
+      const closeCb = vi.fn();
+      sesionService.setInactivityCloseCallback(closeCb);
+      vi.setSystemTime(new Date(now.getTime() + 2 * 60 * 1000));
+
+      sesionService.peekSesion(1);
+
+      expect(sesionService.obtenerSesion(1)).toBeNull();
+      expect(closeCb).toHaveBeenCalledWith(1);
+    });
+  });
 });
 
