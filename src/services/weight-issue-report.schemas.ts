@@ -32,6 +32,10 @@ export const rbDiagnosticSchema = z.object({
     path: z.string().max(200),
     baud: z.number(),
     ultimoByteHaceMs: z.number().nullable(),
+    // Added later: optional so an RB without them still validates.
+    ultimoError: z.string().max(300).nullable().optional(),
+    ultimoErrorHaceMs: z.number().nullable().optional(),
+    intentosFallidos: z.number().int().nonnegative().optional(),
   }),
   contadores: z.object({
     bytes: z.number().int().nonnegative(),

@@ -85,6 +85,25 @@ describe('rbDiagnosticSchema', () => {
     expect(r.success).toBe(true);
   });
 
+  it('accepts the optional serial error fields and keeps them', () => {
+    const serial = { ...validDiag.serial, abierto: false, ultimoError: 'ENOENT', ultimoErrorHaceMs: 3000, intentosFallidos: 12 };
+    const r = rbDiagnosticSchema.safeParse({ ...validDiag, serial });
+    expect(r.success).toBe(true);
+    expect(r.data?.serial).toMatchObject({ ultimoError: 'ENOENT', ultimoErrorHaceMs: 3000, intentosFallidos: 12 });
+  });
+
+  it('accepts null error fields and an old RB without them', () => {
+    const serial = { ...validDiag.serial, ultimoError: null, ultimoErrorHaceMs: null, intentosFallidos: 0 };
+    expect(rbDiagnosticSchema.safeParse({ ...validDiag, serial }).success).toBe(true);
+    expect(rbDiagnosticSchema.safeParse(validDiag).success).toBe(true);
+  });
+
+  it('rejects an oversized error and a negative attempts count', () => {
+    const base = validDiag.serial;
+    expect(rbDiagnosticSchema.safeParse({ ...validDiag, serial: { ...base, ultimoError: 'x'.repeat(301) } }).success).toBe(false);
+    expect(rbDiagnosticSchema.safeParse({ ...validDiag, serial: { ...base, intentosFallidos: -1 } }).success).toBe(false);
+  });
+
   it('rejects v other than 1', () => {
     expect(rbDiagnosticSchema.safeParse({ ...validDiag, v: 2 }).success).toBe(false);
   });

@@ -137,6 +137,50 @@ describe('formatSummary', () => {
       expect(summary).toContain('sin bytes');
     });
 
+    describe('serial closed with the last error', () => {
+      const ENOENT = 'ENOENT: no such file or directory, cannot open /dev/ttyUSB0';
+      const closedDiag = (serial: Record<string, unknown>) =>
+        makeDiag({ serial: { abierto: false, path: '/dev/ttyUSB0', baud: 9600, ultimoByteHaceMs: null, ...serial } });
+
+      it('says CERRADO with the error, its age and the failed attempts', () => {
+        const diag = closedDiag({ ultimoError: ENOENT, ultimoErrorHaceMs: 3000, intentosFallidos: 12 });
+        const summary = formatSummary(withRb({ estado: 'ok', diag }));
+        expect(summary).toContain(`serial CERRADO: ${ENOENT} (hace 3 s, 12 intentos)`);
+        expect(summary).not.toContain('serial abierto');
+      });
+
+      it('old RB without the new fields keeps the plain closed text', () => {
+        const summary = formatSummary(withRb({ estado: 'ok', diag: closedDiag({}) }));
+        expect(summary).toContain('serial cerrado /dev/ttyUSB0@9600');
+        expect(summary).not.toContain('CERRADO');
+      });
+
+      it('open serial is unchanged even if stale error fields are present', () => {
+        const diag = makeDiag({
+          serial: { abierto: true, path: '/dev/ttyUSB0', baud: 9600, ultimoByteHaceMs: 2500, ultimoError: null, ultimoErrorHaceMs: null, intentosFallidos: 0 },
+        });
+        const summary = formatSummary(withRb({ estado: 'ok', diag }));
+        expect(summary).toContain('serial abierto /dev/ttyUSB0@9600');
+        expect(summary).not.toContain('CERRADO');
+      });
+
+      it('shortens a very long error and keeps the summary within the cap and its footer', () => {
+        const diag = closedDiag({ ultimoError: 'E'.repeat(300), ultimoErrorHaceMs: 1000, intentosFallidos: 5 });
+        const summary = formatSummary(withRb({ estado: 'ok', diag }));
+        expect(summary).not.toContain('E'.repeat(150));
+        expect(summary.length).toBeLessThanOrEqual(SUMMARY_MAX_LENGTH);
+        expect(summary).toContain('detalle completo en adjunto');
+      });
+
+      it('the attachment RB section lists the three fields', () => {
+        const diag = closedDiag({ ultimoError: ENOENT, ultimoErrorHaceMs: 3000, intentosFallidos: 12 });
+        const text = formatAttachment(withRb({ estado: 'ok', diag }));
+        expect(text).toContain(`ultimoError=${ENOENT}`);
+        expect(text).toContain('ultimoErrorHaceMs=3000');
+        expect(text).toContain('intentosFallidos=12');
+      });
+    });
+
     it('no-conectada', () => {
       const summary = formatSummary(withRb({ estado: 'no-conectada' }));
       expect(summary).toContain('RB no conectada (no se solicitó diagnóstico)');

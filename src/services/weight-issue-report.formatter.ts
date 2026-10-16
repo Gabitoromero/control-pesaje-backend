@@ -7,6 +7,7 @@ export const SUMMARY_MAX_LENGTH = 1900;
 export const ATTACHMENT_MAX_LENGTH = 256 * 1024;
 
 const FIELD_MAX_LENGTH = 60;
+const SERIAL_ERROR_SUMMARY_LENGTH = 100;
 const SUMMARY_BACKEND_FRAMES = 5;
 const SUMMARY_RB_RAW_FRAMES = 3;
 const RB_RAW_PREVIEW_LENGTH = 40;
@@ -153,13 +154,20 @@ const lastBackendFramesText = (r: WeightIssueReport): string | null => {
   return `Últimas ${SUMMARY_BACKEND_FRAMES} backend: ${items.join('; ')}`;
 };
 
+const serialText = (serial: RbDiagnostic['serial']): string => {
+  if (serial.abierto) return `serial abierto ${clip(serial.path)}@${serial.baud}`;
+  if (!serial.ultimoError) return `serial cerrado ${clip(serial.path)}@${serial.baud}`;
+  const age = serial.ultimoErrorHaceMs == null ? '' : `hace ${seconds(serial.ultimoErrorHaceMs)} s, `;
+  return `serial CERRADO: ${clip(serial.ultimoError, SERIAL_ERROR_SUMMARY_LENGTH)} (${age}${serial.intentosFallidos ?? 0} intentos)`;
+};
+
 const rbText = (rb: RbResult): string => {
   switch (rb.estado) {
     case 'ok': {
       const { version, serial, contadores } = rb.diag;
       const lastByte = serial.ultimoByteHaceMs === null ? 'sin bytes' : `último byte hace ${seconds(serial.ultimoByteHaceMs)} s`;
       return (
-        `RB: versión ${clip(version)} · serial ${serial.abierto ? 'abierto' : 'cerrado'} ${clip(serial.path)}@${serial.baud}` +
+        `RB: versión ${clip(version)} · ${serialText(serial)}` +
         ` · ${lastByte} · bytes ${contadores.bytes} válidas ${contadores.validas} descartadas ${contadores.descartadas}`
       );
     }
@@ -247,7 +255,8 @@ const rbSection = (rb: RbResult): string[] => {
     const { version, serial, contadores, tramasCrudas, logs } = rb.diag;
     lines.push(
       `version: ${version}`,
-      `serial: abierto=${serial.abierto} path=${serial.path} baud=${serial.baud} ultimoByteHaceMs=${serial.ultimoByteHaceMs ?? '-'}`,
+      `serial: abierto=${serial.abierto} path=${serial.path} baud=${serial.baud} ultimoByteHaceMs=${serial.ultimoByteHaceMs ?? '-'}` +
+        ` ultimoError=${serial.ultimoError ?? '-'} ultimoErrorHaceMs=${serial.ultimoErrorHaceMs ?? '-'} intentosFallidos=${serial.intentosFallidos ?? '-'}`,
       `contadores: bytes=${contadores.bytes} validas=${contadores.validas} descartadas=${contadores.descartadas}`,
       `ultimaDescartada: ${contadores.ultimaDescartada === null ? '-' : JSON.stringify(contadores.ultimaDescartada)}`,
       `== RB tramas crudas (${tramasCrudas.length}) ==`,
