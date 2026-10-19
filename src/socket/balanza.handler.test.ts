@@ -306,6 +306,39 @@ describe('registerBalanzaHandlers', () => {
       const emitMock = (io as unknown as { _toEmit: ReturnType<typeof vi.fn> })._toEmit;
       expect(emitMock).toHaveBeenCalledWith('balanza-status', { isConnected: false });
     });
+
+    it('logs one warn line with reason, hardwareId and lineaId when a device disconnects', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      Object.assign(socket.data as Record<string, unknown>, { lineaId: 5, isDevice: true, hardwareId: 'hw-1' });
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+
+      getHandler(socket, 'disconnect')('ping timeout');
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith('[balanza] Device disconnected (ping timeout) hardwareId=hw-1 lineaId=5');
+      warn.mockRestore();
+    });
+
+    it('logs lineaId=none for a device that never joined a línea', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      Object.assign(socket.data as Record<string, unknown>, { isDevice: true, hardwareId: 'hw-2' });
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+
+      getHandler(socket, 'disconnect')('transport close');
+
+      expect(warn).toHaveBeenCalledWith('[balanza] Device disconnected (transport close) hardwareId=hw-2 lineaId=none');
+      warn.mockRestore();
+    });
+
+    it('does not log when a non-device socket disconnects', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      registerBalanzaHandlers(io as Server, socket as Socket, orm as unknown as MikroORM, sesionService);
+
+      getHandler(socket, 'disconnect')('transport close');
+
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
   });
 
   describe('balanza-data', () => {
