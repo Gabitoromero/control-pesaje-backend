@@ -1,9 +1,15 @@
 import { Router } from 'express';
-import { getDispositivosConectados, deleteDispositivo, createDispositivo, updateDispositivo, updateDispositivoUnidad } from '../controllers/dispositivos.controller.js';
+import { getDispositivosConectados, deleteDispositivo, createDispositivo, updateDispositivo, updateDispositivoUnidad, receiveBeacon } from '../controllers/dispositivos.controller.js';
 import { authenticateJWT, requireRoles } from '../middlewares/auth.middleware.js';
+import { validateBody } from '../middlewares/validation.middleware.js';
 import { UsuarioRol } from '../models/Usuario.js';
+import { DispositivoBeaconSchema } from '../shared/schemas.js';
 
 const router: Router = Router();
+
+// Device-facing and intentionally unauthenticated (same trust level as socket
+// pairing by hardwareId). Only hardwareIds already registered are recorded.
+router.post('/beacon', validateBody(DispositivoBeaconSchema), receiveBeacon);
 
 router.get(
   '/conectados',

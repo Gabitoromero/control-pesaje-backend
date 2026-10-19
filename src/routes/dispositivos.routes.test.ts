@@ -19,6 +19,7 @@ import jwt from 'jsonwebtoken';
 import config from '../../mikro-orm.config.js';
 import { initApp } from '../app.js';
 import { UsuarioRol } from '../models/Usuario.js';
+import { rbBeaconService } from '../services/rb-beacon.service.js';
 import {
   Usuario,
   LineaProduccion,
@@ -362,5 +363,121 @@ describe('PATCH /api/dispositivos/:id/unidad', () => {
     em.clear();
     const found = await em.findOne(Dispositivo, { hardwareId: 'hw-patch-with-linea' });
     expect(found?.unidad).toBe('g');
+  });
+});
+
+describe('POST /api/dispositivos/beacon', () => {
+  let orm: MikroORM;
+  let em: EntityManager;
+  let app: Express;
+
+  beforeAll(async () => {
+    process.env.JWT_SECRET = JWT_SECRET;
+
+    orm = await MikroORM.init({
+      ...config,
+      dbName: 'control_pesaje_test',
+      extensions: [SchemaGenerator],
+      entities: [
+        Usuario,
+        LineaProduccion,
+        Articulo,
+        Balanza,
+        Etapa,
+        RutaPasada,
+        ArticuloRutaPasada,
+        RutaPasadaEtapa,
+        Pasada,
+        Muestra,
+        Dispositivo,
+      ],
+      entitiesTs: [],
+      allowGlobalContext: true,
+    });
+
+    const generator = orm.schema;
+    await generator.ensureDatabase();
+    await generator.drop();
+    await generator.create();
+
+    app = await initApp(orm as never);
+  });
+
+  afterAll(async () => {
+    if (orm) {
+      await orm.close();
+    }
+  });
+
+  beforeEach(async () => {
+    em = orm.em.fork();
+    await em.nativeDelete(Dispositivo, {});
+    rbBeaconService.remove('hw-beacon-known');
+    rbBeaconService.remove('hw-beacon-unknown');
+  });
+
+  const createDispositivo = async (hardwareId: string): Promise<void> => {
+    const dispositivo = em.create(Dispositivo, { hardwareId, lineaProduccion: undefined, nombre: 'Pi-beac' });
+    await em.persist(dispositivo).flush();
+  };
+
+  it('records the beacon for a registered hardwareId and returns 204 without a JWT', async () => {
+    await createDispositivo('hw-beacon-known');
+
+    const res = await request(app)
+      .post('/api/dispositivos/beacon')
+      .send({ hardwareId: 'hw-beacon-known', uptimeS: 1234, throttled: '0x0', tempC: 48.5 });
+
+    expect(res.status).toBe(204);
+    expect(rbBeaconService.isFresh('hw-beacon-known')).toBe(true);
+    expect(rbBeaconService.get('hw-beacon-known')).toMatchObject({ uptimeS: 1234, throttled: '0x0', tempC: 48.5 });
+  });
+
+  it('accepts a beacon with only hardwareId', async () => {
+    await createDispositivo('hw-beacon-known');
+
+    const res = await request(app).post('/api/dispositivos/beacon').send({ hardwareId: 'hw-beacon-known' });
+
+    expect(res.status).toBe(204);
+    expect(rbBeaconService.isFresh('hw-beacon-known')).toBe(true);
+  });
+
+  it('returns 204 for an unregistered hardwareId but does NOT record it', async () => {
+    const res = await request(app)
+      .post('/api/dispositivos/beacon')
+      .send({ hardwareId: 'hw-beacon-unknown', uptimeS: 5 });
+
+    expect(res.status).toBe(204);
+    expect(rbBeaconService.get('hw-beacon-unknown')).toBeUndefined();
+  });
+
+  it.each([
+    ['missing hardwareId', {}],
+    ['empty hardwareId', { hardwareId: '' }],
+    ['hardwareId too long', { hardwareId: 'x'.repeat(256) }],
+    ['negative uptimeS', { hardwareId: 'hw-beacon-known', uptimeS: -1 }],
+    ['throttled too long', { hardwareId: 'hw-beacon-known', throttled: 'x'.repeat(33) }],
+    ['tempC out of range', { hardwareId: 'hw-beacon-known', tempC: 151 }],
+    ['non numeric tempC', { hardwareId: 'hw-beacon-known', tempC: 'hot' }],
+  ])('rejects %s with 400', async (_name, body) => {
+    await createDispositivo('hw-beacon-known');
+
+    const res = await request(app).post('/api/dispositivos/beacon').send(body);
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(rbBeaconService.get('hw-beacon-known')).toBeUndefined();
+  });
+
+  it('does not open the other dispositivos routes: PUT /:id still requires auth', async () => {
+    const res = await request(app).put('/api/dispositivos/hw-beacon-known').send({ nombre: 'x' });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('does not open GET /conectados: still requires auth', async () => {
+    const res = await request(app).get('/api/dispositivos/conectados');
+
+    expect(res.status).toBe(401);
   });
 });

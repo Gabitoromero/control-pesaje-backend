@@ -2,7 +2,8 @@ import type { Request, Response } from 'express';
 import { RequestContext } from '@mikro-orm/core';
 import { Dispositivo } from '../models/Dispositivo.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
-import { DispositivoCreateSchema, DispositivoUpdateSchema, DispositivoUnidadUpdateSchema } from '../shared/schemas.js';
+import { rbBeaconService } from '../services/rb-beacon.service.js';
+import { DispositivoBeaconSchema, DispositivoCreateSchema, DispositivoUpdateSchema, DispositivoUnidadUpdateSchema } from '../shared/schemas.js';
 import { disconnectDeviceByHardwareId } from '../socket/device-pairing.handler.js';
 import { getIo } from '../socket/index.js';
 
@@ -190,6 +191,30 @@ export const deleteDispositivo = async (req: Request, res: Response): Promise<vo
     res.json({ success: true, data: { hardwareId } });
   } catch (err) {
     console.error('[deleteDispositivo error]', err);
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+  }
+};
+
+/**
+ * Unauthenticated RB liveness beacon. Always answers 204 for a well-formed body
+ * so callers cannot probe which hardwareIds exist; only registered ones are
+ * recorded. The body is never logged.
+ */
+export const receiveBeacon = async (req: Request, res: Response): Promise<void> => {
+  const em = RequestContext.getEntityManager();
+  if (!em) {
+    res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+    return;
+  }
+  try {
+    const { hardwareId, uptimeS, throttled, tempC } = DispositivoBeaconSchema.parse(req.body);
+    const dispositivo = await em.findOne(Dispositivo, { hardwareId });
+    if (dispositivo) {
+      rbBeaconService.record(hardwareId, { uptimeS, throttled, tempC });
+    }
+    res.status(204).end();
+  } catch (err) {
+    console.error('[receiveBeacon error]', err);
     res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
   }
 };

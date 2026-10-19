@@ -99,6 +99,15 @@ export const DispositivoUnidadUpdateSchema = z.object({
   unidad: z.enum(['g', 'kg']),
 });
 
+// Unauthenticated device-facing beacon (POST /dispositivos/beacon). Bounded
+// fields only: this payload is never persisted, just kept in memory.
+export const DispositivoBeaconSchema = z.object({
+  hardwareId: z.string().min(1).max(255),
+  uptimeS: z.number().finite().min(0).optional(),
+  throttled: z.string().max(32).optional(),
+  tempC: z.number().finite().min(-50).max(150).optional(),
+});
+
 // ─── RutaPasada ───────────────────────────────────────────────────────────────
 
 export const RutaPasadaCreateSchema = z.object({
