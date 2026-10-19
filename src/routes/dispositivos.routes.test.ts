@@ -19,6 +19,7 @@ import jwt from 'jsonwebtoken';
 import config from '../../mikro-orm.config.js';
 import { initApp } from '../app.js';
 import { UsuarioRol } from '../models/Usuario.js';
+import { deviceRegistryService } from '../services/device-registry.service.js';
 import { rbBeaconService } from '../services/rb-beacon.service.js';
 import {
   Usuario,
@@ -479,5 +480,119 @@ describe('POST /api/dispositivos/beacon', () => {
     const res = await request(app).get('/api/dispositivos/conectados');
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe('GET /api/dispositivos/conectados (three-state estado)', () => {
+  let orm: MikroORM;
+  let em: EntityManager;
+  let app: Express;
+
+  beforeAll(async () => {
+    process.env.JWT_SECRET = JWT_SECRET;
+
+    orm = await MikroORM.init({
+      ...config,
+      dbName: 'control_pesaje_test',
+      extensions: [SchemaGenerator],
+      entities: [
+        Usuario,
+        LineaProduccion,
+        Articulo,
+        Balanza,
+        Etapa,
+        RutaPasada,
+        ArticuloRutaPasada,
+        RutaPasadaEtapa,
+        Pasada,
+        Muestra,
+        Dispositivo,
+      ],
+      entitiesTs: [],
+      allowGlobalContext: true,
+    });
+
+    const generator = orm.schema;
+    await generator.ensureDatabase();
+    await generator.drop();
+    await generator.create();
+
+    app = await initApp(orm as never);
+  });
+
+  afterAll(async () => {
+    if (orm) {
+      await orm.close();
+    }
+  });
+
+  const HW_IDS = ['hw-est-socket', 'hw-est-beacon', 'hw-est-stale', 'hw-est-none'];
+
+  beforeEach(async () => {
+    em = orm.em.fork();
+    await em.nativeDelete(Dispositivo, {});
+    for (const hw of HW_IDS) {
+      rbBeaconService.remove(hw);
+    }
+    for (const d of deviceRegistryService.getConnectedDevices()) {
+      deviceRegistryService.removeDevice(d.socketId);
+    }
+    delete process.env.RB_BEACON_TTL_SECONDS;
+    for (const hw of HW_IDS) {
+      em.create(Dispositivo, { hardwareId: hw, lineaProduccion: undefined, nombre: hw });
+    }
+    await em.flush();
+  });
+
+  afterAll(() => {
+    delete process.env.RB_BEACON_TTL_SECONDS;
+  });
+
+  const getEstados = async () => {
+    const res = await request(app)
+      .get('/api/dispositivos/conectados')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(res.status).toBe(200);
+    return Object.fromEntries(
+      (res.body.data as Array<{ hardwareId: string; estado: string; beacon: unknown }>).map((d) => [d.hardwareId, d]),
+    );
+  };
+
+  it('reports Conectado / Encendido / Desconectado and beacon facts per device', async () => {
+    deviceRegistryService.registerDevice('sock-1', 1, 'hw-est-socket', 'kg');
+    rbBeaconService.record('hw-est-socket', { uptimeS: 10 });
+    rbBeaconService.record('hw-est-beacon', { uptimeS: 99, throttled: '0x50005', tempC: 61 });
+
+    const byHw = await getEstados();
+
+    expect(byHw['hw-est-socket'].estado).toBe('Conectado');
+    expect(byHw['hw-est-beacon'].estado).toBe('Encendido');
+    expect(byHw['hw-est-beacon'].beacon).toMatchObject({ uptimeS: 99, throttled: '0x50005', tempC: 61 });
+    expect(typeof (byHw['hw-est-beacon'].beacon as { haceMs: number }).haceMs).toBe('number');
+    expect(byHw['hw-est-none'].estado).toBe('Desconectado');
+    expect(byHw['hw-est-none'].beacon).toBeNull();
+  });
+
+  it('reports Desconectado for a stale beacon but still exposes its facts', async () => {
+    rbBeaconService.record('hw-est-stale', { uptimeS: 5 });
+    process.env.RB_BEACON_TTL_SECONDS = '0.001';
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const byHw = await getEstados();
+
+    expect(byHw['hw-est-stale'].estado).toBe('Desconectado');
+    expect(byHw['hw-est-stale'].beacon).toMatchObject({ uptimeS: 5 });
+  });
+
+  it('PUT /:id returns the same three-state estado', async () => {
+    rbBeaconService.record('hw-est-beacon', {});
+
+    const res = await request(app)
+      .put('/api/dispositivos/hw-est-beacon')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ nombre: 'renamed' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.estado).toBe('Encendido');
   });
 });

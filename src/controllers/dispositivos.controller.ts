@@ -7,6 +7,30 @@ import { DispositivoBeaconSchema, DispositivoCreateSchema, DispositivoUpdateSche
 import { disconnectDeviceByHardwareId } from '../socket/device-pairing.handler.js';
 import { getIo } from '../socket/index.js';
 
+export type DispositivoEstado = 'Conectado' | 'Encendido' | 'Desconectado';
+
+/** Conectado = device socket registered; Encendido = no socket but a fresh HTTP beacon; else Desconectado. */
+const resolveEstado = (hardwareId: string): DispositivoEstado => {
+  if (deviceRegistryService.isHardwareIdConnected(hardwareId)) {
+    return 'Conectado';
+  }
+  return rbBeaconService.isFresh(hardwareId) ? 'Encendido' : 'Desconectado';
+};
+
+/** Last beacon facts (even if stale, for diagnostics) or null when none was ever received. */
+const resolveBeaconFacts = (hardwareId: string) => {
+  const beacon = rbBeaconService.get(hardwareId);
+  if (!beacon) {
+    return null;
+  }
+  return {
+    haceMs: beacon.ageMs,
+    uptimeS: beacon.uptimeS ?? null,
+    throttled: beacon.throttled ?? null,
+    tempC: beacon.tempC ?? null,
+  };
+};
+
 export const getDispositivosConectados = async (req: Request, res: Response): Promise<void> => {
   const em = RequestContext.getEntityManager();
   if (!em) {
@@ -21,9 +45,8 @@ export const getDispositivosConectados = async (req: Request, res: Response): Pr
       nombre: dispositivo.nombre,
       lineaId: dispositivo.lineaProduccion?.id ?? null,
       lineaNombre: dispositivo.lineaProduccion?.nombre ?? null,
-      estado: deviceRegistryService.isHardwareIdConnected(dispositivo.hardwareId)
-        ? 'Conectado'
-        : 'Desconectado',
+      estado: resolveEstado(dispositivo.hardwareId),
+      beacon: resolveBeaconFacts(dispositivo.hardwareId),
       ultimaConexionAt: dispositivo.ultimaConexionAt ?? null,
       unidad: dispositivo.unidad ?? null,
     }));
@@ -62,7 +85,7 @@ export const createDispositivo = async (req: Request, res: Response): Promise<vo
       nombre: dispositivo.nombre,
       lineaId: null,
       lineaNombre: null,
-      estado: 'Desconectado',
+      estado: resolveEstado(dispositivo.hardwareId),
       ultimaConexionAt: null,
     } });
   } catch (err) {
@@ -102,7 +125,7 @@ export const updateDispositivo = async (req: Request, res: Response): Promise<vo
       nombre: dispositivo.nombre,
       lineaId: dispositivo.lineaProduccion?.id ?? null,
       lineaNombre: dispositivo.lineaProduccion?.nombre ?? null,
-      estado: deviceRegistryService.isHardwareIdConnected(dispositivo.hardwareId) ? 'Conectado' : 'Desconectado',
+      estado: resolveEstado(dispositivo.hardwareId),
       ultimaConexionAt: dispositivo.ultimaConexionAt ?? null,
     } });
   } catch (err) {
