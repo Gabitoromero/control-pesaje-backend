@@ -2,6 +2,7 @@ import type { Server } from 'socket.io';
 import type { MikroORM } from '@mikro-orm/postgresql';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { deviceRegistryService, type DeviceRegistryService } from './device-registry.service.js';
+import { rbBeaconService, type RbBeaconService } from './rb-beacon.service.js';
 
 /** Best-effort facts about a línea, resolved on demand. */
 export interface LineaContext {
@@ -16,6 +17,13 @@ export interface LineaContext {
   rbEnSala?: boolean;
   /** Non-device (tablet) sockets currently in room `linea-<id>`. */
   tabletSockets?: number;
+  /** Power/liveness of the RB: socket registered, only a fresh HTTP beacon, or neither. Unset when no hardwareId is known. */
+  rbEstado?: 'conectado' | 'encendido' | 'desconectado';
+  /** Milliseconds since the last beacon received from the RB (even if stale). */
+  rbBeaconHaceMs?: number;
+  rbUptimeS?: number;
+  rbThrottled?: string;
+  rbTempC?: number;
 }
 
 /**
@@ -23,7 +31,9 @@ export interface LineaContext {
  * independent: a DB failure still yields the registry/room data.
  */
 export const createLineaContextResolver =
-  (io: Server, orm: MikroORM, registry: Pick<DeviceRegistryService, 'getDeviceForLinea'> = deviceRegistryService) =>
+  (io: Server, orm: MikroORM, registry: Pick<DeviceRegistryService, 'getDeviceForLinea'> = deviceRegistryService,
+    beacons: Pick<RbBeaconService, 'get' | 'isFresh'> = rbBeaconService,
+  ) =>
   async (lineaId: number): Promise<LineaContext> => {
     const ctx: LineaContext = {};
 
@@ -64,6 +74,21 @@ export const createLineaContextResolver =
       }
     } catch {
       // names stay unknown
+    }
+
+    if (ctx.rbHardwareId !== undefined) {
+      try {
+        const beacon = beacons.get(ctx.rbHardwareId);
+        if (beacon) {
+          ctx.rbBeaconHaceMs = beacon.ageMs;
+          if (beacon.uptimeS !== undefined) ctx.rbUptimeS = beacon.uptimeS;
+          if (beacon.throttled !== undefined) ctx.rbThrottled = beacon.throttled;
+          if (beacon.tempC !== undefined) ctx.rbTempC = beacon.tempC;
+        }
+        ctx.rbEstado = ctx.rbConnected ? 'conectado' : beacons.isFresh(ctx.rbHardwareId) ? 'encendido' : 'desconectado';
+      } catch {
+        // beacon facts stay unknown
+      }
     }
 
     return ctx;

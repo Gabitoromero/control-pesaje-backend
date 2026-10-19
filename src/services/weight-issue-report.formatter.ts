@@ -39,6 +39,11 @@ export interface ReportBackendContext {
   rbSocketActivo?: boolean;
   rbEnSala?: boolean;
   tabletSockets?: number;
+  rbEstado?: 'conectado' | 'encendido' | 'desconectado';
+  rbBeaconHaceMs?: number;
+  rbUptimeS?: number;
+  rbThrottled?: string;
+  rbTempC?: number;
 }
 
 export interface ReportDevice {
@@ -126,6 +131,17 @@ const backendText = (b: ReportBackendContext): string => {
   );
 };
 
+/** Short power/beacon line; null when the backend resolved no beacon facts. */
+const powerText = (b: ReportBackendContext): string | null => {
+  if (b.rbEstado === undefined) return null;
+  const parts: string[] = [b.rbEstado];
+  if (b.rbBeaconHaceMs !== undefined) parts.push(`beacon hace ${seconds(b.rbBeaconHaceMs)} s`);
+  if (b.rbUptimeS !== undefined) parts.push(`uptime ${b.rbUptimeS} s`);
+  if (b.rbThrottled !== undefined) parts.push(`throttled ${clip(b.rbThrottled)}`);
+  if (b.rbTempC !== undefined) parts.push(`${b.rbTempC} °C`);
+  return `Energía RB: ${parts.join(' · ')}`;
+};
+
 const frameResult = (f: FrameEntry): string => (f.aceptada ? 'ok' : (f.motivo ?? 'descartada'));
 const frameValue = (f: FrameEntry): string => `${f.pesoNeto === null ? 's/d' : f.pesoNeto}${f.unidad ?? ''}`;
 
@@ -203,6 +219,7 @@ export const formatSummary = (r: WeightIssueReport): string => {
     operatorText(r.sesion),
     tabletText(r),
     backendText(r.backend),
+    powerText(r.backend),
     framesCountText(r),
     lastBackendFramesText(r),
     rbText(r.rb),
@@ -239,6 +256,15 @@ const backendSection = (r: WeightIssueReport): string[] => {
     `rbEnSala: ${yesNo(b.rbEnSala)}`,
     `tabletsEnSala: ${b.tabletSockets ?? '?'}`,
   ];
+  if (b.rbEstado !== undefined) {
+    lines.push(
+      `rbEstado: ${b.rbEstado}`,
+      `rbBeaconHaceMs: ${b.rbBeaconHaceMs ?? '-'}`,
+      `rbUptimeS: ${b.rbUptimeS ?? '-'}`,
+      `rbThrottled: ${b.rbThrottled ?? '-'}`,
+      `rbTempC: ${b.rbTempC ?? '-'}`,
+    );
+  }
   if (r.device) lines.push(`dispositivo: ${r.device.hardwareId} unidad=${r.device.unidad ?? '-'}`);
   if (r.lineaMismatch) lines.push(mismatchText(r));
   return lines;

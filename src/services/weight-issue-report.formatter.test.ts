@@ -211,6 +211,59 @@ describe('formatSummary', () => {
     });
   });
 
+  describe('RB power and beacon facts', () => {
+    const beaconBackend = {
+      lineaNombre: 'Línea 3',
+      rbNombre: 'RB-3',
+      rbHardwareId: 'hw-abc',
+      rbConnected: false,
+      rbSocketActivo: false,
+      rbEnSala: false,
+      tabletSockets: 2,
+      rbEstado: 'encendido' as const,
+      rbBeaconHaceMs: 12_000,
+      rbUptimeS: 3600,
+      rbThrottled: '0x50005',
+      rbTempC: 61.5,
+    };
+
+    it('keeps the existing backend line untouched when no beacon facts are present', () => {
+      const line = formatSummary(makeReport()).split('\n').find((l) => l.startsWith('Backend:'))!;
+      expect(line.endsWith('tablets en sala 2')).toBe(true);
+    });
+
+    it('adds a short power line to the summary', () => {
+      const summary = formatSummary(makeReport({ backend: beaconBackend }));
+      const line = summary.split('\n').find((l) => l.startsWith('Energía RB:'))!;
+      expect(line).toBe('Energía RB: encendido · beacon hace 12 s · uptime 3600 s · throttled 0x50005 · 61.5 °C');
+    });
+
+    it('clips an oversized throttled value and keeps the summary within the limit', () => {
+      const long = 'T'.repeat(5000);
+      const summary = formatSummary(makeReport({ backend: { ...beaconBackend, rbThrottled: long } }));
+      expect(summary).not.toContain('T'.repeat(61));
+      expect(summary.length).toBeLessThanOrEqual(SUMMARY_MAX_LENGTH);
+    });
+
+    it('keeps the summary within the limit with every long field plus beacon facts', () => {
+      const long = 'N'.repeat(5000);
+      const report = makeReport({
+        backend: { ...beaconBackend, lineaNombre: long, rbNombre: long, rbHardwareId: long, rbThrottled: long },
+        sesion: { estado: 'operario', usuarioId: 42, legajo: long, nombreApellido: long },
+      });
+      expect(formatSummary(report).length).toBeLessThanOrEqual(SUMMARY_MAX_LENGTH);
+    });
+
+    it('lists the beacon facts in the attachment backend section', () => {
+      const text = formatAttachment(makeReport({ backend: beaconBackend }));
+      expect(text).toContain('rbEstado: encendido');
+      expect(text).toContain('rbBeaconHaceMs: 12000');
+      expect(text).toContain('rbUptimeS: 3600');
+      expect(text).toContain('rbThrottled: 0x50005');
+      expect(text).toContain('rbTempC: 61.5');
+    });
+  });
+
   describe('session lines', () => {
     it('operario with legajo and name', () => {
       expect(formatSummary(makeReport())).toContain('Operario: 123 Ana Pérez');
