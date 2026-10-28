@@ -29,4 +29,12 @@ export class RutaPasadaEtapa {
 
   @Property({ type: 'number' })
   cantidadMuestrasRequeridas!: number;
+
+  /** true = the etapa uses the global tolerance (ConfigSistema.toleranciaPct); toleranciaPct is then null. */
+  @Property({ type: 'boolean', default: true })
+  toleranciaPorDefecto?: boolean = true;
+
+  /** Own symmetric tolerance in percent, only meaningful when toleranciaPorDefecto is false. */
+  @Property({ type: 'decimal', columnType: 'decimal(5,2)', nullable: true, serializer: value => (value == null ? null : Number(value)) })
+  toleranciaPct?: number | null;
 }
