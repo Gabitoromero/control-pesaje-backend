@@ -130,13 +130,15 @@ export const RutaPasadaEtapaCreateSchema = z.object({
   pesoMinimo: z.number().positive(),
   pesoMaximo: z.number().positive(),
   cantidadMuestrasRequeridas: z.number().int().positive(),
-  // Per-etapa tolerance (percent). Same 0-50 range as the global tolerance in the UI;
-  // the cross-field rule (false requires a percentage, true discards it) lives in RutaPasadaService.
+  // Per-etapa tolerance (percent). Like the global tolerance (SC-001), the backend imposes no business
+  // cap: the 0-50 range is enforced by the UI only. The max is just the decimal(5,2) storage bound, so an
+  // overflowing value is a 400 instead of a DB error (500).
+  // The cross-field rule (false requires a percentage, true discards it) lives in RutaPasadaService.
   toleranciaPorDefecto: z.boolean().optional(),
   toleranciaPct: z
     .number()
     .min(0)
-    .max(50)
+    .max(999.99)
     .refine((v) => Math.round(v * 100) / 100 === v, {
       message: 'toleranciaPct must have at most 2 decimal places',
     })

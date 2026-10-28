@@ -27,15 +27,15 @@ describe('RutaPasadaEtapaCreateSchema — tolerancia por etapa', () => {
     expect(RutaPasadaEtapaCreateSchema.safeParse(baseEtapa).success).toBe(true);
   });
 
-  it('accepts a own percentage between 0 and 50', () => {
-    for (const toleranciaPct of [0, 12.5, 50]) {
+  it('accepts any own percentage up to the storage bound (no business cap in the backend, SC-001)', () => {
+    for (const toleranciaPct of [0, 12.5, 50, 50.01, 999.99]) {
       const r = RutaPasadaEtapaCreateSchema.safeParse({ ...baseEtapa, toleranciaPorDefecto: false, toleranciaPct });
       expect(r.success).toBe(true);
     }
   });
 
-  it('rejects a percentage outside 0-50 or with more than 2 decimals', () => {
-    for (const toleranciaPct of [-1, 50.01, 10.123]) {
+  it('rejects a negative percentage, one beyond the decimal(5,2) bound, or with more than 2 decimals', () => {
+    for (const toleranciaPct of [-1, 1000, 10.123]) {
       const r = RutaPasadaEtapaCreateSchema.safeParse({ ...baseEtapa, toleranciaPorDefecto: false, toleranciaPct });
       expect(r.success).toBe(false);
     }
