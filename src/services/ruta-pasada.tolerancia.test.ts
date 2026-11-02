@@ -109,9 +109,21 @@ describe('RutaPasadaService — tolerancia por etapa', () => {
 
       expect(mockEm.assign).toHaveBeenCalledWith(
         existing[0],
-        expect.objectContaining({ toleranciaPorDefecto: true, toleranciaPct: null }),
+        expect.objectContaining({ toleranciaPorDefecto: true }),
         { convertCustomTypes: true },
       );
+      expect(existing[0].toleranciaPct).toBeNull();
+    });
+
+    // convertCustomTypes runs DecimalType.convertToJSValue, which turns null into the string 'null' (numeric cast error, HTTP 500)
+    it('never routes toleranciaPct through assign, so a null cannot be stringified by the decimal type', async () => {
+      const existing = [{ id: 10, etapa: { id: 2 }, toleranciaPorDefecto: false, toleranciaPct: 8 }];
+      mockEm.findOne.mockResolvedValue(buildRuta(existing));
+
+      await service.update(1, { etapas: [{ id: 10, ...baseEtapa, toleranciaPorDefecto: true }] } as any);
+
+      const assigned = mockEm.assign.mock.calls.find((c) => c[0] === existing[0])![1];
+      expect(assigned).not.toHaveProperty('toleranciaPct');
     });
 
     it('sets an own percentage on an existing etapa', async () => {
@@ -122,9 +134,10 @@ describe('RutaPasadaService — tolerancia por etapa', () => {
 
       expect(mockEm.assign).toHaveBeenCalledWith(
         existing[0],
-        expect.objectContaining({ toleranciaPorDefecto: false, toleranciaPct: 15 }),
+        expect.objectContaining({ toleranciaPorDefecto: false }),
         { convertCustomTypes: true },
       );
+      expect(existing[0].toleranciaPct).toBe(15);
     });
 
     it('an update payload without tolerance fields leaves the stored tolerance untouched', async () => {

@@ -130,8 +130,10 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
           const etapaData = normalizeTolerancia(rawEtapaData, !existing);
 
           if (existing) {
-            const { id: _, ...updateData } = etapaData;
+            const { id: _, toleranciaPct, ...updateData } = etapaData;
             tx.assign(existing, updateData as unknown as Partial<RutaPasadaEtapa>, { convertCustomTypes: true });
+            // Set outside assign: convertCustomTypes would run DecimalType.convertToJSValue, and String(null) is 'null'
+            if (toleranciaPct !== undefined) existing.toleranciaPct = toleranciaPct;
             existingById.delete(existing.id);
             existingByEtapaId.delete(existing.etapa.id);
           } else {
