@@ -111,6 +111,10 @@ export interface RutaPasadaEtapa {
   pesoIdeal: number;
   pesoMaximo: number;
   cantidadMuestrasRequeridas: number;
+  /** true = uses the global tolerance. */
+  toleranciaPorDefecto?: boolean;
+  /** Own tolerance in percent; null when toleranciaPorDefecto is true. */
+  toleranciaPct?: number | null;
 }
 
 /** Used when creating or updating a ruta — etapa is sent as an ID */
@@ -122,6 +126,8 @@ export interface RutaPasadaEtapaCreate {
   pesoIdeal: number;
   pesoMaximo: number;
   cantidadMuestrasRequeridas: number;
+  toleranciaPorDefecto?: boolean;
+  toleranciaPct?: number | null;
 }
 
 export interface Ruta {

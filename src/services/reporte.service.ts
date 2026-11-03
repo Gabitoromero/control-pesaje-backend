@@ -10,21 +10,113 @@ import { PESO_DECIMALS } from '../shared/constants.js';
 const collator = new Intl.Collator('es', { sensitivity: 'base', numeric: true });
 const boolLabel = (b: boolean): 'Sí' | 'No' => (b ? 'Sí' : 'No');
 const PESO_NUMFMT = `0.${'0'.repeat(PESO_DECIMALS)}`;
+const SHEET_NAME_MAX = 31;
 
 function formatDateTime(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+// "{prefix} - {línea} {id}": the id keeps names unique (Excel compares sheet names case-insensitively and two
+// lines can share a name), so the line name is the part that gets truncated to fit the 31-character limit.
+const lineSheetName = (prefix: string, linea: { id: number; nombre: string }): string => {
+  const head = `${prefix} - `;
+  const tail = ` ${linea.id}`;
+  const maxNombre = Math.max(SHEET_NAME_MAX - head.length - tail.length, 0);
+  const nombre = linea.nombre.replace(/[/\\?*[\]]/g, '').substring(0, maxNombre).trimEnd();
+  return `${head}${nombre}${tail}`;
+};
+
+function addSinDatosSheet(workbook: exceljs.Workbook): void {
+  const sheet = workbook.addWorksheet('Sin datos');
+  sheet.getCell('A1').value = 'Sin datos para el rango seleccionado';
+}
+
 export const reporteService = {
-  async generateReportePasadasMuestras(em: EntityManager, desde: Date, hasta: Date): Promise<exceljs.Workbook> {
+  /** Muestras report: a single sheet with every muestra of the range (the line is a column). */
+  async generateReporteMuestras(em: EntityManager, desde: Date, hasta: Date): Promise<exceljs.Workbook> {
     const muestras = await em.find(
       Muestra,
       { timestamp: { $gte: desde, $lte: hasta } },
       {
-        populate: ['pasada', 'pasada.articulo', 'pasada.usuario', 'etapa', 'rutaPasada', 'lineaProduccion', 'usuario'] as const,
+        populate: [
+          'pasada', 'pasada.articulo', 'pasada.balanza', 'etapa', 'rutaPasada', 'lineaProduccion', 'usuario'
+        ] as const,
         orderBy: { timestamp: 'asc' }
       }
+    );
+
+    const workbook = new exceljs.Workbook();
+
+    if (muestras.length === 0) {
+      addSinDatosSheet(workbook);
+      return workbook;
+    }
+
+    const sheet = workbook.addWorksheet('Muestras');
+    sheet.columns = [
+      { header: 'Línea de Producción', key: 'linea', width: 20 },
+      { header: 'Balanza', key: 'balanza', width: 20 },
+      { header: 'Ruta', key: 'ruta', width: 20 },
+      { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
+      { header: 'Estado Pasada', key: 'pasadaEst', width: 15 },
+      { header: 'Código', key: 'articuloCodigo', width: 18 },
+      { header: 'Artículo', key: 'articulo', width: 20 },
+      { header: 'Etapa', key: 'etapa', width: 20 },
+      { header: 'Fecha/Hora Muestra', key: 'fechaHora', width: 20 },
+      { header: 'Peso Neto (kg)', key: 'peso', width: 15 },
+      { header: 'Límite Mín (kg)', key: 'limiteMin', width: 15 },
+      { header: 'Peso Ideal (kg)', key: 'pesoIdeal', width: 15 },
+      { header: 'Límite Máx (kg)', key: 'limiteMax', width: 15 },
+      { header: 'Validación', key: 'validacion', width: 15 },
+      { header: 'Observación Muestra', key: 'obs', width: 30 },
+      { header: 'Operario', key: 'operario', width: 20 },
+    ];
+    sheet.getRow(1).font = { bold: true };
+
+    for (const m of muestras) {
+      const row = sheet.addRow({
+        linea: m.lineaProduccion.nombre,
+        balanza: m.pasada?.balanza?.nombre ?? '-',
+        ruta: m.rutaPasada.nombre,
+        pasadaNum: m.pasada?.numero ?? '-',
+        pasadaEst: m.pasada?.estado ?? '-',
+        articuloCodigo: m.pasada?.articulo?.codigo ?? '-',
+        articulo: m.pasada?.articulo?.nombre ?? '-',
+        etapa: m.etapa.nombre,
+        fechaHora: formatDateTime(m.timestamp),
+        peso: Number(m.pesoNeto),
+        limiteMin: m.pesoMinimo !== undefined ? Number(m.pesoMinimo) : '-',
+        pesoIdeal: m.pesoIdeal !== undefined ? Number(m.pesoIdeal) : '-',
+        limiteMax: m.pesoMaximo !== undefined ? Number(m.pesoMaximo) : '-',
+        validacion: m.estadoValidacion === MuestraEstadoValidacion.OK ? 'ok' : 'fuera de rango',
+        obs: m.observacion ?? '-',
+        operario: m.usuario.nombreApellido,
+      });
+
+      if (!m.pasada) {
+        row.eachCell((cell) => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+        });
+      }
+
+      const valCell = row.getCell('validacion');
+      if (m.estadoValidacion === MuestraEstadoValidacion.OK) {
+        valCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
+      } else {
+        valCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF0000' } };
+      }
+    }
+
+    return workbook;
+  },
+
+  /** Pasadas report: per production line, a 'Pasadas - {linea}' sheet and an 'Etapas - {linea}' sheet. */
+  async generateReportePasadas(em: EntityManager, desde: Date, hasta: Date): Promise<exceljs.Workbook> {
+    const muestras = await em.find(
+      Muestra,
+      { timestamp: { $gte: desde, $lte: hasta } },
+      { populate: ['pasada', 'etapa'] as const, orderBy: { timestamp: 'asc' } }
     );
 
     const pasadas = await em.find(
@@ -36,23 +128,20 @@ export const reporteService = {
       }
     );
 
-    const lineasMap = new Map<number, {
-      linea: LineaProduccion,
-      muestras: Muestra[],
-      pasadas: Pasada[]
-    }>();
+    const muestrasPorPasada = new Map<number, Muestra[]>();
+    for (const m of muestras) {
+      if (!m.pasada) continue;
+      const list = muestrasPorPasada.get(m.pasada.id) ?? [];
+      list.push(m);
+      muestrasPorPasada.set(m.pasada.id, list);
+    }
 
+    const lineasMap = new Map<number, { linea: LineaProduccion, pasadas: Pasada[] }>();
     for (const p of pasadas) {
       if (!lineasMap.has(p.lineaProduccion.id)) {
-        lineasMap.set(p.lineaProduccion.id, { linea: p.lineaProduccion, muestras: [], pasadas: [] });
+        lineasMap.set(p.lineaProduccion.id, { linea: p.lineaProduccion, pasadas: [] });
       }
       lineasMap.get(p.lineaProduccion.id)!.pasadas.push(p);
-    }
-    for (const m of muestras) {
-      if (!lineasMap.has(m.lineaProduccion.id)) {
-        lineasMap.set(m.lineaProduccion.id, { linea: m.lineaProduccion, muestras: [], pasadas: [] });
-      }
-      lineasMap.get(m.lineaProduccion.id)!.muestras.push(m);
     }
 
     const lineas = Array.from(lineasMap.values()).sort((a, b) => a.linea.nombre.localeCompare(b.linea.nombre));
@@ -60,147 +149,95 @@ export const reporteService = {
     const workbook = new exceljs.Workbook();
 
     if (lineas.length === 0) {
-      const sheet = workbook.addWorksheet('Sin datos');
-      sheet.getCell('A1').value = 'Sin datos para el rango seleccionado';
-    } else {
-      for (const grupo of lineas) {
-        const lineName = grupo.linea.nombre.replace(/[/\\?*[\]]/g, '');
-        const detailSheet = workbook.addWorksheet(`Muestras - ${lineName}`.substring(0, 31));
-        
-        detailSheet.columns = [
-          { header: 'Línea de Producción', key: 'linea', width: 20 },
-          { header: 'Ruta', key: 'ruta', width: 20 },
-          { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
-          { header: 'Estado Pasada', key: 'pasadaEst', width: 15 },
-          { header: 'Etapa', key: 'etapa', width: 20 },
-          { header: 'Fecha/Hora Muestra', key: 'fechaHora', width: 20 },
-          { header: 'Peso Neto (kg)', key: 'peso', width: 15 },
-          { header: 'Límite Mín (kg)', key: 'limiteMin', width: 15 },
-          { header: 'Peso Ideal (kg)', key: 'pesoIdeal', width: 15 },
-          { header: 'Límite Máx (kg)', key: 'limiteMax', width: 15 },
-          { header: 'Validación', key: 'validacion', width: 15 },
-          { header: 'Observación Muestra', key: 'obs', width: 30 },
-          { header: 'Operario', key: 'operario', width: 20 },
-        ];
-        detailSheet.getRow(1).font = { bold: true };
+      addSinDatosSheet(workbook);
+      return workbook;
+    }
 
-        for (const m of grupo.muestras) {
-          const row = detailSheet.addRow({
-            linea: m.lineaProduccion.nombre,
-            ruta: m.rutaPasada.nombre,
-            pasadaNum: m.pasada?.numero ?? '-',
-            pasadaEst: m.pasada?.estado ?? '-',
-            etapa: m.etapa.nombre,
-            fechaHora: formatDateTime(m.timestamp),
-            peso: Number(m.pesoNeto),
-            limiteMin: m.pesoMinimo !== undefined ? Number(m.pesoMinimo) : '-',
-            pesoIdeal: m.pesoIdeal !== undefined ? Number(m.pesoIdeal) : '-',
-            limiteMax: m.pesoMaximo !== undefined ? Number(m.pesoMaximo) : '-',
-            validacion: m.estadoValidacion === MuestraEstadoValidacion.OK ? 'ok' : 'fuera de rango',
-            obs: m.observacion ?? '-',
-            operario: m.usuario.nombreApellido,
-          });
+    for (const grupo of lineas) {
+      const resSheet = workbook.addWorksheet(lineSheetName('Pasadas', grupo.linea));
+      resSheet.columns = [
+        { header: 'Línea de Producción', key: 'linea', width: 20 },
+        { header: 'Balanza', key: 'balanza', width: 20 },
+        { header: 'Ruta', key: 'ruta', width: 20 },
+        { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
+        { header: 'Observación', key: 'observacionInicio', width: 30 },
+        { header: 'Código', key: 'articuloCodigo', width: 18 },
+        { header: 'Artículo', key: 'articulo', width: 20 },
+        { header: 'Estado', key: 'estado', width: 15 },
+        { header: 'Inicio', key: 'inicio', width: 20 },
+        { header: 'Cierre', key: 'cierre', width: 20 },
+        { header: 'Duración (min)', key: 'duracion', width: 15 },
+        { header: 'Responsable', key: 'responsable', width: 20 },
+        { header: 'Total Muestras', key: 'total', width: 15 },
+        { header: 'Conformes', key: 'conformes', width: 15 },
+        { header: 'Fuera de Rango', key: 'fuera', width: 15 },
+        { header: '% Conforme', key: 'porc', width: 15 },
+        { header: 'Motivo de Cierre', key: 'motivo', width: 20 },
+        { header: 'Observación Cierre', key: 'obs', width: 30 },
+      ];
+      resSheet.getRow(1).font = { bold: true };
 
-          if (!m.pasada) {
-            row.eachCell((cell) => {
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
-            });
-          }
-
-          const valCell = row.getCell('validacion');
-          if (m.estadoValidacion === MuestraEstadoValidacion.OK) {
-            valCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
-          } else {
-            valCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF0000' } };
-          }
+      for (const p of grupo.pasadas) {
+        const pm = muestrasPorPasada.get(p.id) ?? [];
+        const total = pm.length;
+        const ok = pm.filter(m => m.estadoValidacion === MuestraEstadoValidacion.OK).length;
+        const outside = total - ok;
+        const pct = total > 0 ? ((ok / total) * 100).toFixed(1) : "0.0";
+        let duracion: number | string = '-';
+        if (p.horaCierre) {
+          duracion = Math.round((p.horaCierre.getTime() - p.horaInicio.getTime()) / 60000);
         }
 
-        const resSheet = workbook.addWorksheet(`Pasadas - ${lineName}`.substring(0, 31));
-        resSheet.columns = [
-          { header: 'Línea de Producción', key: 'linea', width: 20 },
-          { header: 'Balanza', key: 'balanza', width: 20 },
-          { header: 'Ruta', key: 'ruta', width: 20 },
-          { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
-          { header: 'Observación', key: 'observacionInicio', width: 30 },
-          { header: 'Código', key: 'articuloCodigo', width: 18 },
-          { header: 'Artículo', key: 'articulo', width: 20 },
-          { header: 'Estado', key: 'estado', width: 15 },
-          { header: 'Inicio', key: 'inicio', width: 20 },
-          { header: 'Cierre', key: 'cierre', width: 20 },
-          { header: 'Duración (min)', key: 'duracion', width: 15 },
-          { header: 'Responsable', key: 'responsable', width: 20 },
-          { header: 'Total Muestras', key: 'total', width: 15 },
-          { header: 'Conformes', key: 'conformes', width: 15 },
-          { header: 'Fuera de Rango', key: 'fuera', width: 15 },
-          { header: '% Conforme', key: 'porc', width: 15 },
-          { header: 'Motivo de Cierre', key: 'motivo', width: 20 },
-          { header: 'Observación Cierre', key: 'obs', width: 30 },
-        ];
-        resSheet.getRow(1).font = { bold: true };
+        resSheet.addRow({
+          linea: p.lineaProduccion.nombre,
+          balanza: p.balanza?.nombre ?? '-',
+          ruta: p.rutaPasada.nombre,
+          pasadaNum: p.numero,
+          observacionInicio: p.observacion ?? '-',
+          articuloCodigo: p.articulo?.codigo ?? '-',
+          articulo: p.articulo?.nombre ?? '-',
+          estado: p.estado,
+          inicio: formatDateTime(p.horaInicio),
+          cierre: p.horaCierre ? formatDateTime(p.horaCierre) : '-',
+          duracion: duracion,
+          responsable: p.usuario.nombreApellido,
+          total: total,
+          conformes: ok,
+          fuera: outside,
+          porc: pct,
+          motivo: p.motivoCierre ?? '-',
+          obs: p.observacionCierre ?? '-'
+        });
+      }
 
-        for (const p of grupo.pasadas) {
-          const pm = grupo.muestras.filter(m => m.pasada?.id === p.id);
-          const total = pm.length;
-          const ok = pm.filter(m => m.estadoValidacion === MuestraEstadoValidacion.OK).length;
-          const outside = total - ok;
-          const pct = total > 0 ? ((ok / total) * 100).toFixed(1) : "0.0";
-          let duracion: number | string = '-';
-          if (p.horaCierre) {
-            duracion = Math.round((p.horaCierre.getTime() - p.horaInicio.getTime()) / 60000);
-          }
+      const etapaSheet = workbook.addWorksheet(lineSheetName('Etapas', grupo.linea));
+      etapaSheet.columns = [
+        { header: 'Línea de Producción', key: 'linea', width: 20 },
+        { header: 'Ruta', key: 'ruta', width: 20 },
+        { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
+        { header: 'Etapa', key: 'etapa', width: 20 },
+        { header: 'Total Muestras', key: 'total', width: 15 },
+        { header: 'Promedio Peso Neto (kg)', key: 'promedio', width: 20 },
+      ];
+      etapaSheet.getRow(1).font = { bold: true };
 
-          resSheet.addRow({
+      for (const p of grupo.pasadas) {
+        const pmPorEtapa = new Map<string, number[]>();
+        for (const m of muestrasPorPasada.get(p.id) ?? []) {
+          if (!pmPorEtapa.has(m.etapa.nombre)) pmPorEtapa.set(m.etapa.nombre, []);
+          pmPorEtapa.get(m.etapa.nombre)!.push(Number(m.pesoNeto));
+        }
+        for (const [etapa, pesos] of pmPorEtapa.entries()) {
+          const sum = pesos.reduce((acc, v) => acc + v, 0);
+          const avg = sum / pesos.length;
+          etapaSheet.addRow({
             linea: p.lineaProduccion.nombre,
-            balanza: p.balanza?.nombre ?? '-',
             ruta: p.rutaPasada.nombre,
             pasadaNum: p.numero,
-            observacionInicio: p.observacion ?? '-',
-            articuloCodigo: p.articulo?.codigo ?? '-',
-            articulo: p.articulo?.nombre ?? '-',
-            estado: p.estado,
-            inicio: formatDateTime(p.horaInicio),
-            cierre: p.horaCierre ? formatDateTime(p.horaCierre) : '-',
-            duracion: duracion,
-            responsable: p.usuario.nombreApellido,
-            total: total,
-            conformes: ok,
-            fuera: outside,
-            porc: pct,
-            motivo: p.motivoCierre ?? '-',
-            obs: p.observacionCierre ?? '-'
+            etapa: etapa,
+            total: pesos.length,
+            promedio: avg.toFixed(PESO_DECIMALS)
           });
-        }
-
-        const etapaSheet = workbook.addWorksheet(`Etapas - ${lineName}`.substring(0, 31));
-        etapaSheet.columns = [
-          { header: 'Línea de Producción', key: 'linea', width: 20 },
-          { header: 'Ruta', key: 'ruta', width: 20 },
-          { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
-          { header: 'Etapa', key: 'etapa', width: 20 },
-          { header: 'Total Muestras', key: 'total', width: 15 },
-          { header: 'Promedio Peso Neto (kg)', key: 'promedio', width: 20 },
-        ];
-        etapaSheet.getRow(1).font = { bold: true };
-
-        for (const p of grupo.pasadas) {
-          const pm = grupo.muestras.filter(m => m.pasada?.id === p.id);
-          const pmPorEtapa = new Map<string, number[]>();
-          for (const m of pm) {
-            if (!pmPorEtapa.has(m.etapa.nombre)) pmPorEtapa.set(m.etapa.nombre, []);
-            pmPorEtapa.get(m.etapa.nombre)!.push(Number(m.pesoNeto));
-          }
-          for (const [etapa, pesos] of pmPorEtapa.entries()) {
-            const sum = pesos.reduce((acc, v) => acc + v, 0);
-            const avg = sum / pesos.length;
-            etapaSheet.addRow({
-              linea: p.lineaProduccion.nombre,
-              ruta: p.rutaPasada.nombre,
-              pasadaNum: p.numero,
-              etapa: etapa,
-              total: pesos.length,
-              promedio: avg.toFixed(PESO_DECIMALS)
-            });
-          }
         }
       }
     }
