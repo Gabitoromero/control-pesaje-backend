@@ -1,4 +1,4 @@
-import type { UsuarioRol } from '../types.js';
+import type { UsuarioRol, SectorUsuario } from '../types.js';
 
 export interface User {
   id: number;
@@ -6,6 +6,7 @@ export interface User {
   nombreUsuario: string;
   rol: UsuarioRol;
   puedeTomarMuestrasLibres: boolean;
+  sector?: SectorUsuario | null;
 }
 
 export interface SesionActiva {

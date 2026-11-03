@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { UsuarioRol } from './types.js';
+import { UsuarioRol, SectorUsuario } from './types.js';
 
 // ─── Usuario ─────────────────────────────────────────────────────────────────
 
@@ -17,6 +17,12 @@ export const UsuarioCreateSchema = z.object({
     UsuarioRol.ADMINISTRADOR,
   ]),
   datosAdicionales: z.object({
+    sector: z.enum([
+      SectorUsuario.OFICIALES,
+      SectorUsuario.SUPERVISORES,
+      SectorUsuario.CONTROL_CALIDAD,
+      SectorUsuario.MEJORA_CONTINUA,
+    ]),
     preferenciasInterfaz: z.object({
       tema: z.enum(['claro', 'oscuro']),
       idioma: z.enum(['es', 'en']),

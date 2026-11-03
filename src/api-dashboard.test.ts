@@ -160,6 +160,38 @@ describe('Dashboard Integration Tests', () => {
       expect(res.body.data[0].timeSeries[0].estadoValidacion).toBe('ok');
     });
 
+    it('exposes the sector of the sample user in each timeSeries point', async () => {
+      mockEm.findOne.mockResolvedValue({ id: 1, rutaAsignadaAt: new Date(), rutaPasadaActiva: { id: 10 } });
+      mockEm.find.mockResolvedValueOnce([
+        {
+          pesoNeto: 100, timestamp: new Date(), estadoValidacion: 'ok',
+          etapa: { id: 1, nombre: 'Etapa 1' }, pasada: { id: 42 },
+          usuario: { id: 7, datosAdicionales: { sector: 'SU' } },
+        },
+        {
+          pesoNeto: 80, timestamp: new Date(), estadoValidacion: 'fuera_de_rango',
+          etapa: { id: 1, nombre: 'Etapa 1' }, pasada: { id: 42 },
+          usuario: { id: 8, datosAdicionales: { sector: 'DD' } },
+        },
+        {
+          pesoNeto: 101, timestamp: new Date(), estadoValidacion: 'ok',
+          etapa: { id: 1, nombre: 'Etapa 1' }, pasada: { id: 42 },
+          usuario: { id: 9 },
+        },
+      ]);
+      mockEm.find.mockResolvedValueOnce([
+        { etapa: { id: 1, nombre: 'Etapa 1' }, pesoMinimo: 90, pesoMaximo: 110, pesoIdeal: 100 },
+      ]);
+      const res = await request(app)
+        .get('/api/dashboard/1/etapas')
+        .set('Authorization', `Bearer ${adminToken()}`);
+
+      expect(res.status).toBe(200);
+      const series = res.body.data[0].timeSeries;
+      expect(series.map((p: { sector: string | null }) => p.sector)).toEqual(['SU', 'DD', null]);
+      expect(series[1].estadoValidacion).toBe('fuera_de_rango');
+    });
+
     it('handles edge case where active linea has no samples yet', async () => {
       mockEm.findOne.mockResolvedValue({ id: 1, rutaAsignadaAt: new Date(), rutaPasadaActiva: { id: 10 } });
       mockEm.find.mockResolvedValueOnce([]); // empty muestras
