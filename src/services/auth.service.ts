@@ -28,7 +28,8 @@ export class AuthService {
         nombreUsuario: usuario.nombreUsuario,
         legajo: usuario.legajo,
         rol: usuario.rol,
-        puedeTomarMuestrasLibres: !!usuario.puedeTomarMuestrasLibres
+        puedeTomarMuestrasLibres: !!usuario.puedeTomarMuestrasLibres,
+        sector: usuario.datosAdicionales?.sector ?? null,
       },
       secret,
       { expiresIn: '12h' }
