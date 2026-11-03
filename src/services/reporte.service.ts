@@ -17,8 +17,15 @@ function formatDateTime(date: Date): string {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-const lineSheetName = (prefix: string, lineaNombre: string): string =>
-  `${prefix} - ${lineaNombre.replace(/[/\\?*[\]]/g, '')}`.substring(0, SHEET_NAME_MAX);
+// "{prefix} - {línea} {id}": the id keeps names unique (Excel compares sheet names case-insensitively and two
+// lines can share a name), so the line name is the part that gets truncated to fit the 31-character limit.
+const lineSheetName = (prefix: string, linea: { id: number; nombre: string }): string => {
+  const head = `${prefix} - `;
+  const tail = ` ${linea.id}`;
+  const maxNombre = Math.max(SHEET_NAME_MAX - head.length - tail.length, 0);
+  const nombre = linea.nombre.replace(/[/\\?*[\]]/g, '').substring(0, maxNombre).trimEnd();
+  return `${head}${nombre}${tail}`;
+};
 
 function addSinDatosSheet(workbook: exceljs.Workbook): void {
   const sheet = workbook.addWorksheet('Sin datos');
@@ -147,7 +154,7 @@ export const reporteService = {
     }
 
     for (const grupo of lineas) {
-      const resSheet = workbook.addWorksheet(lineSheetName('Pasadas', grupo.linea.nombre));
+      const resSheet = workbook.addWorksheet(lineSheetName('Pasadas', grupo.linea));
       resSheet.columns = [
         { header: 'Línea de Producción', key: 'linea', width: 20 },
         { header: 'Balanza', key: 'balanza', width: 20 },
@@ -203,7 +210,7 @@ export const reporteService = {
         });
       }
 
-      const etapaSheet = workbook.addWorksheet(lineSheetName('Etapas', grupo.linea.nombre));
+      const etapaSheet = workbook.addWorksheet(lineSheetName('Etapas', grupo.linea));
       etapaSheet.columns = [
         { header: 'Línea de Producción', key: 'linea', width: 20 },
         { header: 'Ruta', key: 'ruta', width: 20 },

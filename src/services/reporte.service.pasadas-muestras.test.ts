@@ -84,6 +84,7 @@ const MUESTRAS_HEADERS = [
 
 // The pasadas and etapas sheets below characterize the output of the legacy combined report
 // (Pasadas - {linea} / Etapas - {linea}); the values were captured before the report was split.
+// Sheet names now always end with the line id: "Pasadas - {linea} {id}" / "Etapas - {linea} {id}".
 describe('reporteService.generateReportePasadas', () => {
   const generate = (ms = muestras, ps = [pasada1, pasada2]) =>
     reporteService.generateReportePasadas(makeEm(ms, ps), new Date(), new Date());
@@ -91,7 +92,7 @@ describe('reporteService.generateReportePasadas', () => {
   it('emits a Pasadas and an Etapas sheet per line in line-name order, and no Muestras sheet', async () => {
     const wb = await generate();
     expect(wb.worksheets.map((w) => w.name)).toEqual([
-      'Pasadas - Linea 1', 'Etapas - Linea 1', 'Pasadas - Linea 2', 'Etapas - Linea 2',
+      'Pasadas - Linea 1 1', 'Etapas - Linea 1 1', 'Pasadas - Linea 2 2', 'Etapas - Linea 2 2',
     ]);
   });
 
@@ -102,7 +103,7 @@ describe('reporteService.generateReportePasadas', () => {
   });
 
   it('writes the pasadas sheet headers and row values unchanged', async () => {
-    const sheet = (await generate()).getWorksheet('Pasadas - Linea 1')!;
+    const sheet = (await generate()).getWorksheet('Pasadas - Linea 1 1')!;
     expect(rowValues(sheet, 1)).toEqual(PASADAS_HEADERS);
     expect(sheet.getRow(1).font?.bold).toBe(true);
     expect(rowValues(sheet, 2)).toEqual([
@@ -113,7 +114,7 @@ describe('reporteService.generateReportePasadas', () => {
   });
 
   it('writes "-" for missing optional pasada data and 0.0 when it has no muestras', async () => {
-    const sheet = (await generate()).getWorksheet('Pasadas - Linea 2')!;
+    const sheet = (await generate()).getWorksheet('Pasadas - Linea 2 2')!;
     expect(rowValues(sheet, 2)).toEqual([
       'Linea 2', '-', 'Ruta 2', 'P-002', '-', '-', '-', 'EN CURSO',
       '02/01/2023 08:05', '-', '-', 'Ana Gomez', 0, 0, 0, '0.0', '-', '-',
@@ -122,22 +123,44 @@ describe('reporteService.generateReportePasadas', () => {
 
   it('writes the etapas sheet with the average weight per pasada and etapa unchanged', async () => {
     const wb = await generate();
-    const sheet = wb.getWorksheet('Etapas - Linea 1')!;
+    const sheet = wb.getWorksheet('Etapas - Linea 1 1')!;
     expect(rowValues(sheet, 1)).toEqual(ETAPAS_HEADERS);
     expect(sheet.getRow(1).font?.bold).toBe(true);
     expect(rowValues(sheet, 2)).toEqual(['Linea 1', 'Ruta 1', 'P-001', 'Etapa A', 2, '97.5000']);
     expect(rowValues(sheet, 3)).toEqual(['Linea 1', 'Ruta 1', 'P-001', 'Etapa B', 1, '50.0000']);
     expect(sheet.rowCount).toBe(3);
-    expect(wb.getWorksheet('Etapas - Linea 2')!.rowCount).toBe(1);
+    expect(wb.getWorksheet('Etapas - Linea 2 2')!.rowCount).toBe(1);
   });
 
-  it('truncates sheet names to 31 characters and strips invalid characters', async () => {
+  it('truncates the line name so the sheet name stays within 31 characters and keeps the id', async () => {
     const larga = { id: 3, nombre: 'Linea/de*produccion?con[un]nombre muy largo' };
     const wb = await generate([], [{ ...pasada1, id: 12, lineaProduccion: larga }]);
     expect(wb.worksheets.map((w) => w.name)).toEqual([
-      'Pasadas - Lineadeproduccionconu',
-      'Etapas - Lineadeproduccionconun',
+      'Pasadas - Lineadeproduccionco 3',
+      'Etapas - Lineadeproduccioncon 3',
     ]);
+    expect(wb.worksheets.every((w) => w.name.length <= 31)).toBe(true);
+  });
+
+  it('emits one sheet per line even when two lines share a name (case-insensitively) or a truncated prefix', async () => {
+    const mismoNombre = [
+      { id: 13, nombre: 'LLENADORA' },
+      { id: 26, nombre: 'Llenadora' },
+      { id: 19, nombre: 'POTE PREMIUM' },
+      { id: 20, nombre: 'POTE PREMIUM' },
+      { id: 101, nombre: 'Una linea con un nombre larguisimo A' },
+      { id: 102, nombre: 'Una linea con un nombre larguisimo B' },
+    ];
+    const ps = mismoNombre.map((l, i) => ({ ...pasada1, id: 500 + i, lineaProduccion: l }));
+    const wb = await generate([], ps);
+
+    const names = wb.worksheets.map((w) => w.name);
+    expect(names).toHaveLength(12);
+    expect(new Set(names.map((n) => n.toLowerCase())).size).toBe(12);
+    expect(names).toEqual(
+      expect.arrayContaining(['Pasadas - LLENADORA 13', 'Pasadas - Llenadora 26', 'Pasadas - POTE PREMIUM 19', 'Pasadas - POTE PREMIUM 20']),
+    );
+    expect(names.every((n) => n.length <= 31)).toBe(true);
   });
 
   it('queries muestras and pasadas once each, filtering pasadas by activo', async () => {
@@ -174,10 +197,10 @@ describe('reporteService.generateReportePasadas', () => {
     expect(wb.worksheets).toHaveLength(6);
     let total = 0;
     for (const l of lineas) {
-      const sheet = wb.getWorksheet(`Pasadas - ${l.nombre}`)!;
+      const sheet = wb.getWorksheet(`Pasadas - ${l.nombre} ${l.id}`)!;
       expect(sheet.rowCount).toBe(1 + PASADAS / 3);
       expect(rowValues(sheet, 2).slice(12, 16)).toEqual([POR_PASADA, 32, 8, '80.0']);
-      expect(wb.getWorksheet(`Etapas - ${l.nombre}`)!.rowCount).toBe(1 + (PASADAS / 3) * 4);
+      expect(wb.getWorksheet(`Etapas - ${l.nombre} ${l.id}`)!.rowCount).toBe(1 + (PASADAS / 3) * 4);
       total += sheet.rowCount - 1;
     }
     expect(total).toBe(PASADAS);
