@@ -1,4 +1,4 @@
-import { Entity, PrimaryKey, Property, ManyToOne, Enum } from '@mikro-orm/decorators/legacy';
+import { Entity, Index, PrimaryKey, Property, ManyToOne, Enum } from '@mikro-orm/decorators/legacy';
 import { Pasada } from './Pasada.js';
 import { Usuario } from './Usuario.js';
 import { RutaPasada } from './RutaPasada.js';
@@ -11,6 +11,8 @@ export enum MuestraEstadoValidacion {
   FUERA_DE_RANGO = 'fuera_de_rango',
 }
 
+// Serves the operator history: muestras of a user within a date range.
+@Index({ properties: ['usuario', 'timestamp'] })
 @Entity({ tableName: 'muestra' })
 export class Muestra {
   @PrimaryKey({ type: 'number', autoincrement: true })
