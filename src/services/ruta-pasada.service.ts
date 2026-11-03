@@ -13,6 +13,28 @@ type RutaPasadaEtapaInput = {
   pesoMinimo: number;
   pesoMaximo: number;
   cantidadMuestrasRequeridas: number;
+  toleranciaPorDefecto?: boolean;
+  toleranciaPct?: number | null;
+};
+
+/**
+ * Enforces the tolerance rule on an incoming etapa: "por defecto" uses the global value and
+ * discards any own percentage; an own tolerance requires a percentage.
+ * On update, an etapa that sends neither field keeps its stored tolerance.
+ */
+const normalizeTolerancia = (e: RutaPasadaEtapaInput, isNew: boolean): RutaPasadaEtapaInput => {
+  if (e.toleranciaPorDefecto === undefined) {
+    if (e.toleranciaPct != null) {
+      throw new ValidationError('toleranciaPct requires toleranciaPorDefecto to be sent as false');
+    }
+    if (!isNew) return e;
+    return { ...e, toleranciaPorDefecto: true, toleranciaPct: null };
+  }
+  if (e.toleranciaPorDefecto) return { ...e, toleranciaPct: null };
+  if (e.toleranciaPct == null) {
+    throw new ValidationError('toleranciaPct is required when toleranciaPorDefecto is false');
+  }
+  return e;
 };
 
 export class RutaPasadaService extends BaseService<RutaPasada> {
@@ -49,8 +71,9 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
       }
     }
 
-    const { etapas: etapasInput, ...rutaData } = data as RequiredEntityData<RutaPasada> & { etapas?: RutaPasadaEtapaInput[] };
-    if (etapasInput) this.assertUniqueOrden(etapasInput);
+    const { etapas: rawEtapas, ...rutaData } = data as RequiredEntityData<RutaPasada> & { etapas?: RutaPasadaEtapaInput[] };
+    if (rawEtapas) this.assertUniqueOrden(rawEtapas);
+    const etapasInput = rawEtapas?.map((e) => normalizeTolerancia(e, true));
 
     return em.transactional(async (tx) => {
       const etapas = etapasInput;
@@ -78,14 +101,14 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
       }
     }
 
-    const { etapas: etapasInput, ...rutaData } = data as Partial<RutaPasada> & { etapas?: RutaPasadaEtapaInput[] };
-    if (etapasInput) this.assertUniqueOrden(etapasInput);
+    const { etapas: rawEtapas, ...rutaData } = data as Partial<RutaPasada> & { etapas?: RutaPasadaEtapaInput[] };
+    if (rawEtapas) this.assertUniqueOrden(rawEtapas);
 
     return em.transactional(async (tx) => {
       const entity = await tx.findOne(RutaPasada, { id }, { populate: ['etapas'] });
       if (!entity) return null;
 
-      const etapas = etapasInput;
+      const etapas = rawEtapas;
       tx.assign(entity, rutaData);
 
       if (etapas && Array.isArray(etapas)) {
@@ -99,14 +122,18 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
           allItems.map((e) => [e.etapa.id, e]),
         );
 
-        for (const etapaData of etapas) {
-          const existing = etapaData.id
-            ? existingById.get(etapaData.id)
-            : existingByEtapaId.get(etapaData.etapa);
+        for (const rawEtapaData of etapas) {
+          const existing = rawEtapaData.id
+            ? existingById.get(rawEtapaData.id)
+            : existingByEtapaId.get(rawEtapaData.etapa);
+          // A brand new etapa defaults to the global tolerance; an existing one keeps its stored value if none is sent.
+          const etapaData = normalizeTolerancia(rawEtapaData, !existing);
 
           if (existing) {
-            const { id: _, ...updateData } = etapaData;
+            const { id: _, toleranciaPct, ...updateData } = etapaData;
             tx.assign(existing, updateData as unknown as Partial<RutaPasadaEtapa>, { convertCustomTypes: true });
+            // Set outside assign: convertCustomTypes would run DecimalType.convertToJSValue, and String(null) is 'null'
+            if (toleranciaPct !== undefined) existing.toleranciaPct = toleranciaPct;
             existingById.delete(existing.id);
             existingByEtapaId.delete(existing.etapa.id);
           } else {
