@@ -22,7 +22,7 @@ export const UsuarioCreateSchema = z.object({
       SectorUsuario.SUPERVISORES,
       SectorUsuario.CONTROL_CALIDAD,
       SectorUsuario.MEJORA_CONTINUA,
-    ]),
+    ]).nullable(),
     preferenciasInterfaz: z.object({
       tema: z.enum(['claro', 'oscuro']),
       idioma: z.enum(['es', 'en']),

@@ -17,7 +17,7 @@ export const SectorUsuario = {
 export type SectorUsuario = typeof SectorUsuario[keyof typeof SectorUsuario];
 
 export interface UsuarioMetadata {
-  sector?: SectorUsuario;
+  sector?: SectorUsuario | null;
   preferenciasInterfaz?: {
     tema?: 'claro' | 'oscuro';
     idioma?: 'es' | 'en';

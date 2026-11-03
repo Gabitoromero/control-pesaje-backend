@@ -36,4 +36,17 @@ describe('Usuario schemas - sector', () => {
     });
     expect(parsed.datosAdicionales?.preferenciasInterfaz?.tema).toBe('oscuro');
   });
+
+  it('accepts a null sector on create and update so an assigned sector can be cleared', () => {
+    const created = UsuarioCreateSchema.parse({ ...base, datosAdicionales: { sector: null } });
+    expect(created.datosAdicionales?.sector).toBeNull();
+    const updated = UsuarioUpdateSchema.parse({ datosAdicionales: { sector: null, preferenciasInterfaz: { tema: 'oscuro' } } });
+    expect(updated.datosAdicionales?.sector).toBeNull();
+    expect(updated.datosAdicionales?.preferenciasInterfaz?.tema).toBe('oscuro');
+  });
+
+  it('still rejects an unknown sector code now that null is allowed', () => {
+    expect(UsuarioUpdateSchema.safeParse({ datosAdicionales: { sector: '' } }).success).toBe(false);
+    expect(UsuarioUpdateSchema.safeParse({ datosAdicionales: { sector: 'XX' } }).success).toBe(false);
+  });
 });
