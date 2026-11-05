@@ -6,6 +6,7 @@ import { UsuarioRol } from '../shared/types.js';
 // softDelete is delegated to createCrudHandlers (base remove handler).
 export interface PasadaHandlers {
   iniciar: RequestHandler;
+  lineaParada: RequestHandler;
   list: RequestHandler;
   getOne: RequestHandler;
   update: RequestHandler;
@@ -15,6 +16,12 @@ export interface IniciarPasadaBody {
   lineaProduccionId: number;
   idBalanza: number;
   observacion?: string;
+}
+
+export interface LineaParadaBody {
+  lineaProduccionId: number;
+  observacion: string;
+  idBalanza?: number;
 }
 
 export interface UpdatePasadaBody {
@@ -41,6 +48,22 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
       const { lineaProduccionId, idBalanza, observacion } = req.body as IniciarPasadaBody;
 
       const pasada = await service.iniciarPasada(lineaProduccionId, idBalanza, userId, observacion);
+      res.status(201).json({ success: true, data: pasada });
+    } catch (err) {
+      if (err instanceof Error) {
+        res.status(422).json({ success: false, error: { message: err.message } });
+        return;
+      }
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+    }
+  };
+
+  const lineaParada: RequestHandler = async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { lineaProduccionId, observacion, idBalanza } = req.body as LineaParadaBody;
+
+      const pasada = await service.registrarLineaParada(lineaProduccionId, userId, observacion, idBalanza);
       res.status(201).json({ success: true, data: pasada });
     } catch (err) {
       if (err instanceof Error) {
@@ -152,5 +175,5 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
     }
   };
 
-  return { iniciar, list, getOne, update };
+  return { iniciar, lineaParada, list, getOne, update };
 }

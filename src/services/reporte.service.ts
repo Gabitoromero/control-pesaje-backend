@@ -1,7 +1,7 @@
 import { EntityManager } from '@mikro-orm/core';
 import exceljs from 'exceljs';
 import { Muestra, MuestraEstadoValidacion } from '../models/Muestra.js';
-import { Pasada } from '../models/Pasada.js';
+import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { RutaPasada } from '../models/RutaPasada.js';
 import { ArticuloRutaPasada } from '../models/ArticuloRutaPasada.js';
@@ -9,6 +9,8 @@ import { PESO_DECIMALS } from '../shared/constants.js';
 
 const collator = new Intl.Collator('es', { sensitivity: 'base', numeric: true });
 const boolLabel = (b: boolean): 'Sí' | 'No' => (b ? 'Sí' : 'No');
+// Shown in the pasadas sheet for a "línea parada" pasada that has no samples.
+const SIN_MUESTRAS = 'sin muestras';
 const PESO_NUMFMT = `0.${'0'.repeat(PESO_DECIMALS)}`;
 
 function formatDateTime(date: Date): string {
@@ -143,7 +145,8 @@ export const reporteService = {
           const total = pm.length;
           const ok = pm.filter(m => m.estadoValidacion === MuestraEstadoValidacion.OK).length;
           const outside = total - ok;
-          const pct = total > 0 ? ((ok / total) * 100).toFixed(1) : "0.0";
+          const sinMuestras = p.estado === PasadaEstado.PARADA && total === 0;
+          const pct = sinMuestras ? SIN_MUESTRAS : total > 0 ? ((ok / total) * 100).toFixed(1) : "0.0";
           let duracion: number | string = '-';
           if (p.horaCierre) {
             duracion = Math.round((p.horaCierre.getTime() - p.horaInicio.getTime()) / 60000);
@@ -162,9 +165,9 @@ export const reporteService = {
             cierre: p.horaCierre ? formatDateTime(p.horaCierre) : '-',
             duracion: duracion,
             responsable: p.usuario.nombreApellido,
-            total: total,
-            conformes: ok,
-            fuera: outside,
+            total: sinMuestras ? SIN_MUESTRAS : total,
+            conformes: sinMuestras ? SIN_MUESTRAS : ok,
+            fuera: sinMuestras ? SIN_MUESTRAS : outside,
             porc: pct,
             motivo: p.motivoCierre ?? '-',
             obs: p.observacionCierre ?? '-'

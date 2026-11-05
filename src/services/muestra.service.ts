@@ -44,7 +44,7 @@ export class MuestraService {
       if (pasada.usuario.id !== usuarioId) {
         throw new Error(`User ${usuarioId} cannot register samples on pasada ${pasadaId}: not the owner`);
       }
-      if (pasada.estado === PasadaEstado.COMPLETA || pasada.estado === PasadaEstado.ABORTADA) {
+      if (pasada.estado !== PasadaEstado.EN_CURSO) {
         throw new Error(`Cannot register sample: Pasada is already completed or aborted`);
       }
       rutaPasadaId = pasada.rutaPasada.id;
@@ -140,7 +140,7 @@ export class MuestraService {
     const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada', 'rutaPasada', 'etapa'] });
     if (!muestra) return null;
 
-    if (muestra.pasada && (muestra.pasada.estado === PasadaEstado.COMPLETA || muestra.pasada.estado === PasadaEstado.ABORTADA)) {
+    if (muestra.pasada && muestra.pasada.estado !== PasadaEstado.EN_CURSO) {
       throw new Error('Cannot update sample of a completed or aborted pasada');
     }
 
@@ -171,7 +171,7 @@ export class MuestraService {
     const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada', 'lineaProduccion'] });
     if (!muestra) return false;
 
-    if (muestra.pasada && (muestra.pasada.estado === PasadaEstado.COMPLETA || muestra.pasada.estado === PasadaEstado.ABORTADA)) {
+    if (muestra.pasada && muestra.pasada.estado !== PasadaEstado.EN_CURSO) {
       throw new Error('Cannot delete sample of a completed or aborted pasada');
     }
 

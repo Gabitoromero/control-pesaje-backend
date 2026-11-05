@@ -11,6 +11,7 @@ import {
   RutaPasadaEtapaCreateSchema,
   PasadaIniciarSchema,
   PasadaUpdateSchema,
+  PasadaLineaParadaSchema,
   MuestraRegistrarSchema,
   MuestraUpdateSchema,
   UsuarioCreateSchema,
@@ -346,6 +347,22 @@ describe('PasadaIniciarSchema', () => {
       observacion: '',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('PasadaLineaParadaSchema', () => {
+  it('accepts a line and a non-empty observacion, trimming it', () => {
+    const parsed = PasadaLineaParadaSchema.parse({ lineaProduccionId: 1, observacion: '  Sin energía ' });
+    expect(parsed.observacion).toBe('Sin energía');
+  });
+
+  it('rejects a missing observacion', () => {
+    expect(PasadaLineaParadaSchema.safeParse({ lineaProduccionId: 1 }).success).toBe(false);
+  });
+
+  it('rejects an empty or whitespace observacion', () => {
+    expect(PasadaLineaParadaSchema.safeParse({ lineaProduccionId: 1, observacion: '' }).success).toBe(false);
+    expect(PasadaLineaParadaSchema.safeParse({ lineaProduccionId: 1, observacion: '   ' }).success).toBe(false);
   });
 });
 
