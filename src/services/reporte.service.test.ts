@@ -208,7 +208,7 @@ describe('reporteService.generateReporteRutasPasada', () => {
   });
 });
 
-describe('reporteService.generateReportePasadasMuestras — pasada parada', () => {
+describe('reporteService.generateReportePasadas — pasada parada', () => {
   const linea = { id: 1, nombre: 'L1' };
   const base = {
     lineaProduccion: linea,
@@ -228,25 +228,25 @@ describe('reporteService.generateReportePasadasMuestras — pasada parada', () =
 
   it('exports a parada without samples as "sin muestras" with its estado and motivo', async () => {
     const parada = { ...base, id: 1, numero: 1, estado: 'parada', horaCierre: base.horaInicio, motivoCierre: 'Sin energía' };
-    const wb = await reporteService.generateReportePasadasMuestras(makeEmPasadas([parada]), new Date(0), new Date());
-    const ws = wb.getWorksheet('Pasadas - L1')!;
+    const wb = await reporteService.generateReportePasadas(makeEmPasadas([parada]), new Date(0), new Date());
+    const ws = wb.getWorksheet('L1')!;
     const header = rowValues(ws, 1);
     const row = rowValues(ws, 2);
     const col = (h: string) => row[header.indexOf(h)];
-    expect(col('Estado')).toBe('parada');
-    expect(col('Total Muestras')).toBe('sin muestras');
-    expect(col('% Conforme')).toBe('sin muestras');
+    expect(col('Estado Pasada')).toBe('parada');
+    expect(col('Total Muestras Pasada')).toBe('sin muestras');
+    expect(col('% Conforme Pasada')).toBe('sin muestras');
     expect(col('Duración (min)')).toBe(0);
     expect(col('Motivo de Cierre')).toBe('Sin energía');
   });
 
   it('keeps numeric counts for a completa pasada without samples (unchanged)', async () => {
     const completa = { ...base, id: 2, numero: 2, estado: 'completa', horaCierre: base.horaInicio };
-    const wb = await reporteService.generateReportePasadasMuestras(makeEmPasadas([completa]), new Date(0), new Date());
-    const ws = wb.getWorksheet('Pasadas - L1')!;
+    const wb = await reporteService.generateReportePasadas(makeEmPasadas([completa]), new Date(0), new Date());
+    const ws = wb.getWorksheet('L1')!;
     const header = rowValues(ws, 1);
     const row = rowValues(ws, 2);
-    expect(row[header.indexOf('Total Muestras')]).toBe(0);
-    expect(row[header.indexOf('% Conforme')]).toBe('0.0');
+    expect(row[header.indexOf('Total Muestras Pasada')]).toBe(0);
+    expect(row[header.indexOf('% Conforme Pasada')]).toBe('0.0');
   });
 });

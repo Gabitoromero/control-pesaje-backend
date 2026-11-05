@@ -8,7 +8,16 @@ const reporteQuerySchema = z.object({
   hasta: z.string({ message: 'Faltan parámetros desde o hasta' }),
 });
 
-export const getReportePasadasMuestras = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+// Keep in sync with MAX_RANGE_DAYS in the frontend ReportesPage.
+const MAX_RANGE_DAYS = 90;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Both date-range reports (muestras, pasadas) share the same query params, validation and range limit.
+const createRangeReportHandler = (
+  filenamePrefix: string,
+  generator: 'generateReporteMuestras' | 'generateReportePasadas'
+) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const parseResult = reporteQuerySchema.safeParse(req.query);
     if (!parseResult.success) {
@@ -29,14 +38,10 @@ export const getReportePasadasMuestras = async (req: Request, res: Response, nex
       return;
     }
 
-    const diffRaw = fechaHasta.getTime() - fechaDesde.getTime();
-    // 5 days + 23:59:59.999 = approx 6 days total elapsed ms allowed between start of day 1 and end of day 5
-    // Example: 01 to 05 is 5 days inclusive. 05 23:59:59 - 01 00:00:00 = 4 days 23:59:59.
-    // If they ask for 6 days (01 to 06), it will be 5 days 23:59:59.
-    // We want to limit to 5 days inclusive. So diffRaw must be < 5 days.
-    // Actually, difference between 1st 00:00:00 and 5th 23:59:59 is 4.999 days.
-    if (diffRaw >= 5 * 24 * 60 * 60 * 1000) {
-      res.status(400).json({ success: false, error: 'El rango máximo es de 5 días' });
+    // The range is inclusive of both days: N days elapse as N-1 days + 23:59:59.999, so N days is
+    // allowed and N+1 days (elapsed >= N days) is rejected.
+    if (fechaHasta.getTime() - fechaDesde.getTime() >= MAX_RANGE_DAYS * DAY_MS) {
+      res.status(400).json({ success: false, error: `El rango máximo es de ${MAX_RANGE_DAYS} días` });
       return;
     }
 
@@ -46,18 +51,20 @@ export const getReportePasadasMuestras = async (req: Request, res: Response, nex
       return;
     }
 
-    const workbook = await reporteService.generateReportePasadasMuestras(em, fechaDesde, fechaHasta);
+    const workbook = await reporteService[generator](em, fechaDesde, fechaHasta);
 
-    const isoDesde = desde.split('T')[0];
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="reporte-${isoDesde}.xlsx"`);
-    
+    res.setHeader('Content-Type', XLSX_CONTENT_TYPE);
+    res.setHeader('Content-Disposition', `attachment; filename="${filenamePrefix}-${fechaDesdeStr}.xlsx"`);
+
     await workbook.xlsx.write(res);
     res.end();
   } catch (err) {
     next(err);
   }
 };
+
+export const getReporteMuestras = createRangeReportHandler('reporte-muestras', 'generateReporteMuestras');
+export const getReportePasadas = createRangeReportHandler('reporte-pasadas', 'generateReportePasadas');
 
 const PLANT_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 

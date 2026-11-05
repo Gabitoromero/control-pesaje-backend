@@ -376,7 +376,7 @@ describe('dashboard.controller', () => {
           rutaPasada: 5,
           timestamp: { $gte: timeZero }
         },
-        { populate: ['etapa', 'pasada'] }
+        { populate: ['etapa', 'pasada', 'usuario'] }
       );
       expect(captured.statusCode).toBe(200);
       expect((captured.body as any).data.length).toBe(1);
