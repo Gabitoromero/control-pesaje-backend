@@ -17,14 +17,35 @@ function formatDateTime(date: Date): string {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-// "{prefix} - {línea} {id}": the id keeps names unique (Excel compares sheet names case-insensitively and two
-// lines can share a name), so the line name is the part that gets truncated to fit the 31-character limit.
-const lineSheetName = (prefix: string, linea: { id: number; nombre: string }): string => {
-  const head = `${prefix} - `;
-  const tail = ` ${linea.id}`;
-  const maxNombre = Math.max(SHEET_NAME_MAX - head.length - tail.length, 0);
-  const nombre = linea.nombre.replace(/[/\\?*[\]]/g, '').substring(0, maxNombre).trimEnd();
-  return `${head}${nombre}${tail}`;
+const cleanSheetName = (nombre: string): string =>
+  nombre.replace(/[/\\?*[\]:]/g, '').replace(/^'+|'+$/g, '').trim();
+
+// Truncates `base` so that `base + suffix` fits the 31-character limit of an Excel sheet name.
+const fitSheetName = (base: string, suffix = ''): string =>
+  `${base.substring(0, Math.max(SHEET_NAME_MAX - suffix.length, 0)).trimEnd()}${suffix}`;
+
+/**
+ * One sheet name per line: the line's own name. Excel compares sheet names case-insensitively and two lines can
+ * share a name (or a 31-character prefix), so only the lines that would collide get their id appended.
+ */
+const assignLineSheetNames = (lineas: ReadonlyArray<{ id: number; nombre: string }>): Map<number, string> => {
+  const clean = new Map(lineas.map((l) => [l.id, cleanSheetName(l.nombre) || `Línea ${l.id}`]));
+  const plain = (id: number) => fitSheetName(clean.get(id)!).toLowerCase();
+
+  const counts = new Map<string, number>();
+  for (const l of lineas) counts.set(plain(l.id), (counts.get(plain(l.id)) ?? 0) + 1);
+
+  const used = new Set<string>();
+  const names = new Map<number, string>();
+  for (const l of lineas) {
+    const base = clean.get(l.id)!;
+    let name = (counts.get(plain(l.id)) ?? 0) > 1 ? fitSheetName(base, ` ${l.id}`) : fitSheetName(base);
+    // Last resort: a plain name can equal another line's "name id".
+    for (let n = 2; used.has(name.toLowerCase()); n++) name = fitSheetName(base, ` ${l.id}-${n}`);
+    used.add(name.toLowerCase());
+    names.set(l.id, name);
+  }
+  return names;
 };
 
 function addSinDatosSheet(workbook: exceljs.Workbook): void {
@@ -111,7 +132,11 @@ export const reporteService = {
     return workbook;
   },
 
-  /** Pasadas report: per production line, a 'Pasadas - {linea}' sheet and an 'Etapas - {linea}' sheet. */
+  /**
+   * Pasadas report: one sheet per production line that had pasadas in the range, named after the line. Each row is one etapa of one
+   * pasada, and the pasada's own fields repeat on every row of its etapas (a pasada without muestras keeps a
+   * single row with '-' in the etapa columns).
+   */
   async generateReportePasadas(em: EntityManager, desde: Date, hasta: Date): Promise<exceljs.Workbook> {
     const muestras = await em.find(
       Muestra,
@@ -144,7 +169,9 @@ export const reporteService = {
       lineasMap.get(p.lineaProduccion.id)!.pasadas.push(p);
     }
 
-    const lineas = Array.from(lineasMap.values()).sort((a, b) => a.linea.nombre.localeCompare(b.linea.nombre));
+    const lineas = Array.from(lineasMap.values()).sort(
+      (a, b) => a.linea.nombre.localeCompare(b.linea.nombre) || a.linea.id - b.linea.id
+    );
 
     const workbook = new exceljs.Workbook();
 
@@ -153,29 +180,34 @@ export const reporteService = {
       return workbook;
     }
 
+    const sheetNames = assignLineSheetNames(lineas.map((g) => g.linea));
+
     for (const grupo of lineas) {
-      const resSheet = workbook.addWorksheet(lineSheetName('Pasadas', grupo.linea));
-      resSheet.columns = [
+      const sheet = workbook.addWorksheet(sheetNames.get(grupo.linea.id)!);
+      sheet.columns = [
         { header: 'Línea de Producción', key: 'linea', width: 20 },
         { header: 'Balanza', key: 'balanza', width: 20 },
         { header: 'Ruta', key: 'ruta', width: 20 },
         { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
-        { header: 'Observación', key: 'observacionInicio', width: 30 },
+        { header: 'Observación Pasada', key: 'observacionInicio', width: 30 },
         { header: 'Código', key: 'articuloCodigo', width: 18 },
         { header: 'Artículo', key: 'articulo', width: 20 },
-        { header: 'Estado', key: 'estado', width: 15 },
+        { header: 'Estado Pasada', key: 'estado', width: 15 },
         { header: 'Inicio', key: 'inicio', width: 20 },
         { header: 'Cierre', key: 'cierre', width: 20 },
         { header: 'Duración (min)', key: 'duracion', width: 15 },
         { header: 'Responsable', key: 'responsable', width: 20 },
-        { header: 'Total Muestras', key: 'total', width: 15 },
-        { header: 'Conformes', key: 'conformes', width: 15 },
-        { header: 'Fuera de Rango', key: 'fuera', width: 15 },
-        { header: '% Conforme', key: 'porc', width: 15 },
+        { header: 'Total Muestras Pasada', key: 'total', width: 15 },
+        { header: 'Conformes Pasada', key: 'conformes', width: 15 },
+        { header: 'Fuera de Rango Pasada', key: 'fuera', width: 15 },
+        { header: '% Conforme Pasada', key: 'porc', width: 15 },
         { header: 'Motivo de Cierre', key: 'motivo', width: 20 },
         { header: 'Observación Cierre', key: 'obs', width: 30 },
+        { header: 'Etapa', key: 'etapa', width: 20 },
+        { header: 'Total Muestras Etapa', key: 'totalEtapa', width: 15 },
+        { header: 'Promedio Peso Neto Etapa (kg)', key: 'promedioEtapa', width: 20 },
       ];
-      resSheet.getRow(1).font = { bold: true };
+      sheet.getRow(1).font = { bold: true };
 
       for (const p of grupo.pasadas) {
         const pm = muestrasPorPasada.get(p.id) ?? [];
@@ -188,7 +220,8 @@ export const reporteService = {
           duracion = Math.round((p.horaCierre.getTime() - p.horaInicio.getTime()) / 60000);
         }
 
-        resSheet.addRow({
+        // The pasada's own fields, repeated on every row of its etapas.
+        const pasadaFields = {
           linea: p.lineaProduccion.nombre,
           balanza: p.balanza?.nombre ?? '-',
           ruta: p.rutaPasada.nombre,
@@ -206,37 +239,27 @@ export const reporteService = {
           fuera: outside,
           porc: pct,
           motivo: p.motivoCierre ?? '-',
-          obs: p.observacionCierre ?? '-'
-        });
-      }
+          obs: p.observacionCierre ?? '-',
+        };
 
-      const etapaSheet = workbook.addWorksheet(lineSheetName('Etapas', grupo.linea));
-      etapaSheet.columns = [
-        { header: 'Línea de Producción', key: 'linea', width: 20 },
-        { header: 'Ruta', key: 'ruta', width: 20 },
-        { header: 'N° Pasada', key: 'pasadaNum', width: 15 },
-        { header: 'Etapa', key: 'etapa', width: 20 },
-        { header: 'Total Muestras', key: 'total', width: 15 },
-        { header: 'Promedio Peso Neto (kg)', key: 'promedio', width: 20 },
-      ];
-      etapaSheet.getRow(1).font = { bold: true };
-
-      for (const p of grupo.pasadas) {
-        const pmPorEtapa = new Map<string, number[]>();
-        for (const m of muestrasPorPasada.get(p.id) ?? []) {
-          if (!pmPorEtapa.has(m.etapa.nombre)) pmPorEtapa.set(m.etapa.nombre, []);
-          pmPorEtapa.get(m.etapa.nombre)!.push(Number(m.pesoNeto));
+        const pesosPorEtapa = new Map<string, number[]>();
+        for (const m of pm) {
+          if (!pesosPorEtapa.has(m.etapa.nombre)) pesosPorEtapa.set(m.etapa.nombre, []);
+          pesosPorEtapa.get(m.etapa.nombre)!.push(Number(m.pesoNeto));
         }
-        for (const [etapa, pesos] of pmPorEtapa.entries()) {
-          const sum = pesos.reduce((acc, v) => acc + v, 0);
-          const avg = sum / pesos.length;
-          etapaSheet.addRow({
-            linea: p.lineaProduccion.nombre,
-            ruta: p.rutaPasada.nombre,
-            pasadaNum: p.numero,
+
+        if (pesosPorEtapa.size === 0) {
+          sheet.addRow({ ...pasadaFields, etapa: '-', totalEtapa: '-', promedioEtapa: '-' });
+          continue;
+        }
+
+        for (const [etapa, pesos] of pesosPorEtapa.entries()) {
+          const avg = pesos.reduce((acc, v) => acc + v, 0) / pesos.length;
+          sheet.addRow({
+            ...pasadaFields,
             etapa: etapa,
-            total: pesos.length,
-            promedio: avg.toFixed(PESO_DECIMALS)
+            totalEtapa: pesos.length,
+            promedioEtapa: avg.toFixed(PESO_DECIMALS),
           });
         }
       }
