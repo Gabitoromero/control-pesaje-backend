@@ -37,7 +37,7 @@ let list: ReturnType<typeof vi.spyOn>;
 
 beforeAll(async () => {
   process.env.JWT_SECRET = JWT_SECRET;
-  app = await initApp({ em: {} } as any);
+  app = await initApp({ em: {} } as unknown as Parameters<typeof initApp>[0]);
 });
 
 beforeEach(() => {
@@ -83,7 +83,7 @@ describe('GET /api/muestras/historial', () => {
       .set('Authorization', `Bearer ${makeToken(UsuarioRol.JEFE)}`);
     await request(app).get('/api/muestras/historial').set('Authorization', `Bearer ${makeToken(UsuarioRol.JEFE)}`);
 
-    const first = list.mock.calls[0][2] as any;
+    const first = list.mock.calls[0][2] as { desde: Date; hasta: Date };
     expect(first).toMatchObject({ etapaId: 3, articuloId: 4, q: 'alfajor', page: 2, pageSize: 10 });
     expect(first.desde.toISOString()).toBe('2026-10-01T03:00:00.000Z');
     expect(first.hasta.toISOString()).toBe('2026-10-06T02:59:59.999Z');

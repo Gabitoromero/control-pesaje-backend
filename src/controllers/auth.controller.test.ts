@@ -26,7 +26,7 @@ vi.mock('@mikro-orm/core', () => {
   return {
     RequestContext: {
       getEntityManager: vi.fn().mockReturnValue({
-        findOne: vi.fn().mockImplementation((entity: any, query: any) => {
+        findOne: vi.fn().mockImplementation((entity: { name: string }) => {
           if (entity.name === 'Usuario') {
             return Promise.resolve({ nombreUsuario: 'Mock User', legajo: '00123' });
           }
@@ -74,8 +74,9 @@ describe('auth.controller', () => {
       await todasSesionesActivas(req, res, vi.fn());
 
       expect(captured.statusCode).toBe(200);
-      expect((captured.body as any).success).toBe(true);
-      const data = (captured.body as any).data;
+      const body = captured.body as { success: boolean; data: Record<string, unknown>[] };
+      expect(body.success).toBe(true);
+      const data = body.data;
       expect(data).toHaveLength(1);
       expect(data[0].lineaId).toBe(1);
       expect(data[0].lineaNombre).toBe('Mock Linea');

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import type { Request, Response } from 'express';
 import { getLineas, getResumen, getKpis, getEtapas } from './dashboard.controller.js';
-import { RequestContext } from '@mikro-orm/core';
+import { RequestContext, type EntityManager } from '@mikro-orm/core';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 import { Muestra } from '../models/Muestra.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
@@ -43,8 +43,41 @@ function makeRes() {
   return { captured, mock: mock as unknown as Response };
 }
 
+interface LineaRow {
+  id: number;
+  nombre: string;
+  rutaAsignadaAt?: Date;
+  observacion?: string | null;
+}
+
+interface ResumenRow {
+  conectado: boolean;
+  tiempoDesdeRuta: number;
+  pasadaEnCurso: { id: number; tiempoTranscurrido: number };
+}
+
+interface EtapaRow {
+  etapa: { nombre: string };
+  ultimoPeso: number;
+  porcentajeConforme: number;
+  muestrasConformes: number;
+  muestrasFueraRango: number;
+  muestrasTotales: number;
+  timeSeries: { pasadaId: number | null; estadoValidacion: string }[];
+}
+
+/** Reads `data` from the captured JSON response body. */
+function dataOf<T = unknown>(captured: { body: unknown }): T {
+  return (captured.body as { data: T }).data;
+}
+
+/** Reads `error.message` from the captured JSON response body. */
+function errorMessageOf(captured: { body: unknown }): string {
+  return (captured.body as { error: { message: string } }).error.message;
+}
+
 describe('dashboard.controller', () => {
-  let mockEm: any;
+  let mockEm: { findOne: Mock; find: Mock; count: Mock };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -53,7 +86,7 @@ describe('dashboard.controller', () => {
       find: vi.fn(),
       count: vi.fn(),
     };
-    (RequestContext.getEntityManager as any).mockReturnValue(mockEm);
+    vi.mocked(RequestContext.getEntityManager).mockReturnValue(mockEm as unknown as EntityManager);
   });
 
   afterEach(() => {
@@ -71,10 +104,10 @@ describe('dashboard.controller', () => {
       await getLineas(req, res, vi.fn());
 
       expect(captured.statusCode).toBe(200);
-      expect((captured.body as any).data.length).toBe(1);
-      expect((captured.body as any).data[0].id).toBe(1);
-      expect((captured.body as any).data[0].nombre).toBe('Linea 1');
-      expect((captured.body as any).data[0].rutaAsignadaAt).toBe(now);
+      expect(dataOf<unknown[]>(captured).length).toBe(1);
+      expect(dataOf<LineaRow[]>(captured)[0].id).toBe(1);
+      expect(dataOf<LineaRow[]>(captured)[0].nombre).toBe('Linea 1');
+      expect(dataOf<LineaRow[]>(captured)[0].rutaAsignadaAt).toBe(now);
     });
 
     it('populates rutaPasadaActiva and dispositivo', async () => {
@@ -103,8 +136,8 @@ describe('dashboard.controller', () => {
 
       await getLineas(req, res, vi.fn());
 
-      expect((captured.body as any).data[0].observacion).toBe('Cuidado con el sensor de peso');
-      expect((captured.body as any).data[1].observacion).toBeNull();
+      expect(dataOf<LineaRow[]>(captured)[0].observacion).toBe('Cuidado con el sensor de peso');
+      expect(dataOf<LineaRow[]>(captured)[1].observacion).toBeNull();
     });
   });
 
@@ -115,12 +148,12 @@ describe('dashboard.controller', () => {
       vi.useFakeTimers();
       vi.setSystemTime(now);
 
-      mockEm.findOne.mockImplementation((entity: any) => {
+      mockEm.findOne.mockImplementation((entity: unknown) => {
         if (entity === Pasada) return Promise.resolve(null);
         if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 }, rutaAsignadaAt: timeZero });
         return Promise.resolve(null);
       });
-      (deviceRegistryService.hasDeviceForLinea as any).mockReturnValue(false);
+      vi.mocked(deviceRegistryService.hasDeviceForLinea).mockReturnValue(false);
 
       const req = { params: { lineaId: '1' } } as unknown as Request;
       const { captured, mock: res } = makeRes();
@@ -136,7 +169,7 @@ describe('dashboard.controller', () => {
         expect.objectContaining({ lineaProduccion: 1, estado: 'en_curso', activo: true })
       );
       expect(captured.statusCode).toBe(200);
-      expect((captured.body as any).data).toEqual({
+      expect(dataOf(captured)).toEqual({
         conectado: false,
         tiempoDesdeRuta: 5 * 60 * 1000,
         pasadaEnCurso: null
@@ -144,7 +177,7 @@ describe('dashboard.controller', () => {
     });
 
     it('returns 404 if the linea has no rutaPasadaActiva at all', async () => {
-      mockEm.findOne.mockImplementation((entity: any) => {
+      mockEm.findOne.mockImplementation((entity: unknown) => {
         if (entity === Pasada) return Promise.resolve(null);
         if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: null });
         return Promise.resolve(null);
@@ -156,7 +189,7 @@ describe('dashboard.controller', () => {
       await getResumen(req, res, vi.fn());
 
       expect(captured.statusCode).toBe(404);
-      expect((captured.body as any).error.message).toBe('No hay pasada activa para esta linea');
+      expect(errorMessageOf(captured)).toBe('No hay pasada activa para esta linea');
     });
 
     it('returns resumen for active pasada', async () => {
@@ -166,12 +199,12 @@ describe('dashboard.controller', () => {
       vi.useFakeTimers();
       vi.setSystemTime(now);
 
-      mockEm.findOne.mockImplementation((entity: any) => {
+      mockEm.findOne.mockImplementation((entity: unknown) => {
         if (entity === Pasada) return Promise.resolve({ id: 10, horaInicio: timeZero });
         if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 }, rutaAsignadaAt: timeZero });
         return Promise.resolve(null);
       });
-      (deviceRegistryService.hasDeviceForLinea as any).mockReturnValue(true);
+      vi.mocked(deviceRegistryService.hasDeviceForLinea).mockReturnValue(true);
 
       const req = { params: { lineaId: '1' } } as unknown as Request;
       const { captured, mock: res } = makeRes();
@@ -180,16 +213,16 @@ describe('dashboard.controller', () => {
 
       expect(deviceRegistryService.hasDeviceForLinea).toHaveBeenCalledWith(1);
       expect(captured.statusCode).toBe(200);
-      expect((captured.body as any).data.conectado).toBe(true);
-      expect((captured.body as any).data.tiempoDesdeRuta).toBe(5 * 60 * 1000);
-      expect((captured.body as any).data.pasadaEnCurso.id).toBe(10);
-      expect((captured.body as any).data.pasadaEnCurso.tiempoTranscurrido).toBe(5 * 60 * 1000);
+      expect(dataOf<ResumenRow>(captured).conectado).toBe(true);
+      expect(dataOf<ResumenRow>(captured).tiempoDesdeRuta).toBe(5 * 60 * 1000);
+      expect(dataOf<ResumenRow>(captured).pasadaEnCurso.id).toBe(10);
+      expect(dataOf<ResumenRow>(captured).pasadaEnCurso.tiempoTranscurrido).toBe(5 * 60 * 1000);
     });
   });
 
   describe('getKpis', () => {
     it('returns 200 estado "esperando" if linea has rutaPasadaActiva but no Pasada EN_CURSO', async () => {
-      mockEm.findOne.mockImplementation((entity: any) => {
+      mockEm.findOne.mockImplementation((entity: unknown) => {
         if (entity === Pasada) return Promise.resolve(null);
         if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 } });
         return Promise.resolve(null);
@@ -201,7 +234,7 @@ describe('dashboard.controller', () => {
       await getKpis(req, res, vi.fn());
 
       expect(captured.statusCode).toBe(200);
-      expect((captured.body as any).data).toEqual({
+      expect(dataOf(captured)).toEqual({
         muestrasTotales: 0,
         fueraRango: 0,
         pasadasFinalizadas: 0,
@@ -210,7 +243,7 @@ describe('dashboard.controller', () => {
     });
 
     it('returns 404 if the linea has no rutaPasadaActiva at all', async () => {
-      mockEm.findOne.mockImplementation((entity: any) => {
+      mockEm.findOne.mockImplementation((entity: unknown) => {
         if (entity === Pasada) return Promise.resolve(null);
         if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: null });
         return Promise.resolve(null);
@@ -232,7 +265,7 @@ describe('dashboard.controller', () => {
         rutaPasadaActiva: { id: 2 } 
       });
 
-      mockEm.find.mockImplementation((entity: any) => {
+      mockEm.find.mockImplementation((entity: unknown) => {
         if (entity === Muestra) {
           return Promise.resolve([
             { id: 1, etapa: { id: 1 }, pesoNeto: 10, estadoValidacion: 'ok' },
@@ -243,7 +276,7 @@ describe('dashboard.controller', () => {
         return Promise.resolve([]);
       });
 
-      mockEm.count.mockImplementation((entity: any, query: any) => {
+      mockEm.count.mockImplementation((entity: unknown, query: { estado?: string }) => {
         if (query.estado === 'completa') return Promise.resolve(5);
         if (query.estado === 'en_curso') return Promise.resolve(2);
         return Promise.resolve(0);
@@ -264,7 +297,7 @@ describe('dashboard.controller', () => {
       );
       
       expect(captured.statusCode).toBe(200);
-      expect((captured.body as any).data).toEqual({
+      expect(dataOf(captured)).toEqual({
         muestrasTotales: 3,
         fueraRango: 1,
         pasadasFinalizadas: 5,
@@ -276,11 +309,11 @@ describe('dashboard.controller', () => {
   describe('getEtapas', () => {
     it('returns configured stages with 0s if linea has rutaPasadaActiva but no muestras', async () => {
       const timeZero = new Date('2026-07-13T10:00:00.000Z');
-      mockEm.findOne.mockImplementation((entity: any) => {
+      mockEm.findOne.mockImplementation((entity: unknown) => {
         if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: { id: 5 }, rutaAsignadaAt: timeZero });
         return Promise.resolve(null);
       });
-      mockEm.find.mockImplementation((entity: any) => {
+      mockEm.find.mockImplementation((entity: unknown) => {
         if (entity === RutaPasadaEtapa) {
           return Promise.resolve([
             { etapa: { id: 1, nombre: 'Etapa 1' }, pesoIdeal: 100, pesoMinimo: 90, pesoMaximo: 110 }
@@ -296,7 +329,7 @@ describe('dashboard.controller', () => {
       await getEtapas(req, res, vi.fn());
 
       expect(captured.statusCode).toBe(200);
-      expect((captured.body as any).data).toEqual([
+      expect(dataOf(captured)).toEqual([
         {
           etapa: { id: 1, nombre: 'Etapa 1' },
           pesoIdeal: 100,
@@ -313,7 +346,7 @@ describe('dashboard.controller', () => {
     });
 
     it('returns 404 if the linea has no rutaPasadaActiva at all', async () => {
-      mockEm.findOne.mockImplementation((entity: any) => {
+      mockEm.findOne.mockImplementation((entity: unknown) => {
         if (entity === LineaProduccion) return Promise.resolve({ id: 1, rutaPasadaActiva: null });
         return Promise.resolve(null);
       });
@@ -337,7 +370,7 @@ describe('dashboard.controller', () => {
       await getEtapas(req, res, vi.fn());
 
       expect(captured.statusCode).toBe(200);
-      expect((captured.body as any).data).toEqual([]);
+      expect(dataOf(captured)).toEqual([]);
     });
 
     it('returns etapas stats using estadoValidacion for conformity and pasadaId in timeseries', async () => {
@@ -348,7 +381,7 @@ describe('dashboard.controller', () => {
         rutaPasadaActiva: { id: 5 }
       });
       
-      mockEm.find.mockImplementation((entity: any) => {
+      mockEm.find.mockImplementation((entity: unknown) => {
         if (entity === RutaPasadaEtapa) {
           return Promise.resolve([
             { etapa: { id: 1, nombre: 'Etapa 1' }, pesoIdeal: 10, pesoMinimo: 8, pesoMaximo: 12 }
@@ -379,9 +412,9 @@ describe('dashboard.controller', () => {
         { populate: ['etapa', 'pasada', 'usuario'] }
       );
       expect(captured.statusCode).toBe(200);
-      expect((captured.body as any).data.length).toBe(1);
+      expect(dataOf<unknown[]>(captured).length).toBe(1);
       
-      const etapa1 = (captured.body as any).data[0];
+      const etapa1 = dataOf<EtapaRow[]>(captured)[0];
       expect(etapa1.etapa.nombre).toBe('Etapa 1');
       expect(etapa1.ultimoPeso).toBe(9);
       expect(etapa1.porcentajeConforme).toBe(100);

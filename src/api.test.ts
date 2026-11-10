@@ -56,7 +56,7 @@ vi.mock('@mikro-orm/core', async (importOriginal) => {
     ...original,
     RequestContext: {
       ...original.RequestContext,
-      create: (_em: any, next: () => void) => next(),
+      create: (_em: unknown, next: () => void) => next(),
       getEntityManager: () => mockEm,
     },
   };
@@ -537,7 +537,7 @@ const inactiveEntities = [
 
 describe('4.6 — GET /inactive routes', () => {
   // T-06: valid JWT → 200 with empty data array
-  for (const { path, name } of inactiveEntities) {
+  for (const { path } of inactiveEntities) {
     it(`T-06: GET ${path} returns 200 { success: true, data: [] } when no inactive records`, async () => {
       mockEm.find.mockResolvedValue([]);
 
@@ -850,7 +850,6 @@ describe('Pasadas HTTP Integration', () => {
     // iniciarPasada uses em.transactional; the mock runs the callback synchronously with mockEm.
     // We need findOne to return a linea with an active rutaPasadaActiva for the transaction path.
     const lineaMock = { id: 1, rutaPasadaActiva: { id: 10 }, articulo: { id: 5 } };
-    const fakePasada = { id: 55, estado: 'en_curso', numero: 1, activo: true };
 
     // First findOne in transactional is for LineaProduccion; second is for lastPasada check (returns null = first pasada).
     mockEm.findOne
