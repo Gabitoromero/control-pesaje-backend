@@ -225,7 +225,7 @@ describe('reporteService.generateReportePasadas — pasada parada', () => {
     const find = vi.fn().mockImplementation((entityClass: { name: string }) =>
       Promise.resolve(entityClass.name === 'Pasada' ? pasadas : [])
     );
-    return { find } as any;
+    return { find } as unknown as EntityManager;
   }
 
   it('exports a parada without samples as "sin muestras" with its estado and motivo', async () => {
