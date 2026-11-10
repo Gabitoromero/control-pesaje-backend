@@ -24,7 +24,7 @@ describe('PasadaService Tests', () => {
   beforeAll(async () => {
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test',
+      dbName: 'control_pesaje_tests',
       extensions: [SchemaGenerator],
       entities: [Usuario, LineaProduccion, Articulo, Etapa, RutaPasada, RutaPasadaEtapa, Pasada, Muestra, ArticuloRutaPasada, Balanza],
       entitiesTs: [],
@@ -156,6 +156,67 @@ describe('PasadaService Tests', () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
       expect(pasada.observacion).toBeNull();
+    }));
+  });
+
+  describe('registrarLineaParada', () => {
+    it('registers a new pasada directly as parada when none is running (no session needed)', () => runInContext(async () => {
+      const pasada = await pasadaService.registrarLineaParada(testLine.id, testUser.id, 'Falta de energía');
+      expect(pasada.estado).toBe(PasadaEstado.PARADA);
+      expect(pasada.numero).toBe(1);
+      expect(pasada.motivoCierre).toBe('Falta de energía');
+      expect(pasada.horaCierre).toBeDefined();
+      expect(pasada.horaCierre!.getTime()).toBe(pasada.horaInicio.getTime());
+      expect(pasada.usuario.id).toBe(testUser.id);
+      expect(pasada.balanza.id).toBe(testBalanza.id);
+      expect(pasada.articulo.id).toBe(testArticle.id);
+    }));
+
+    it('uses the given balanza when idBalanza is provided', () => runInContext(async () => {
+      const pasada = await pasadaService.registrarLineaParada(testLine.id, testUser.id, 'Sin materia prima', testBalanza.id);
+      expect(pasada.balanza.id).toBe(testBalanza.id);
+    }));
+
+    it('converts and closes the running pasada instead of creating another one', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const enCurso = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id, 'arranque');
+
+      const parada = await pasadaService.registrarLineaParada(testLine.id, testUser.id, 'Se cortó la cinta');
+      expect(parada.id).toBe(enCurso.id);
+      expect(parada.estado).toBe(PasadaEstado.PARADA);
+      expect(parada.motivoCierre).toBe('Se cortó la cinta');
+      expect(parada.observacion).toBe('arranque');
+      expect(parada.horaCierre).toBeDefined();
+
+      expect(sesionService.obtenerSesion(testLine.id)!.pasadaId).toBeNull();
+      const total = await orm.em.fork().count(Pasada, { lineaProduccion: testLine.id });
+      expect(total).toBe(1);
+    }));
+
+    it('rejects an empty or whitespace observation and persists nothing', () => runInContext(async () => {
+      await expect(pasadaService.registrarLineaParada(testLine.id, testUser.id, ''))
+        .rejects.toThrow('Se requiere una observación para registrar la línea parada');
+      await expect(pasadaService.registrarLineaParada(testLine.id, testUser.id, '   '))
+        .rejects.toThrow('Se requiere una observación para registrar la línea parada');
+      expect(await orm.em.fork().count(Pasada, {})).toBe(0);
+    }));
+
+    it('rejects edits and deletion of a parada like any closed pasada', () => runInContext(async () => {
+      const pasada = await pasadaService.registrarLineaParada(testLine.id, testUser.id, 'Motivo');
+      await expect(pasadaService.update(pasada.id, { numero: 9 }))
+        .rejects.toThrow('No se puede actualizar una pasada completada o abortada');
+      await expect(pasadaService.softDelete(pasada.id))
+        .rejects.toThrow('No se puede eliminar una pasada completada o abortada');
+      const updated = await pasadaService.update(pasada.id, { observacion: 'nota' });
+      expect(updated!.observacion).toBe('nota');
+    }));
+
+    it('keeps completar and abortar working on a running pasada (unchanged)', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const p1 = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+      expect((await pasadaService.completarPasada(p1.id))!.estado).toBe(PasadaEstado.COMPLETA);
+      const p2 = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+      expect((await pasadaService.abortarPasada(p2.id, 'x'))!.estado).toBe(PasadaEstado.ABORTADA);
     }));
   });
 

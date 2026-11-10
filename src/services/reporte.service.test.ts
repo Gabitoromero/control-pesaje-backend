@@ -209,3 +209,46 @@ describe('reporteService.generateReporteRutasPasada', () => {
     expect(em.find).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('reporteService.generateReportePasadas — pasada parada', () => {
+  const linea = { id: 1, nombre: 'L1' };
+  const base = {
+    lineaProduccion: linea,
+    rutaPasada: { id: 1, nombre: 'R1' },
+    balanza: { nombre: 'B1' },
+    articulo: { codigo: 'A1', nombre: 'Art' },
+    usuario: { nombreApellido: 'Juan' },
+    horaInicio: new Date(2026, 10, 2, 10, 0),
+  };
+
+  function makeEmPasadas(pasadas: AnyRecord[]) {
+    const find = vi.fn().mockImplementation((entityClass: { name: string }) =>
+      Promise.resolve(entityClass.name === 'Pasada' ? pasadas : [])
+    );
+    return { find } as any;
+  }
+
+  it('exports a parada without samples as "sin muestras" with its estado and motivo', async () => {
+    const parada = { ...base, id: 1, numero: 1, estado: 'parada', horaCierre: base.horaInicio, motivoCierre: 'Sin energía' };
+    const wb = await reporteService.generateReportePasadas(makeEmPasadas([parada]), new Date(0), new Date());
+    const ws = wb.getWorksheet('L1')!;
+    const header = rowValues(ws, 1);
+    const row = rowValues(ws, 2);
+    const col = (h: string) => row[header.indexOf(h)];
+    expect(col('Estado Pasada')).toBe('parada');
+    expect(col('Total Muestras Pasada')).toBe('sin muestras');
+    expect(col('% Conforme Pasada')).toBe('sin muestras');
+    expect(col('Duración (min)')).toBe(0);
+    expect(col('Motivo de Cierre')).toBe('Sin energía');
+  });
+
+  it('keeps numeric counts for a completa pasada without samples (unchanged)', async () => {
+    const completa = { ...base, id: 2, numero: 2, estado: 'completa', horaCierre: base.horaInicio };
+    const wb = await reporteService.generateReportePasadas(makeEmPasadas([completa]), new Date(0), new Date());
+    const ws = wb.getWorksheet('L1')!;
+    const header = rowValues(ws, 1);
+    const row = rowValues(ws, 2);
+    expect(row[header.indexOf('Total Muestras Pasada')]).toBe(0);
+    expect(row[header.indexOf('% Conforme Pasada')]).toBe('0.0');
+  });
+});

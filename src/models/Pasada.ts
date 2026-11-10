@@ -9,6 +9,7 @@ export enum PasadaEstado {
   EN_CURSO = 'en_curso',
   COMPLETA = 'completa',
   ABORTADA = 'abortada',
+  PARADA = 'parada',
 }
 
 @Entity({ tableName: 'pasada' })

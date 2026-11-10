@@ -171,6 +171,12 @@ export const PasadaIniciarSchema = z.object({
   observacion: z.string().min(1).optional(),
 });
 
+export const PasadaLineaParadaSchema = z.object({
+  lineaProduccionId: z.number().int().positive(),
+  observacion: z.string().trim().min(1, 'La observación es obligatoria'),
+  idBalanza: z.number().int().positive().optional(),
+});
+
 export const PasadaUpdateSchema = z.object({
   action: z.enum(['completar', 'abortar']).optional(),
   motivoCierre: z.string().min(1).optional(),

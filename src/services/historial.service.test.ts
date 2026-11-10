@@ -36,7 +36,7 @@ describe('historialService (integration)', () => {
   beforeAll(async () => {
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test',
+      dbName: 'control_pesaje_tests',
       extensions: [SchemaGenerator],
       entities: [Usuario, LineaProduccion, Articulo, Etapa, RutaPasada, Pasada, Muestra, ArticuloRutaPasada, Balanza, RutaPasadaEtapa],
       entitiesTs: [],
