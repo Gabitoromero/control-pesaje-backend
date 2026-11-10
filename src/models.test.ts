@@ -26,7 +26,7 @@ describe('Domain Entities Integration Tests', () => {
     // Initialize the ORM with explicit entities to avoid dynamic discovery errors
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test',
+      dbName: 'control_pesaje_tests',
       extensions: [SchemaGenerator],
       entities: [
         Usuario,

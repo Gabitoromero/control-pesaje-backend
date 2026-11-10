@@ -22,7 +22,7 @@ describe('API Health Check', () => {
     // For this basic test, we just need to ensure the app initializes.
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test', // Use a test DB
+      dbName: 'control_pesaje_tests', // Use a test DB
       entities: [
         Usuario,
         LineaProduccion,
@@ -61,7 +61,7 @@ describe('CORS', () => {
     process.env.ALLOWED_ORIGIN = 'http://trusted.example.com';
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test',
+      dbName: 'control_pesaje_tests',
       entities: [Usuario, LineaProduccion, Articulo, Etapa, RutaPasadaEtapa],
       entitiesTs: [],
       allowGlobalContext: true,

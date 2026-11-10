@@ -54,7 +54,7 @@ describe('DELETE /api/dispositivos/:id', () => {
 
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test',
+      dbName: 'control_pesaje_tests',
       extensions: [SchemaGenerator],
       entities: [
         Usuario,
@@ -163,7 +163,7 @@ describe('PATCH /api/dispositivos/:id/unidad', () => {
 
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test',
+      dbName: 'control_pesaje_tests',
       extensions: [SchemaGenerator],
       entities: [
         Usuario,
@@ -377,7 +377,7 @@ describe('POST /api/dispositivos/beacon', () => {
 
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test',
+      dbName: 'control_pesaje_tests',
       extensions: [SchemaGenerator],
       entities: [
         Usuario,
@@ -493,7 +493,7 @@ describe('GET /api/dispositivos/conectados (three-state estado)', () => {
 
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test',
+      dbName: 'control_pesaje_tests',
       extensions: [SchemaGenerator],
       entities: [
         Usuario,
