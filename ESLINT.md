@@ -1,7 +1,7 @@
-# Backend lint baseline
+# Backend lint
 
-ESLint now checks the backend's TypeScript and JavaScript files, including tests,
-scripts, and root configuration. Existing application and test code is unchanged.
+ESLint checks the backend's TypeScript and JavaScript files, including tests,
+scripts, and root configuration.
 
 ## Run checks
 
@@ -11,9 +11,9 @@ node --test scripts/eslint-config.test.mjs
 pnpm exec tsc --noEmit
 ```
 
-The lint command currently exits with code **1** because of existing findings.
-An ESLint configuration or execution failure uses code **2** instead. Do not treat
-the current findings as a passing quality gate.
+`pnpm lint` exits with code **0** on a clean tree, so it can be used as a
+quality gate. A non-zero code means findings (1) or a configuration or
+execution failure (2).
 
 ## Configuration
 
@@ -22,65 +22,32 @@ the current findings as a passing quality gate.
   `@typescript-eslint/eslint-plugin`'s flat recommended preset and its parser.
 - Node globals are available. Tests import their Vitest helpers explicitly.
 - Generated `dist/`, `coverage/`, and installed dependencies are excluded.
-- The existing `eslint . --ext .ts` script is unchanged; ESLint 10 supports it.
+- `@typescript-eslint/no-unused-vars` runs with `ignoreRestSiblings: true`:
+  destructuring to drop fields (`const { id, ...rest } = input`) is an
+  intentional idiom in the services, not dead code.
 - `@eslint/js` and `globals` are direct development dependencies. The existing
   TypeScript plugin and parser are reused; no umbrella package is required.
-- No type-aware preset, automatic fixes, blanket rule suppression, or application
-  behavior changes are included. Formatting remains a separate concern.
+- No type-aware preset, automatic fixes, or blanket rule suppression.
+  Formatting remains a separate concern.
+- `scripts/eslint-config.test.mjs` uses `node:test`, so Vitest excludes
+  `scripts/**`.
 
-## Initial findings
+## History
 
-Measured against backend `main` at `c330214` with this configuration:
+The first run, measured against backend `main` at `c330214`, reported 213 errors
+in 37 of 153 files: 189 explicit `any` and 8 unused bindings in tests, plus 15
+unused bindings and 1 useless assignment in production. All of them were fixed
+without changing application behavior:
 
-| Area | Explicit `any` | Unused bindings | Useless assignment | Total |
-| --- | ---: | ---: | ---: | ---: |
-| Tests: 30 affected files | 189 | 8 | 0 | 197 |
-| Production: 7 affected files | 0 | 15 | 1 | 16 |
-| Total: 37 affected files | 189 | 23 | 1 | 213 |
+- Production: unused imports and `catch` bindings removed, `allRutas` scoped to
+  the block that reads it, and the `db-teardown` query result typed.
+- Tests: explicit `any` replaced with typed mocks (`vi.mocked`, `Mock`),
+  `Parameters<Service['create' | 'update']>[0]` for partial service inputs, and
+  small typed helpers for response bodies. Partial stubs use
+  `as unknown as X`, which keeps the partial mock visible in the code.
 
-The scan covered **153 files**, with **0 warnings** and **0 fatal parsing errors**.
-These numbers describe this baseline, not a permanent expected error budget.
+## Limits
 
-### Production findings need context
-
-- `src/services/usuario.service.ts:74,85`: unused destructured `esSistema` and
-  `pin` bindings exclude fields from the remaining object. Removing the omission
-  mechanism can change payloads or expose sensitive fields.
-- `src/services/ruta-pasada.service.ts:133`: the omitted `id` similarly protects
-  the shape of update data. Preserve that behavior during cleanup.
-- `src/routes/muestras.routes.ts:6` and
-  `src/routes/rutas-pasadas-etapas.routes.ts:6`: unused imports.
-- `src/controllers/base.controller.ts:26,35,49`: caught errors are unused while
-  generic 500 responses are returned. Better error observability is a separate
-  behavior decision, not something the lint warning proves is broken.
-- `src/services/muestra.service.ts:37`: the initial empty `allRutas` array is
-  overwritten before its only read. This is redundant initialization, not a
-  demonstrated failure in stage validation.
-
-### Test debt dominates
-
-All 189 explicit-`any` findings are in tests. The largest affected files are
-`dashboard.controller.test.ts` (34 findings), `linea-produccion.service.test.ts`
-(30), and `reporte.controller.test.ts` (22).
-
-Typed fixtures and mocks should replace casts incrementally. Passing tests with
-`any` do not prove their fixture contracts remain accurate; conversely these
-casts alone do not demonstrate a production defect.
-
-## Verification and limits
-
-The configuration regression test failed before the config existed and passed
-afterward. An independent scratch-copy check reproduced the counts, confirmed
-Node and legacy-decorator parsing, and checked that the configured rules detect
-deliberate violations. `tsc --noEmit` also passed.
-
-No integration tests or coverage run is included: Vitest explicitly disables
-file parallelism because tests share a database. A worktree does not isolate
-that database, and no environment secrets were copied into this worktree.
-
-Dependency installation reported an existing peer mismatch: Vitest 4.1.7 versus
-`@vitest/coverage-v8` 4.1.9. This setup does not change those versions.
-
-This is a whole-tree static lint baseline, not certification of runtime behavior,
-security, database correctness, or test coverage. Business-code cleanup and local
-merge remain separate follow-up work.
+This is a static lint baseline, not certification of runtime behavior, security,
+database correctness, or test coverage. The Vitest suite needs a PostgreSQL test
+database (`control_pesaje_test`) and runs sequentially because tests share it.
