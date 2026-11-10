@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BalanzaService } from './balanza.service.js';
-import { ValidationError, RestrictError } from '../utils/errors.js';
+import { ValidationError } from '../utils/errors.js';
 
 // ─── Mock EntityManager ───────────────────────────────────────────────────────
 
@@ -21,6 +21,9 @@ vi.mock('@mikro-orm/core', () => ({
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+type CreateInput = Parameters<BalanzaService['create']>[0];
+type UpdateInput = Parameters<BalanzaService['update']>[1];
+
 describe('BalanzaService', () => {
   let service: BalanzaService;
 
@@ -32,14 +35,14 @@ describe('BalanzaService', () => {
   describe('create', () => {
     it('throws ValidationError if balanza with the same nombre already exists', async () => {
       mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Test', activo: true });
-      await expect(service.create({ nombre: 'Test' } as any)).rejects.toThrow(ValidationError);
+      await expect(service.create({ nombre: 'Test' } as unknown as CreateInput)).rejects.toThrow(ValidationError);
     });
   });
 
   describe('update', () => {
     it('throws ValidationError if another balanza with the same nombre already exists', async () => {
       mockEm.findOne.mockResolvedValueOnce({ id: 3, nombre: 'Test', activo: true });
-      await expect(service.update(1, { nombre: 'Test' } as any)).rejects.toThrow(ValidationError);
+      await expect(service.update(1, { nombre: 'Test' } as unknown as UpdateInput)).rejects.toThrow(ValidationError);
     });
   });
 

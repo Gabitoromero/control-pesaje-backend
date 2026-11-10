@@ -28,6 +28,9 @@ vi.mock('bcryptjs', () => ({
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+type CreateInput = Parameters<UsuarioService['create']>[0];
+type UpdateInput = Parameters<UsuarioService['update']>[1];
+
 describe('UsuarioService', () => {
   let service: UsuarioService;
   
@@ -44,7 +47,7 @@ describe('UsuarioService', () => {
         service.create({
           nombreApellido: 'Test',
           legajo: '01234',
-        } as any)
+        } as unknown as CreateInput)
       ).rejects.toThrow(ValidationError);
 
       mockEm.findOne.mockResolvedValueOnce({ id: 2, legajo: '01234', nombreApellido: 'Otro Usuario' });
@@ -52,7 +55,7 @@ describe('UsuarioService', () => {
         service.create({
           nombreApellido: 'Test',
           legajo: '01234',
-        } as any)
+        } as unknown as CreateInput)
       ).rejects.toThrow("El legajo 01234 ya está en uso por Otro Usuario");
     });
   });
@@ -64,7 +67,7 @@ describe('UsuarioService', () => {
       await expect(
         service.update(1, {
           nombreApellido: 'Hacker',
-        } as any)
+        } as unknown as UpdateInput)
       ).rejects.toThrow(ValidationError);
 
       // Need to reset the mock for the second assertion
@@ -72,7 +75,7 @@ describe('UsuarioService', () => {
       await expect(
         service.update(1, {
           nombreApellido: 'Hacker',
-        } as any)
+        } as unknown as UpdateInput)
       ).rejects.toThrow("No se permite la modificación de usuarios de sistema");
     });
 
@@ -85,7 +88,7 @@ describe('UsuarioService', () => {
       await expect(
         service.update(1, {
           legajo: '22222',
-        } as any)
+        } as unknown as UpdateInput)
       ).rejects.toThrow("El legajo 22222 ya está en uso por Admin");
     });
   });

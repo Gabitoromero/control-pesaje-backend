@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ArticuloService } from './articulo.service.js';
-import { ValidationError } from '../utils/errors.js';
 
 // ─── Mock EntityManager ───────────────────────────────────────────────────────
 
@@ -23,6 +22,9 @@ vi.mock('@mikro-orm/core', () => ({
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+type CreateInput = Parameters<ArticuloService['create']>[0];
+type UpdateInput = Parameters<ArticuloService['update']>[1];
+
 describe('ArticuloService.create validations', () => {
   let service: ArticuloService;
   beforeEach(() => {
@@ -37,7 +39,7 @@ describe('ArticuloService.create validations', () => {
       service.create({
         codigo: 'A1',
         nombre: 'M1',
-      } as any)
+      } as unknown as CreateInput)
     ).rejects.toThrow(/Ya existe un artículo/);
   });
 });
@@ -58,7 +60,7 @@ describe('ArticuloService.update validations', () => {
     await expect(
       service.update(1, {
         codigo: 'A1',
-      } as any)
+      } as unknown as UpdateInput)
     ).rejects.toThrow(/Ya existe un artículo/);
   });
 });

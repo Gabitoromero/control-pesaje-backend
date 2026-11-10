@@ -23,10 +23,11 @@ describe('SesionService (In-Memory Session Registry)', () => {
       expect(session.ultimaActividadAt).toBeInstanceOf(Date);
       
       // old fields must not exist
-      expect((session as any).usuarioIdGlobal).toBeUndefined();
-      expect((session as any).usuarioIdUsuario).toBeUndefined();
-      expect((session as any).rolUsuario).toBeUndefined();
-      expect((session as any).usuarioUltimaActividadAt).toBeUndefined();
+      const legacy = session as unknown as Record<string, unknown>;
+      expect(legacy.usuarioIdGlobal).toBeUndefined();
+      expect(legacy.usuarioIdUsuario).toBeUndefined();
+      expect(legacy.rolUsuario).toBeUndefined();
+      expect(legacy.usuarioUltimaActividadAt).toBeUndefined();
 
       const retrieved = sesionService.obtenerSesion(1);
       expect(retrieved).toEqual(session);
