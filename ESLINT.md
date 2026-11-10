@@ -48,8 +48,6 @@ These numbers describe this baseline, not a permanent expected error budget.
   mechanism can change payloads or expose sensitive fields.
 - `src/services/ruta-pasada.service.ts:133`: the omitted `id` similarly protects
   the shape of update data. Preserve that behavior during cleanup.
-- `src/seed.ts:40` onward: unused creation results do not make the creation calls
-  unnecessary. Keep their side effects.
 - `src/routes/muestras.routes.ts:6` and
   `src/routes/rutas-pasadas-etapas.routes.ts:6`: unused imports.
 - `src/controllers/base.controller.ts:26,35,49`: caught errors are unused while

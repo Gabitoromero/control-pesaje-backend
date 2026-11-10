@@ -8,9 +8,8 @@
     "test": "vitest",
     "build": "tsc",
     "start": "node dist/src/index.js",
-    "seed": "ts-node-esm src/seed.ts",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint .",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "keywords": [],
