@@ -244,7 +244,7 @@ describe('dashboard.controller', () => {
       });
 
       mockEm.count.mockImplementation((entity: any, query: any) => {
-        if (query.estado === 'completa') return Promise.resolve(5);
+        if (query.estado?.$in?.includes('completa') && query.estado.$in.includes('parada')) return Promise.resolve(5);
         if (query.estado === 'en_curso') return Promise.resolve(2);
         return Promise.resolve(0);
       });

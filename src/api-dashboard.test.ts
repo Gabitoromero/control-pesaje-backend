@@ -123,6 +123,22 @@ describe('Dashboard Integration Tests', () => {
       expect(res.body.data.muestrasTotales).toBe(2);
       expect(res.body.data.fueraRango).toBe(1);
     });
+
+    it('counts completa and parada pasadas as finalizadas, and en_curso separately', async () => {
+      mockEm.findOne.mockResolvedValueOnce({ id: 1, rutaAsignadaAt: new Date(), rutaPasadaActiva: { id: 1 } });
+      mockEm.find.mockResolvedValue([]);
+      mockEm.count.mockClear();
+      mockEm.count.mockResolvedValue(0);
+
+      const res = await request(app)
+        .get('/api/dashboard/1/kpis')
+        .set('Authorization', `Bearer ${adminToken()}`);
+
+      expect(res.status).toBe(200);
+      const filters = mockEm.count.mock.calls.map(([, where]) => where.estado);
+      expect(filters).toContainEqual({ $in: [PasadaEstado.COMPLETA, PasadaEstado.PARADA] });
+      expect(filters).toContain(PasadaEstado.EN_CURSO);
+    });
   });
 
   describe('GET /api/dashboard/:lineaId/etapas', () => {

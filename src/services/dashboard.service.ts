@@ -141,7 +141,7 @@ export const dashboardService = {
     const pasadasFinalizadas = await em.count(Pasada, {
       lineaProduccion: lineaId,
       rutaPasada: rutaPasadaId,
-      estado: PasadaEstado.COMPLETA,
+      estado: { $in: [PasadaEstado.COMPLETA, PasadaEstado.PARADA] },
       horaInicio: { $gte: timeZero },
       activo: true,
     });
