@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import request from 'supertest';
 import type { Express } from 'express';
 import { initApp } from './app.js';
-import { UsuarioRol } from './models/Usuario.js';
+import { UsuarioRol } from './shared/types.js';
 import jwt from 'jsonwebtoken';
 import { PasadaEstado } from './models/Pasada.js';
 

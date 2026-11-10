@@ -12,11 +12,11 @@ import {
   RutaPasadaEtapa,
   Pasada,
   Muestra,
-  UsuarioRol,
   PasadaEstado,
   MuestraEstadoValidacion,
   Balanza
 } from './models/index.js';
+import { UsuarioRol } from './shared/types.js';
 
 describe('Domain Entities Integration Tests', () => {
   let orm: MikroORM;

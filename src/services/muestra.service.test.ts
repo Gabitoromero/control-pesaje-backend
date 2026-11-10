@@ -11,7 +11,6 @@ import {
   RutaPasadaEtapa,
   Pasada,
   Muestra,
-  UsuarioRol,
   PasadaEstado,
   MuestraEstadoValidacion,
   ArticuloRutaPasada,
@@ -21,6 +20,7 @@ import { sesionService } from './sesion.service.js';
 import { PasadaService } from './pasada.service.js';
 import { MuestraService } from './muestra.service.js';
 import { clearDatabase } from '../test-utils/db-teardown.js';
+import { UsuarioRol } from '../shared/types.js';
 
 describe('PasadaService and MuestraService Integration Tests', () => {
   let orm: MikroORM;

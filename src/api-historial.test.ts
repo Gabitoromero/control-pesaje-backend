@@ -4,7 +4,7 @@ import request from 'supertest';
 import type { Express } from 'express';
 import jwt from 'jsonwebtoken';
 import { initApp } from './app.js';
-import { UsuarioRol } from './models/Usuario.js';
+import { UsuarioRol } from './shared/types.js';
 import { historialService } from './services/historial.service.js';
 
 const JWT_SECRET = 'test-secret-key-for-api-tests';

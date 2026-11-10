@@ -4,11 +4,12 @@ import { MikroORM, SchemaGenerator, RequestContext } from '@mikro-orm/postgresql
 import config from '../../mikro-orm.config.js';
 import {
   Usuario, LineaProduccion, Articulo, Etapa, RutaPasada,
-  RutaPasadaEtapa, Pasada, Muestra, UsuarioRol, PasadaEstado, ArticuloRutaPasada, Balanza
+  RutaPasadaEtapa, Pasada, Muestra, PasadaEstado, ArticuloRutaPasada, Balanza
 } from '../models/index.js';
 import { sesionService } from './sesion.service.js';
 import { PasadaService } from './pasada.service.js';
 import { clearDatabase } from '../test-utils/db-teardown.js';
+import { UsuarioRol } from '../shared/types.js';
 
 describe('PasadaService Tests', () => {
   let orm: MikroORM;

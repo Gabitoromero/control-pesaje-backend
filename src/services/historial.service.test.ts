@@ -10,7 +10,6 @@ import {
   RutaPasada,
   Pasada,
   Muestra,
-  UsuarioRol,
   PasadaEstado,
   MuestraEstadoValidacion,
   ArticuloRutaPasada,
@@ -19,6 +18,7 @@ import {
 } from '../models/index.js';
 import { historialService } from './historial.service.js';
 import { clearDatabase } from '../test-utils/db-teardown.js';
+import { UsuarioRol } from '../shared/types.js';
 
 describe('historialService (integration)', () => {
   let orm: MikroORM;

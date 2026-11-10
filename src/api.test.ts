@@ -19,7 +19,7 @@ import { MikroORM } from '@mikro-orm/postgresql';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { initApp } from './app.js';
-import { UsuarioRol } from './models/Usuario.js';
+import { UsuarioRol } from './shared/types.js';
 import { LoginSchema, ActividadSchema, SesionLineaSchema, UsuarioCreateSchema } from './utils/schemas.js';
 import { sesionService } from './services/sesion.service.js';
 
