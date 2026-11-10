@@ -37,7 +37,7 @@ async function run() {
     const adminPinHash = await bcrypt.hash('0000', saltRounds);
     const jefePinHash = await bcrypt.hash('1111', saltRounds);
 
-    const admin = em.create(Usuario, {
+    em.create(Usuario, {
       nombreApellido: 'Admin Local',
       nombreUsuario: 'admin',
       legajo: '00000',
@@ -48,7 +48,7 @@ async function run() {
       esSistema: true,
     });
 
-    const jefe = em.create(Usuario, {
+    em.create(Usuario, {
       nombreApellido: 'Jefe de Planta',
       nombreUsuario: 'jefe',
       legajo: '11111',
@@ -64,7 +64,7 @@ async function run() {
     const pin2Hash = await bcrypt.hash('4444', saltRounds);
     const pin3Hash = await bcrypt.hash('5555', saltRounds);
 
-    const operario1 = em.create(Usuario, {
+    em.create(Usuario, {
       nombreApellido: 'Lionel Andres Messi',
       nombreUsuario: 'operario1',
       legajo: '33333',
@@ -76,7 +76,7 @@ async function run() {
       datosAdicionales: null,
     });
 
-    const operario2 = em.create(Usuario, {
+    em.create(Usuario, {
       nombreApellido: 'Angel Di Maria',
       nombreUsuario: 'operario2',
       legajo: '44444',
@@ -88,7 +88,7 @@ async function run() {
       datosAdicionales: null,
     });
 
-    const operario3 = em.create(Usuario, {
+    em.create(Usuario, {
       nombreApellido: 'Sergio Agüero',
       nombreUsuario: 'operario3',
       legajo: '55555',
@@ -376,7 +376,7 @@ async function run() {
       rutaAsignadaAt: new Date(),
     });
 
-    const lineaB = em.create(LineaProduccion, {
+    em.create(LineaProduccion, {
       nombre: 'Línea B',
       rutaPasadaActiva: rutaPostresFamiliares,
       balanza: balanza2,
@@ -385,7 +385,7 @@ async function run() {
       rutaAsignadaAt: new Date(),
     });
 
-    const lineaC = em.create(LineaProduccion, {
+    em.create(LineaProduccion, {
       nombre: 'Línea C',
       rutaPasadaActiva: undefined,
       balanza: balanza1,

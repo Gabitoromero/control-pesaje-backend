@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { UniqueConstraintViolationException } from '@mikro-orm/core';
 import { validateBody } from '../middlewares/validation.middleware.js';
 import { authenticateJWT, requireRoles } from '../middlewares/auth.middleware.js';
-import { RutaPasadaEtapaCreateSchema, RutaPasadaEtapaUpdateSchema } from '../shared/schemas.js';
+import { RutaPasadaEtapaCreateSchema } from '../shared/schemas.js';
 import { RutaPasadaEtapaService } from '../services/ruta-pasada-etapa.service.js';
 import { UsuarioRol } from '../models/Usuario.js';
 

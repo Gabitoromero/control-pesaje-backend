@@ -4,17 +4,17 @@ export const clearDatabase = async (orm: MikroORM) => {
   const em = orm.em.fork();
   const connection = em.getConnection();
 
-  const tables = await connection.execute(`
+  const tables = (await connection.execute(`
     SELECT table_name
     FROM information_schema.tables
     WHERE table_schema = 'public'
     AND table_type = 'BASE TABLE'
     AND table_name != 'mikro_orm_migrations';
-  `);
+  `)) as { table_name: string }[];
 
   if (tables.length === 0) return;
 
-  const tableNames = tables.map((t: any) => `"${t.table_name}"`).join(', ');
+  const tableNames = tables.map((t) => `"${t.table_name}"`).join(', ');
 
   await connection.execute("SET session_replication_role = 'replica';");
   try {

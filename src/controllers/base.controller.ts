@@ -23,7 +23,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
     try {
       const items = await service.findAll();
       res.json({ success: true, data: items });
-    } catch (err) {
+    } catch {
       res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
@@ -32,7 +32,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
     try {
       const items = await service.findAllInactive();
       res.json({ success: true, data: items });
-    } catch (err) {
+    } catch {
       res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
@@ -46,7 +46,7 @@ export function createCrudHandlers<T extends { id: number; activo: boolean }>(
         return;
       }
       res.json({ success: true, data: item });
-    } catch (err) {
+    } catch {
       res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };

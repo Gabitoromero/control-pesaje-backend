@@ -3,7 +3,6 @@ import { validateBody } from '../middlewares/validation.middleware.js';
 import { authenticateJWT, requireRoles } from '../middlewares/auth.middleware.js';
 import { MuestraRegistrarSchema, MuestraUpdateSchema } from '../shared/schemas.js';
 import { MuestraService } from '../services/muestra.service.js';
-import { createCrudHandlers } from '../controllers/base.controller.js';
 import { createMuestraHandlers } from '../controllers/muestra.controller.js';
 import { getHistorial } from '../controllers/historial.controller.js';
 import { UsuarioRol } from '../shared/types.js';
