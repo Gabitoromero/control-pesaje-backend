@@ -47,6 +47,7 @@ function makeServiceMock() {
     completarPasada: vi.fn(),
     abortarPasada: vi.fn(),
     softDelete: vi.fn(),
+    findAllPopulated: vi.fn(),
   };
 }
 
@@ -120,14 +121,14 @@ describe('createPasadaHandlers', () => {
       const pasadas = [
         { id: 1, lineaProduccion: { id: 2 }, estado: 'en_curso', articulo: { id: 4 } },
       ];
-      (service as any).findAllPopulated = vi.fn().mockResolvedValue(pasadas);
+      service.findAllPopulated.mockResolvedValue(pasadas);
 
       const req = makeReq({ query: { lineaProduccionId: '2' } });
       const { mock } = makeRes();
 
       await handlers.list(req, mock as unknown as Response, vi.fn());
 
-      expect((service as any).findAllPopulated).toHaveBeenCalledWith({ lineaProduccion: 2 });
+      expect(service.findAllPopulated).toHaveBeenCalledWith({ lineaProduccion: 2 });
       expect(mock.json).toHaveBeenCalledWith({
         success: true,
         data: pasadas,
@@ -136,14 +137,14 @@ describe('createPasadaHandlers', () => {
 
     it('returns all active pasadas when no filters provided', async () => {
       const pasadas = [{ id: 1 }, { id: 2 }];
-      (service as any).findAllPopulated = vi.fn().mockResolvedValue(pasadas);
+      service.findAllPopulated.mockResolvedValue(pasadas);
 
       const req = makeReq({ query: {} });
       const { mock } = makeRes();
 
       await handlers.list(req, mock as unknown as Response, vi.fn());
 
-      expect((service as any).findAllPopulated).toHaveBeenCalledWith({});
+      expect(service.findAllPopulated).toHaveBeenCalledWith({});
       expect(mock.json).toHaveBeenCalledWith({ success: true, data: pasadas });
     });
 
@@ -152,7 +153,7 @@ describe('createPasadaHandlers', () => {
         { id: 1, estado: 'en_curso', observacion: 'lote nuevo de materia prima' },
         { id: 2, estado: 'completa', observacion: null },
       ];
-      (service as any).findAllPopulated = vi.fn().mockResolvedValue(pasadas);
+      service.findAllPopulated.mockResolvedValue(pasadas);
 
       const req = makeReq({ query: {} });
       const { mock } = makeRes();

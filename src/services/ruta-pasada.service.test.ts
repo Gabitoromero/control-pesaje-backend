@@ -25,6 +25,9 @@ vi.mock('@mikro-orm/core', () => ({
   },
 }));
 
+type CreateInput = Parameters<RutaPasadaService['create']>[0];
+type UpdateInput = Parameters<RutaPasadaService['update']>[1];
+
 describe('RutaPasadaService', () => {
   let service: RutaPasadaService;
 
@@ -36,10 +39,10 @@ describe('RutaPasadaService', () => {
   describe('create', () => {
     it('throws ValidationError if ruta with the same nombre already exists', async () => {
       mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Test', activo: true });
-      await expect(service.create({ nombre: 'Test' } as any)).rejects.toThrow(ValidationError);
+      await expect(service.create({ nombre: 'Test' } as unknown as CreateInput)).rejects.toThrow(ValidationError);
       
       mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Test', activo: true });
-      await expect(service.create({ nombre: 'Test' } as any)).rejects.toThrow(/Ya existe una ruta con el nombre 'Test'/);
+      await expect(service.create({ nombre: 'Test' } as unknown as CreateInput)).rejects.toThrow(/Ya existe una ruta con el nombre 'Test'/);
     });
 
     it('creates RutaPasada and its nested etapas within a transaction', async () => {
@@ -56,7 +59,7 @@ describe('RutaPasadaService', () => {
         if (entityClass.name === 'RutaPasadaEtapa') return { ...data };
       });
 
-      const result = await service.create(payload as any);
+      const result = await service.create(payload as unknown as CreateInput);
 
       expect(mockEm.transactional).toHaveBeenCalledOnce();
       expect(mockEm.create).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ nombre: 'Ruta 1' }));
@@ -70,10 +73,10 @@ describe('RutaPasadaService', () => {
   describe('update', () => {
     it('throws ValidationError if another ruta with the same nombre already exists', async () => {
       mockEm.findOne.mockResolvedValueOnce({ id: 3, nombre: 'Test', activo: true });
-      await expect(service.update(1, { nombre: 'Test' } as any)).rejects.toThrow(ValidationError);
+      await expect(service.update(1, { nombre: 'Test' } as unknown as UpdateInput)).rejects.toThrow(ValidationError);
       
       mockEm.findOne.mockResolvedValueOnce({ id: 3, nombre: 'Test', activo: true });
-      await expect(service.update(1, { nombre: 'Test' } as any)).rejects.toThrow(/Ya existe una ruta con el nombre 'Test'/);
+      await expect(service.update(1, { nombre: 'Test' } as unknown as UpdateInput)).rejects.toThrow(/Ya existe una ruta con el nombre 'Test'/);
     });
 
     it('updates RutaPasada and reconciles its nested etapas within a transaction', async () => {
@@ -95,7 +98,7 @@ describe('RutaPasadaService', () => {
         nombre: 'Ruta 1', 
         etapas: { 
           getItems: vi.fn(() => existingEtapas),
-          init: vi.fn().mockImplementation(async function(this: any) { return this; }),
+          init: vi.fn().mockImplementation(async function(this: unknown) { return this; }),
           add: vi.fn(),
         } 
       };
@@ -103,7 +106,7 @@ describe('RutaPasadaService', () => {
       mockEm.findOne.mockResolvedValue(rutaMock);
       mockEm.create.mockReturnValue({ isNew: true });
 
-      const result = await service.update(1, payload as any);
+      const result = await service.update(1, payload as unknown as UpdateInput);
 
       expect(mockEm.transactional).toHaveBeenCalledOnce();
       expect(mockEm.assign).toHaveBeenCalledWith(existingEtapas[0], expect.objectContaining({ pesoIdeal: 15 }), { convertCustomTypes: true });
@@ -130,14 +133,14 @@ describe('RutaPasadaService', () => {
         id: 1,
         etapas: {
           getItems: vi.fn(() => existingEtapas),
-          init: vi.fn().mockImplementation(async function(this: any) { return this; }),
+          init: vi.fn().mockImplementation(async function(this: unknown) { return this; }),
           add: vi.fn(),
         },
       };
 
       mockEm.findOne.mockResolvedValue(rutaMock);
 
-      await service.update(1, payload as any);
+      await service.update(1, payload as unknown as UpdateInput);
 
       // etapa FK 2 → matched by existingByEtapaId, assigned orden: 1
       expect(mockEm.assign).toHaveBeenCalledWith(existingEtapas[1], expect.objectContaining({ etapa: 2, orden: 1 }), { convertCustomTypes: true });
@@ -163,7 +166,7 @@ describe('RutaPasadaService', () => {
         id: 1,
         etapas: {
           getItems: vi.fn(() => existingEtapas),
-          init: vi.fn().mockImplementation(async function(this: any) { return this; }),
+          init: vi.fn().mockImplementation(async function(this: unknown) { return this; }),
           add: vi.fn(),
         },
       };
@@ -171,7 +174,7 @@ describe('RutaPasadaService', () => {
       mockEm.findOne.mockResolvedValue(rutaMock);
       mockEm.create.mockReturnValue({ newPivot: true });
 
-      await service.update(1, payload as any);
+      await service.update(1, payload as unknown as UpdateInput);
 
       expect(mockEm.remove).toHaveBeenCalledWith(existingEtapas[0]);
       expect(mockEm.create).toHaveBeenCalledWith(RutaPasadaEtapa, expect.objectContaining({ etapa: 3 }));
@@ -187,7 +190,7 @@ describe('RutaPasadaService', () => {
         ],
       };
 
-      await expect(service.update(1, payload as any)).rejects.toThrow('Duplicate orden values');
+      await expect(service.update(1, payload as unknown as UpdateInput)).rejects.toThrow('Duplicate orden values');
       expect(mockEm.transactional).not.toHaveBeenCalled();
     });
   });
@@ -203,7 +206,7 @@ describe('RutaPasadaService', () => {
         ],
       };
 
-      await expect(service.create(payload as any)).rejects.toThrow('Duplicate orden values');
+      await expect(service.create(payload as unknown as CreateInput)).rejects.toThrow('Duplicate orden values');
       expect(mockEm.transactional).not.toHaveBeenCalled();
     });
   });
@@ -220,7 +223,7 @@ describe('RutaPasadaService', () => {
         activo: true,
         etapas: {
           getItems: vi.fn(() => [pivotStage1, pivotStage2]),
-          init: vi.fn().mockImplementation(async function(this: any) { return this; }),
+          init: vi.fn().mockImplementation(async function(this: unknown) { return this; }),
         },
       };
 

@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
+import type { Express } from 'express';
 import { MikroORM } from '@mikro-orm/postgresql';
-import type { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import config from '../mikro-orm.config.js';
 import { initApp } from './app.js';
 import {
@@ -15,7 +15,7 @@ import {
 
 describe('API Health Check', () => {
   let orm: MikroORM;
-  let app: any;
+  let app: Express;
 
   beforeAll(async () => {
     // We use a simplified config for tests if needed, or just the default one.

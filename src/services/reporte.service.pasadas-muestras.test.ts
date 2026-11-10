@@ -1,8 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, type Mock } from 'vitest';
+import type { EntityManager } from '@mikro-orm/core';
+import type { Worksheet } from 'exceljs';
 import { reporteService } from './reporte.service.js';
 import { MuestraEstadoValidacion } from '../models/Muestra.js';
 
-type AnyRecord = Record<string, any>;
+type AnyRecord = Record<string, unknown>;
 
 const linea1 = { id: 1, nombre: 'Linea 1' };
 const linea2 = { id: 2, nombre: 'Linea 2' };
@@ -65,10 +67,10 @@ function makeEm(ms: AnyRecord[], ps: AnyRecord[]) {
       if (entityClass.name === 'Pasada') return Promise.resolve(ps);
       return Promise.resolve([]);
     }),
-  } as any;
+  } as unknown as EntityManager & { find: Mock };
 }
 
-const rowValues = (sheet: any, n: number): any[] => (sheet.getRow(n).values as any[]).slice(1);
+const rowValues = (sheet: Worksheet, n: number): unknown[] => (sheet.getRow(n).values as unknown[]).slice(1);
 
 const PASADAS_HEADERS = [
   'Línea de Producción', 'Balanza', 'Ruta', 'N° Pasada', 'Observación Pasada', 'Código', 'Artículo', 'Estado Pasada',
@@ -188,8 +190,8 @@ describe('reporteService.generateReportePasadas', () => {
     const em = makeEm(muestras, [pasada1]);
     await reporteService.generateReportePasadas(em, new Date(), new Date());
     expect(em.find).toHaveBeenCalledTimes(2);
-    const pasadaCall = em.find.mock.calls.find((c: any[]) => c[0].name === 'Pasada');
-    expect(pasadaCall[1]).toMatchObject({ activo: true });
+    const pasadaCall = em.find.mock.calls.find((c: unknown[]) => (c[0] as { name: string }).name === 'Pasada');
+    expect(pasadaCall![1]).toMatchObject({ activo: true });
   });
 
   it('handles a large volume of pasadas and muestras with consistent totals', async () => {

@@ -34,7 +34,6 @@ export class MuestraService {
     // 1. Resolve rutaPasadaId from active pasada or from the line's active route
     let rutaPasadaId: number;
     let pasada: Pasada | null = null;
-    let allRutas: RutaPasadaEtapa[] = [];
 
     if (pasadaId) {
       pasada = await em.findOne(Pasada, pasadaId, { populate: ['rutaPasada', 'usuario'] });
@@ -77,7 +76,7 @@ export class MuestraService {
 
     // 3. Enforce sequential stage order if in a Pasada
     if (pasada) {
-      allRutas = await em.find(
+      const allRutas = await em.find(
         RutaPasadaEtapa,
         { rutaPasada: rutaPasadaId },
         { orderBy: { orden: 'ASC' } }

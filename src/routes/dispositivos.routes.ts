@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { getDispositivosConectados, deleteDispositivo, createDispositivo, updateDispositivo, updateDispositivoUnidad, receiveBeacon } from '../controllers/dispositivos.controller.js';
 import { authenticateJWT, requireRoles } from '../middlewares/auth.middleware.js';
 import { validateBody } from '../middlewares/validation.middleware.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 import { DispositivoBeaconSchema } from '../shared/schemas.js';
 
 const router: Router = Router();

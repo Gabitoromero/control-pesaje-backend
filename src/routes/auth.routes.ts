@@ -3,7 +3,7 @@ import { validateBody } from '../middlewares/validation.middleware.js';
 import { authenticateJWT, requireRoles } from '../middlewares/auth.middleware.js';
 import { login, sesionLinea, actividad, cerrarSesion, sesionActiva, todasSesionesActivas } from '../controllers/auth.controller.js';
 import { LoginSchema, SesionLineaSchema, ActividadSchema, CerrarSesionSchema } from '../utils/schemas.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 
 const router: Router = Router();
 

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { EntityManager } from '@mikro-orm/core';
+import type { Worksheet } from 'exceljs';
 import { reporteService } from './reporte.service.js';
 
-type AnyRecord = Record<string, any>;
+type AnyRecord = Record<string, unknown>;
 
 const SHEET1_HEADERS = [
   'ID Ruta',
@@ -66,11 +68,11 @@ function makeEm(rutas: AnyRecord[], asignaciones: AnyRecord[] = []) {
     if (entityClass.name === 'ArticuloRutaPasada') return Promise.resolve(asignaciones);
     return Promise.resolve([]);
   });
-  return { find } as any;
+  return { find } as unknown as EntityManager;
 }
 
-function rowValues(sheet: any, n: number): any[] {
-  const values = sheet.getRow(n).values as any[];
+function rowValues(sheet: Worksheet, n: number): unknown[] {
+  const values = sheet.getRow(n).values as unknown[];
   return values.slice(1);
 }
 
@@ -223,7 +225,7 @@ describe('reporteService.generateReportePasadas — pasada parada', () => {
     const find = vi.fn().mockImplementation((entityClass: { name: string }) =>
       Promise.resolve(entityClass.name === 'Pasada' ? pasadas : [])
     );
-    return { find } as any;
+    return { find } as unknown as EntityManager;
   }
 
   it('exports a parada without samples as "sin muestras" with its estado and motivo', async () => {

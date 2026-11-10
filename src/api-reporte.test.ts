@@ -1,22 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 const auth = vi.hoisted(() => ({ rejectAll: false }));
 
 // Mock the controller directly to avoid depending on @mikro-orm/core in this test
 vi.mock('./controllers/reporte.controller.js', () => ({
-  getReporteMuestras: vi.fn((req: any, res: any) => {
+  getReporteMuestras: vi.fn((req: Request, res: Response) => {
     res
       .setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       .send(Buffer.from('fake-excel-data'));
   }),
-  getReportePasadas: vi.fn((req: any, res: any) => {
+  getReportePasadas: vi.fn((req: Request, res: Response) => {
     res
       .setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       .send(Buffer.from('fake-excel-data'));
   }),
-  getReporteRutasPasada: vi.fn((req: any, res: any) => {
+  getReporteRutasPasada: vi.fn((req: Request, res: Response) => {
     res
       .setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       .send(Buffer.from('fake-excel-data'));
@@ -24,9 +25,9 @@ vi.mock('./controllers/reporte.controller.js', () => ({
 }));
 
 vi.mock('./middlewares/auth.middleware.js', () => ({
-  authenticateJWT: (_req: any, res: any, next: any) =>
+  authenticateJWT: (_req: Request, res: Response, next: NextFunction) =>
     auth.rejectAll ? res.status(401).json({ success: false }) : next(),
-  requireRoles: () => (_req: any, _res: any, next: any) => next(),
+  requireRoles: () => (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 import reportesRoutes from './routes/reportes.routes.js';

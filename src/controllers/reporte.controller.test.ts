@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getReporteMuestras, getReportePasadas, getReporteRutasPasada } from './reporte.controller.js';
-import { RequestContext } from '@mikro-orm/core';
+import { RequestContext, type EntityManager } from '@mikro-orm/core';
 import { reporteService } from '../services/reporte.service.js';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 
 vi.mock('@mikro-orm/core', () => ({
   RequestContext: {
@@ -18,6 +18,12 @@ vi.mock('../services/reporte.service.js', () => ({
   },
 }));
 
+type RutasWorkbook = Awaited<ReturnType<typeof reporteService.generateReporteRutasPasada>>;
+
+/** Makes `RequestContext.getEntityManager()` return a partial EntityManager stub. */
+const stubEntityManager = (em: unknown) =>
+  vi.mocked(RequestContext.getEntityManager).mockReturnValue(em as EntityManager | undefined);
+
 describe.each([
   { name: 'getReporteMuestras', handler: getReporteMuestras, generator: 'generateReporteMuestras', prefix: 'reporte-muestras' },
   { name: 'getReportePasadas', handler: getReportePasadas, generator: 'generateReportePasadas', prefix: 'reporte-pasadas' },
@@ -29,7 +35,7 @@ describe.each([
   let jsonMock: ReturnType<typeof vi.fn>;
   let setHeaderMock: ReturnType<typeof vi.fn>;
   let endMock: ReturnType<typeof vi.fn>;
-  const run = () => handler(req as Request, res as Response, next as any);
+  const run = () => handler(req as Request, res as Response, next as unknown as NextFunction);
   const generate = () => reporteService[generator] as ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -39,7 +45,7 @@ describe.each([
     setHeaderMock = vi.fn();
     endMock = vi.fn();
     req = { query: {} };
-    res = { status: statusMock, setHeader: setHeaderMock, end: endMock } as any;
+    res = { status: statusMock, setHeader: setHeaderMock, end: endMock } as unknown as Partial<Response>;
     next = vi.fn();
   });
 
@@ -59,7 +65,7 @@ describe.each([
   it('acepta un rango de exactamente 90 días (límite)', async () => {
     // 2023-01-01 .. 2023-03-31 inclusive = 90 days
     req.query = { desde: '2023-01-01', hasta: '2023-03-31' };
-    (RequestContext.getEntityManager as any).mockReturnValue({});
+    stubEntityManager({});
     const mockWorkbook = { xlsx: { write: vi.fn() } };
     generate().mockResolvedValue(mockWorkbook);
 
@@ -80,7 +86,7 @@ describe.each([
 
   it('el rango anterior de 5 días ya no es el límite', async () => {
     req.query = { desde: '2023-01-01T00:00:00Z', hasta: '2023-01-07T00:00:00Z' };
-    (RequestContext.getEntityManager as any).mockReturnValue({});
+    stubEntityManager({});
     generate().mockResolvedValue({ xlsx: { write: vi.fn() } });
     await run();
     expect(statusMock).not.toHaveBeenCalled();
@@ -88,7 +94,7 @@ describe.each([
 
   it('devuelve 500 si no hay EntityManager', async () => {
     req.query = { desde: '2023-01-01', hasta: '2023-01-02' };
-    (RequestContext.getEntityManager as any).mockReturnValue(undefined);
+    stubEntityManager(undefined);
     await run();
     expect(statusMock).toHaveBeenCalledWith(500);
     expect(generate()).not.toHaveBeenCalled();
@@ -97,7 +103,7 @@ describe.each([
   it('llama al servicio con las fechas del rango, envía el libro y fija los headers', async () => {
     req.query = { desde: '2023-01-01T00:00:00Z', hasta: '2023-01-05T23:59:59Z' };
     const emMock = {};
-    (RequestContext.getEntityManager as any).mockReturnValue(emMock);
+    stubEntityManager(emMock);
     const mockWorkbook = { xlsx: { write: vi.fn() } };
     generate().mockResolvedValue(mockWorkbook);
 
@@ -120,7 +126,7 @@ describe.each([
   it('reenvía los errores del servicio a next', async () => {
     const err = new Error('db down');
     req.query = { desde: '2023-01-01', hasta: '2023-01-02' };
-    (RequestContext.getEntityManager as any).mockReturnValue({});
+    stubEntityManager({});
     generate().mockRejectedValue(err);
     await run();
     expect(next).toHaveBeenCalledWith(err);
@@ -145,7 +151,7 @@ describe('getReporteRutasPasada', () => {
     setHeaderMock = vi.fn();
     endMock = vi.fn();
     req = { query: {} };
-    res = { status: statusMock, setHeader: setHeaderMock, end: endMock } as any;
+    res = { status: statusMock, setHeader: setHeaderMock, end: endMock } as unknown as Partial<Response>;
     next = vi.fn();
   });
 
@@ -157,11 +163,11 @@ describe('getReporteRutasPasada', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-08T15:00:00Z'));
     const emMock = {};
-    (RequestContext.getEntityManager as any).mockReturnValue(emMock);
+    stubEntityManager(emMock);
     const mockWorkbook = { xlsx: { write: vi.fn() } };
-    (reporteService.generateReporteRutasPasada as any).mockResolvedValue(mockWorkbook);
+    vi.mocked(reporteService.generateReporteRutasPasada).mockResolvedValue(mockWorkbook as unknown as RutasWorkbook);
 
-    await getReporteRutasPasada(req as Request, res as Response, next as any);
+    await getReporteRutasPasada(req as Request, res as Response, next as unknown as NextFunction);
 
     expect(reporteService.generateReporteRutasPasada).toHaveBeenCalledWith(emMock);
     expect(mockWorkbook.xlsx.write).toHaveBeenCalledWith(res);
@@ -172,10 +178,10 @@ describe('getReporteRutasPasada', () => {
   it('sets the XLSX content type and a dated attachment filename', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-08T15:00:00Z'));
-    (RequestContext.getEntityManager as any).mockReturnValue({});
-    (reporteService.generateReporteRutasPasada as any).mockResolvedValue({ xlsx: { write: vi.fn() } });
+    stubEntityManager({});
+    vi.mocked(reporteService.generateReporteRutasPasada).mockResolvedValue({ xlsx: { write: vi.fn() } } as unknown as RutasWorkbook);
 
-    await getReporteRutasPasada(req as Request, res as Response, next as any);
+    await getReporteRutasPasada(req as Request, res as Response, next as unknown as NextFunction);
 
     expect(setHeaderMock).toHaveBeenCalledWith('Content-Type', XLSX_MIME);
     expect(setHeaderMock).toHaveBeenCalledWith(
@@ -187,10 +193,10 @@ describe('getReporteRutasPasada', () => {
   it('uses the Buenos Aires date late in the evening UTC', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-09T01:30:00Z'));
-    (RequestContext.getEntityManager as any).mockReturnValue({});
-    (reporteService.generateReporteRutasPasada as any).mockResolvedValue({ xlsx: { write: vi.fn() } });
+    stubEntityManager({});
+    vi.mocked(reporteService.generateReporteRutasPasada).mockResolvedValue({ xlsx: { write: vi.fn() } } as unknown as RutasWorkbook);
 
-    await getReporteRutasPasada(req as Request, res as Response, next as any);
+    await getReporteRutasPasada(req as Request, res as Response, next as unknown as NextFunction);
 
     expect(setHeaderMock).toHaveBeenCalledWith(
       'Content-Disposition',
@@ -199,9 +205,9 @@ describe('getReporteRutasPasada', () => {
   });
 
   it('returns 500 when the entity manager is not available', async () => {
-    (RequestContext.getEntityManager as any).mockReturnValue(undefined);
+    stubEntityManager(undefined);
 
-    await getReporteRutasPasada(req as Request, res as Response, next as any);
+    await getReporteRutasPasada(req as Request, res as Response, next as unknown as NextFunction);
 
     expect(statusMock).toHaveBeenCalledWith(500);
     expect(jsonMock).toHaveBeenCalledWith({ success: false, error: 'EntityManager not available' });
@@ -210,10 +216,10 @@ describe('getReporteRutasPasada', () => {
 
   it('forwards service errors to next without partial headers', async () => {
     const err = new Error('db down');
-    (RequestContext.getEntityManager as any).mockReturnValue({});
-    (reporteService.generateReporteRutasPasada as any).mockRejectedValue(err);
+    stubEntityManager({});
+    vi.mocked(reporteService.generateReporteRutasPasada).mockRejectedValue(err);
 
-    await getReporteRutasPasada(req as Request, res as Response, next as any);
+    await getReporteRutasPasada(req as Request, res as Response, next as unknown as NextFunction);
 
     expect(next).toHaveBeenCalledWith(err);
     expect(setHeaderMock).not.toHaveBeenCalled();

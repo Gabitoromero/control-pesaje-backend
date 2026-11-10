@@ -190,7 +190,7 @@ describe('RutaPasadaCreateSchema', () => {
     });
     expect(parsed.etapas).toBeDefined();
     expect(parsed.etapas![0].etapa).toBe(1);
-    expect((parsed.etapas![0] as any).rutaPasada).toBeUndefined();
+    expect((parsed.etapas![0] as Record<string, unknown>).rutaPasada).toBeUndefined();
   });
 });
 

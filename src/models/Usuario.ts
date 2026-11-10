@@ -2,7 +2,6 @@ import { Entity, PrimaryKey, Property, Enum, Unique } from '@mikro-orm/decorator
 import { UsuarioRol } from '../shared/types.js';
 import type { UsuarioMetadata } from '../shared/types.js';
 
-export { UsuarioRol };
 export type { UsuarioMetadata };
 
 @Entity({ tableName: 'usuario' })

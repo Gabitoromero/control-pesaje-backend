@@ -18,7 +18,7 @@ import type { EntityManager } from '@mikro-orm/core';
 import jwt from 'jsonwebtoken';
 import config from '../../mikro-orm.config.js';
 import { initApp } from '../app.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 import { deviceRegistryService } from '../services/device-registry.service.js';
 import { rbBeaconService } from '../services/rb-beacon.service.js';
 import {

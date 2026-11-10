@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import request from 'supertest';
 import type { Express } from 'express';
 import { initApp } from './app.js';
-import { UsuarioRol } from './models/Usuario.js';
+import { UsuarioRol } from './shared/types.js';
 import jwt from 'jsonwebtoken';
 import { PasadaEstado } from './models/Pasada.js';
 
@@ -24,7 +24,7 @@ vi.mock('@mikro-orm/core', async (importOriginal) => {
     ...original,
     RequestContext: {
       ...original.RequestContext,
-      create: (_em: any, next: () => void) => next(),
+      create: (_em: unknown, next: () => void) => next(),
       getEntityManager: () => mockEm,
     },
   };
@@ -34,7 +34,7 @@ let app: Express;
 
 beforeAll(async () => {
   process.env.JWT_SECRET = JWT_SECRET;
-  const fakeOrm = { em: {} } as any;
+  const fakeOrm = { em: {} } as unknown as Parameters<typeof initApp>[0];
   app = await initApp(fakeOrm);
 });
 

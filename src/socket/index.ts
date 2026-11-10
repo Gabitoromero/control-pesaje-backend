@@ -12,7 +12,7 @@ import { deviceRegistryService } from '../services/device-registry.service.js';
 import { createDiscordNotifier } from '../services/discord-notifier.service.js';
 import { createLineaContextResolver } from '../services/linea-context.service.js';
 import { createWeightIssueReporter, type WeightIssueReporter } from '../services/weight-issue-report.service.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 
 let ioInstance: Server | null = null;
 

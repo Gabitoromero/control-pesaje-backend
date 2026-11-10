@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AuthService } from './auth.service.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 
 const JWT_SECRET = 'test-secret';
 
@@ -56,7 +56,7 @@ describe('AuthService.login', () => {
     });
 
     const token = await service.login('JEFE01', '1234');
-    const decoded = jwt.verify(token!, JWT_SECRET) as any;
+    const decoded = jwt.verify(token!, JWT_SECRET) as jwt.JwtPayload;
     
     expect(decoded.id).toBe(2);
     expect(decoded.nombreUsuario).toBe('jefe');
@@ -70,11 +70,11 @@ describe('AuthService.login', () => {
     const base = { id: 4, nombreUsuario: 'sec', legajo: '00004', rol: UsuarioRol.OPERARIO, activo: true, pinHash };
 
     mockEm.findOne.mockResolvedValueOnce({ ...base, datosAdicionales: { sector: 'MC' } });
-    const withSector = jwt.verify((await service.login('sec', '1234'))!, JWT_SECRET) as any;
+    const withSector = jwt.verify((await service.login('sec', '1234'))!, JWT_SECRET) as jwt.JwtPayload;
     expect(withSector.sector).toBe('MC');
 
     mockEm.findOne.mockResolvedValueOnce({ ...base });
-    const withoutSector = jwt.verify((await service.login('sec', '1234'))!, JWT_SECRET) as any;
+    const withoutSector = jwt.verify((await service.login('sec', '1234'))!, JWT_SECRET) as jwt.JwtPayload;
     expect(withoutSector.sector).toBeNull();
   });
 
@@ -91,7 +91,7 @@ describe('AuthService.login', () => {
     });
 
     const token = await service.login('ADMIN01', '1234');
-    const decoded = jwt.verify(token!, JWT_SECRET) as any;
+    const decoded = jwt.verify(token!, JWT_SECRET) as jwt.JwtPayload;
     
     const nowInSeconds = Math.floor(Date.now() / 1000);
     const expectedExp = nowInSeconds + 12 * 60 * 60;
@@ -155,7 +155,7 @@ describe('AuthService.login', () => {
 
     const token = await service.login('operario01', '1234');
     expect(typeof token).toBe('string');
-    const decoded = jwt.verify(token!, JWT_SECRET) as any;
+    const decoded = jwt.verify(token!, JWT_SECRET) as jwt.JwtPayload;
     expect(decoded.nombreUsuario).toBe('operario01');
     expect(decoded.legajo).toBe('00003');
   });
