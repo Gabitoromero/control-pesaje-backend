@@ -108,6 +108,11 @@ describe('PasadaService and MuestraService Integration Tests', () => {
     testArticle.descripcion = 'Alfajor relleno con dulce de leche';
     await em.persist(testArticle).flush();
 
+    // The balanza is already verified for this article (verification rule not under test here)
+    testBalanza.ultimoArticulo = testArticle;
+    testBalanza.verificacionPendiente = false;
+    await em.flush();
+
     // Seed Line with active route
     testLine = new LineaProduccion();
     testLine.activo = true;
@@ -336,6 +341,41 @@ describe('PasadaService and MuestraService Integration Tests', () => {
 
       expect(m.estadoValidacion).toBe(MuestraEstadoValidacion.OK);
       expect(m.rutaPasada.id).toBe(testRutaPasada.id);
+    }));
+
+    it('free sample: rejects with "Balanza sin verificar" when the balanza never produced, and sets the flag', () => runInContext(async () => {
+      const em = orm.em.fork();
+      const b = await em.findOneOrFail(Balanza, testBalanza.id);
+      b.ultimoArticulo = null;
+      b.verificacionPendiente = false;
+      await em.flush();
+
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+
+      await expect(
+        muestraService.registrarMuestra(testUser.id, testEtapa1.id, testLine.id, 50.000)
+      ).rejects.toThrow(/Balanza sin verificar: la balanza no tiene historial/);
+
+      const recargada = await orm.em.fork().findOneOrFail(Balanza, testBalanza.id);
+      expect(recargada.verificacionPendiente).toBe(true);
+    }));
+
+    it('free sample: rejects when the line article differs from the balanza last article', () => runInContext(async () => {
+      const em = orm.em.fork();
+      const otro = new Articulo();
+      otro.codigo = 'Alfajor Blanco';
+      await em.persist(otro).flush();
+      const l = await em.findOneOrFail(LineaProduccion, testLine.id);
+      l.articulo = otro;
+      await em.flush();
+
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+
+      await expect(
+        muestraService.registrarMuestra(testUser.id, testEtapa1.id, testLine.id, 50.000)
+      ).rejects.toThrow(/Balanza sin verificar: cambió el artículo/);
+      const recargada = await orm.em.fork().findOneOrFail(Balanza, testBalanza.id);
+      expect(recargada.verificacionPendiente).toBe(true);
     }));
 
     it('should throw when registering a random sample on a line without rutaPasadaActiva', () => runInContext(async () => {

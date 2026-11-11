@@ -855,7 +855,8 @@ describe('Pasadas HTTP Integration', () => {
     // First findOne in transactional is for LineaProduccion; second is for lastPasada check (returns null = first pasada).
     mockEm.findOne
       .mockResolvedValueOnce(lineaMock) // linea with rutaPasadaActiva
-      .mockResolvedValueOnce({ id: 5, activo: true }) // balanza with idBalanza
+      .mockResolvedValueOnce({ id: 5, activo: true, verificacionPendiente: false, ultimoArticulo: { id: 5 } }) // balanza already verified for the line's article
+      .mockResolvedValueOnce({ id: 5, codigo: 'ART' }) // last articulo of the balanza (verification rule)
       .mockResolvedValueOnce(null);     // no previous pasada → numero = 1
 
     // em.getReference, em.persist, em.flush are called internally.
@@ -975,13 +976,14 @@ describe('Pasadas HTTP Integration', () => {
 
   it('PUT /api/pasadas/:id — 200 on completar (owner operario)', async () => {
     // Controller calls findById to check ownership, then completarPasada which uses transactional
-    const pasada = { id: 10, estado: 'en_curso', activo: true, usuario: { id: 3 }, lineaProduccion: { id: 1 } };
+    const pasada = { id: 10, estado: 'en_curso', activo: true, usuario: { id: 3 }, lineaProduccion: { id: 1 }, articulo: { id: 5 } };
 
     // First findOne: ownership check in update handler
     // transactional runs callback with mockEm; inside completarPasada: txEm.findOne returns pasada again
     mockEm.findOne
       .mockResolvedValueOnce(pasada)  // ownership check
-      .mockResolvedValueOnce(pasada); // completarPasada's own findOne inside transactional
+      .mockResolvedValueOnce(pasada)  // completarPasada's own findOne inside transactional
+      .mockResolvedValueOnce({ id: 5, codigo: 'ART' }); // articulo of the pasada (not a verification one)
     mockEm.flush.mockResolvedValue(undefined);
 
     const actualizarSpy = vi.spyOn(sesionService, 'obtenerSesion').mockReturnValue(null);

@@ -6,7 +6,10 @@ import { RutaPasada } from '../models/RutaPasada.js';
 import { Usuario } from '../models/Usuario.js';
 import { Etapa } from '../models/Etapa.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
+import { Balanza } from '../models/Balanza.js';
+import { Articulo } from '../models/Articulo.js';
 import { sesionService } from './sesion.service.js';
+import { evaluarBalanzaParaProducir } from './verificacion-balanza.service.js';
 
 export class MuestraService {
   private getEm() {
@@ -62,6 +65,17 @@ export class MuestraService {
         throw new Error(
           `Cannot register samples on production line ${lineaProduccionId}: no active route assigned (setup mode)`
         );
+      }
+
+      // Verification rule also applies to free samples: the line's articulo vs the balanza's last one.
+      const balanza = await em.findOne(Balanza, { id: linea.balanza.id });
+      const articuloLinea = await em.findOne(Articulo, { id: linea.articulo.id });
+      if (balanza && articuloLinea) {
+        const bloqueo = await evaluarBalanzaParaProducir(em, balanza, articuloLinea);
+        if (bloqueo) {
+          await em.flush();
+          throw new Error(bloqueo);
+        }
       }
       rutaPasadaId = linea.rutaPasadaActiva.id;
     }

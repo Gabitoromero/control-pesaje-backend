@@ -111,6 +111,21 @@ describe('createPasadaHandlers', () => {
 
       expect(service.iniciarPasada).toHaveBeenCalledWith(3, 5, 7, 'lote nuevo de materia prima');
     });
+
+    it('forwards verificacion=true as the 5th service arg', async () => {
+      service.iniciarPasada.mockResolvedValue({ id: 10, estado: 'en_curso' });
+
+      const req = makeReq({
+        body: { lineaProduccionId: 3, idBalanza: 5, verificacion: true },
+        user: { id: 7, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
+      });
+      const { mock } = makeRes();
+
+      await handlers.iniciar(req, mock as unknown as Response, vi.fn());
+
+      expect(service.iniciarPasada).toHaveBeenCalledWith(3, 5, 7, undefined, true);
+      expect(mock.status).toHaveBeenCalledWith(201);
+    });
   });
 
   // ─── list ──────────────────────────────────────────────────────────────────

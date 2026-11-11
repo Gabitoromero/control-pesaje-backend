@@ -72,6 +72,11 @@ describe('PasadaService Tests', () => {
     testArticle.descripcion = 'Alfajor relleno con dulce de leche';
     await em.persist(testArticle).flush();
 
+    // The balanza is already verified for this article (verification rule has its own describe below)
+    testBalanza.ultimoArticulo = testArticle;
+    testBalanza.verificacionPendiente = false;
+    await em.flush();
+
     // Seed Line
     testLine = new LineaProduccion();
     testLine.nombre = 'Linea de Envasado 1';
@@ -155,6 +160,194 @@ describe('PasadaService Tests', () => {
       sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
       const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
       expect(pasada.observacion).toBeNull();
+    }));
+  });
+
+  describe('balanza verification', () => {
+    let articuloVerif: Articulo;
+    let rutaVerif: RutaPasada;
+    let lineaCalibracion: LineaProduccion;
+
+    beforeEach(async () => {
+      const em = orm.em.fork();
+      articuloVerif = new Articulo();
+      articuloVerif.codigo = '0';
+      articuloVerif.descripcion = 'Pesas patrón';
+      rutaVerif = new RutaPasada();
+      rutaVerif.nombre = 'Verificación con pesas patrón';
+      await em.persist([articuloVerif, rutaVerif]).flush();
+
+      const vinculo = new ArticuloRutaPasada();
+      vinculo.articulo = articuloVerif;
+      vinculo.rutaPasada = rutaVerif;
+      await em.persist(vinculo).flush();
+
+      lineaCalibracion = new LineaProduccion();
+      lineaCalibracion.nombre = 'Línea de calibración';
+      lineaCalibracion.activo = true;
+      lineaCalibracion.rutaPasadaActiva = rutaVerif;
+      lineaCalibracion.balanza = testBalanza;
+      lineaCalibracion.articulo = articuloVerif;
+      await em.persist(lineaCalibracion).flush();
+    });
+
+    const cargarBalanza = () =>
+      orm.em.fork().findOneOrFail(Balanza, testBalanza.id, { populate: ['ultimoArticulo'] });
+
+    const marcarBalanza = async (pendiente: boolean, ultimo: Articulo | null) => {
+      const em = orm.em.fork();
+      const b = await em.findOneOrFail(Balanza, testBalanza.id);
+      b.verificacionPendiente = pendiente;
+      b.ultimoArticulo = ultimo ? em.getReference(Articulo, ultimo.id) : null;
+      await em.flush();
+    };
+
+    const cambiarArticuloDeLinea = async (articulo: Articulo) => {
+      const em = orm.em.fork();
+      const l = await em.findOneOrFail(LineaProduccion, testLine.id);
+      l.articulo = em.getReference(Articulo, articulo.id);
+      await em.flush();
+    };
+
+    const otroArticuloEnRuta = async () => {
+      const em = orm.em.fork();
+      const otro = new Articulo();
+      otro.codigo = 'Alfajor Blanco';
+      await em.persist(otro).flush();
+      const vinculo = new ArticuloRutaPasada();
+      vinculo.articulo = otro;
+      vinculo.rutaPasada = testRutaPasada;
+      await em.persist(vinculo).flush();
+      return otro;
+    };
+
+    it('same article with the flag down starts normally and keeps the flag down', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+      expect(pasada.estado).toBe(PasadaEstado.EN_CURSO);
+      const balanza = await cargarBalanza();
+      expect(balanza.verificacionPendiente).toBe(false);
+      expect(balanza.ultimoArticulo!.id).toBe(testArticle.id);
+    }));
+
+    it('rejects a different article, raises the flag and persists it', () => runInContext(async () => {
+      const otro = await otroArticuloEnRuta();
+      await cambiarArticuloDeLinea(otro);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+
+      await expect(
+        pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id)
+      ).rejects.toThrow(/Balanza sin verificar: cambió el artículo/);
+
+      const balanza = await cargarBalanza();
+      expect(balanza.verificacionPendiente).toBe(true);
+      expect(balanza.ultimoArticulo!.id).toBe(testArticle.id);
+      expect(await orm.em.fork().count(Pasada, {})).toBe(0);
+    }));
+
+    it('rejects the first pasada of a balanza with no history', () => runInContext(async () => {
+      await marcarBalanza(true, null);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+
+      await expect(
+        pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id)
+      ).rejects.toThrow(/Balanza sin verificar: la balanza no tiene historial/);
+      expect((await cargarBalanza()).verificacionPendiente).toBe(true);
+    }));
+
+    it('with the flag on only the verification route can start, from the production line', () => runInContext(async () => {
+      await marcarBalanza(true, testArticle);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+
+      await expect(
+        pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id)
+      ).rejects.toThrow(/Balanza sin verificar/);
+
+      const verif = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id, undefined, true);
+      expect(verif.articulo.id).toBe(articuloVerif.id);
+      expect(verif.rutaPasada.id).toBe(rutaVerif.id);
+      expect(verif.lineaProduccion.id).toBe(testLine.id);
+    }));
+
+    it('with the flag on the verification route can start from the calibration line', () => runInContext(async () => {
+      await marcarBalanza(true, null);
+      sesionService.iniciarSesion(lineaCalibracion.id, testUser.id, UsuarioRol.OPERARIO);
+
+      const verif = await pasadaService.iniciarPasada(lineaCalibracion.id, testBalanza.id, testUser.id);
+      expect(verif.articulo.id).toBe(articuloVerif.id);
+    }));
+
+    it('no role bypasses the block (the rule lives in the service)', () => runInContext(async () => {
+      await marcarBalanza(true, testArticle);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.ADMINISTRADOR);
+      await expect(
+        pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id)
+      ).rejects.toThrow(/Balanza sin verificar/);
+    }));
+
+    it('completing a verification pasada from another line lowers the flag and records the line article', () => runInContext(async () => {
+      await marcarBalanza(true, null);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const verif = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id, undefined, true);
+
+      // Still pending while the verification is running
+      expect((await cargarBalanza()).verificacionPendiente).toBe(true);
+
+      await pasadaService.completarPasada(verif.id);
+      const balanza = await cargarBalanza();
+      expect(balanza.verificacionPendiente).toBe(false);
+      expect(balanza.ultimoArticulo!.id).toBe(testArticle.id);
+
+      // Production of the article in force now starts
+      sesionService.actualizarPasada(testLine.id, null);
+      const normal = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+      expect(normal.articulo.id).toBe(testArticle.id);
+    }));
+
+    it('an aborted verification pasada does not lower the flag', () => runInContext(async () => {
+      await marcarBalanza(true, null);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const verif = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id, undefined, true);
+
+      await pasadaService.abortarPasada(verif.id, 'Pesa patrón fuera de rango');
+      const balanza = await cargarBalanza();
+      expect(balanza.verificacionPendiente).toBe(true);
+      expect(balanza.ultimoArticulo).toBeNull();
+    }));
+
+    it('completing a production pasada does not touch the balanza flag', () => runInContext(async () => {
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const pasada = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id);
+      await pasadaService.completarPasada(pasada.id);
+      expect((await cargarBalanza()).verificacionPendiente).toBe(false);
+    }));
+
+    it('picks the lowest-id verification route when several exist', () => runInContext(async () => {
+      const em = orm.em.fork();
+      const otraRuta = new RutaPasada();
+      otraRuta.nombre = 'Otra verificación';
+      await em.persist(otraRuta).flush();
+      const vinculo = new ArticuloRutaPasada();
+      vinculo.articulo = articuloVerif;
+      vinculo.rutaPasada = otraRuta;
+      await em.persist(vinculo).flush();
+
+      await marcarBalanza(true, null);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      const verif = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id, undefined, true);
+      expect(verif.rutaPasada.id).toBe(Math.min(rutaVerif.id, otraRuta.id));
+    }));
+
+    it('fails with a clear message when no verification route exists', () => runInContext(async () => {
+      const em = orm.em.fork();
+      await em.nativeDelete(Pasada, {});
+      await em.nativeDelete(LineaProduccion, { id: lineaCalibracion.id });
+      await em.nativeDelete(ArticuloRutaPasada, { articulo: articuloVerif.id });
+
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+      await expect(
+        pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id, undefined, true)
+      ).rejects.toThrow('No se encontró la ruta de verificación');
     }));
   });
 

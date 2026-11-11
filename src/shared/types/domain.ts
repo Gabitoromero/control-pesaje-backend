@@ -69,6 +69,8 @@ export interface Balanza {
   id?: number;
   nombre: string;
   activo?: boolean;
+  /** Read-only: set by the backend when the balanza must be verified with standard weights. */
+  verificacionPendiente?: boolean;
 }
 
 export interface Muestra {
