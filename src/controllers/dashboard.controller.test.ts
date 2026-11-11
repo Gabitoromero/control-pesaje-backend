@@ -332,6 +332,7 @@ describe('dashboard.controller', () => {
       expect(dataOf(captured)).toEqual([
         {
           etapa: { id: 1, nombre: 'Etapa 1' },
+          magnitud: 'peso',
           pesoIdeal: 100,
           pesoMinimo: 90,
           pesoMaximo: 110,
