@@ -12,3 +12,9 @@ export const UNIDAD_PESO_FACTORES: Record<UnidadPeso, number> = {
 export const MAGNITUDES = ['peso', 'volumen'] as const satisfies readonly Magnitud[];
 
 export const MAGNITUD_POR_DEFECTO: Magnitud = 'peso';
+
+/** Unit shown for a weight depending on the magnitud of its ruta-etapa. Volumen never converts the value: g reads as mL and kg as L. */
+export const UNIDAD_LABELS: Record<Magnitud, Record<UnidadPeso, string>> = {
+  peso: { g: 'g', kg: 'kg' },
+  volumen: { g: 'mL', kg: 'L' },
+};

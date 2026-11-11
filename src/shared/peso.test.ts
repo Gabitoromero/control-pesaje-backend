@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toKilogramos } from './peso.js';
+import { toKilogramos, unidadLabel } from './peso.js';
 
 describe('toKilogramos', () => {
   it('converts grams to kilograms', () => {
@@ -20,5 +20,22 @@ describe('toKilogramos', () => {
     // any regression that reintroduces trailing float noise.
     const result = toKilogramos(220.5, 'g');
     expect(result.toString()).toBe('0.2205');
+  });
+});
+
+describe('unidadLabel', () => {
+  it('labels a peso etapa in g / kg', () => {
+    expect(unidadLabel('g', 'peso')).toBe('g');
+    expect(unidadLabel('kg', 'peso')).toBe('kg');
+  });
+
+  it('labels a volumen etapa in mL / L (1 kg = 1 L, label only)', () => {
+    expect(unidadLabel('g', 'volumen')).toBe('mL');
+    expect(unidadLabel('kg', 'volumen')).toBe('L');
+  });
+
+  it('defaults to peso when the magnitud is missing', () => {
+    expect(unidadLabel('g')).toBe('g');
+    expect(unidadLabel('kg', undefined)).toBe('kg');
   });
 });
