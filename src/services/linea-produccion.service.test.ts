@@ -24,6 +24,9 @@ vi.mock('@mikro-orm/core', () => ({
   },
 }));
 
+type CreateInput = Parameters<LineaProduccionService['create']>[0];
+type UpdateInput = Parameters<LineaProduccionService['update']>[1];
+
 describe('LineaProduccionService', () => {
   let service: LineaProduccionService;
 
@@ -41,13 +44,13 @@ describe('LineaProduccionService', () => {
           nombre: 'Linea 1',
           idBalanza: 5,
           articuloId: 6,
-        } as any)
+        } as unknown as CreateInput)
       ).rejects.toThrow(ValidationError);
       expect(mockEm.findOne).toHaveBeenCalledOnce();
     });
 
     it('succeeds when rutaPasadaActiva is null/undefined', async () => {
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
         if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
         if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
@@ -61,13 +64,13 @@ describe('LineaProduccionService', () => {
         idBalanza: 5,
         articuloId: 6,
         rutaPasadaActiva: null,
-      } as any);
+      } as unknown as CreateInput);
 
       expect(result).toBeDefined();
     });
 
     it('throws ValidationError when rutaPasadaActiva does not exist or is inactive', async () => {
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
         if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
         if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
@@ -80,7 +83,7 @@ describe('LineaProduccionService', () => {
           idBalanza: 5,
           articuloId: 6,
           rutaPasadaActiva: 999,
-        } as any)
+        } as unknown as CreateInput)
       ).rejects.toThrow(ValidationError);
 
       expect(mockEm.findOne).toHaveBeenCalledTimes(2);
@@ -92,7 +95,7 @@ describe('LineaProduccionService', () => {
         activo: true,
         etapas: { length: 0 },
       };
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
         if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
         if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
@@ -105,7 +108,7 @@ describe('LineaProduccionService', () => {
           idBalanza: 5,
           articuloId: 6,
           rutaPasadaActiva: 2,
-        } as any)
+        } as unknown as CreateInput)
       ).rejects.toThrow('No se puede asignar una ruta sin etapas a una línea de producción');
 
       expect(mockEm.findOne).toHaveBeenCalledTimes(2);
@@ -117,7 +120,7 @@ describe('LineaProduccionService', () => {
         activo: true,
         etapas: { length: 1 },
       };
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
         if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
         if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
@@ -131,7 +134,7 @@ describe('LineaProduccionService', () => {
         idBalanza: 5,
         articuloId: 6,
         rutaPasadaActiva: 3,
-      } as any);
+      } as unknown as CreateInput);
 
       expect(result).toBeDefined();
       expect(mockEm.findOne).toHaveBeenCalledTimes(4);
@@ -143,7 +146,7 @@ describe('LineaProduccionService', () => {
         activo: true,
         etapas: { length: 1 },
       };
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
         if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
         if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
@@ -161,7 +164,7 @@ describe('LineaProduccionService', () => {
           idBalanza: 5,
           articuloId: 6,
           rutaPasadaActiva: 3,
-        } as any);
+        } as unknown as CreateInput);
 
         expect(mockEm.create.mock.calls[0][1].rutaAsignadaAt).toEqual(fixedNow);
       } finally {
@@ -170,7 +173,7 @@ describe('LineaProduccionService', () => {
     });
 
     it('leaves rutaAsignadaAt null when rutaPasadaActiva is omitted', async () => {
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
         if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
         if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
@@ -183,13 +186,13 @@ describe('LineaProduccionService', () => {
         nombre: 'Linea 1',
         idBalanza: 5,
         articuloId: 6,
-      } as any);
+      } as unknown as CreateInput);
 
       expect(mockEm.create.mock.calls[0][1].rutaAsignadaAt).toBeNull();
     });
 
     it('leaves rutaAsignadaAt null when rutaPasadaActiva is explicitly null', async () => {
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
         if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
         if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
@@ -203,13 +206,13 @@ describe('LineaProduccionService', () => {
         idBalanza: 5,
         articuloId: 6,
         rutaPasadaActiva: null,
-      } as any);
+      } as unknown as CreateInput);
 
       expect(mockEm.create.mock.calls[0][1].rutaAsignadaAt).toBeNull();
     });
 
     it('persists observacion when provided', async () => {
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
         if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
         if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
@@ -223,13 +226,13 @@ describe('LineaProduccionService', () => {
         idBalanza: 5,
         articuloId: 6,
         observacion: 'linea reservada para lote especial',
-      } as any);
+      } as unknown as CreateInput);
 
       expect(mockEm.create.mock.calls[0][1].observacion).toBe('linea reservada para lote especial');
     });
 
     it('stores observacion as null when omitted', async () => {
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return null;
         if (entity === Balanza || entity.name === 'Balanza') return { id: 5, activo: true };
         if (entity === Articulo || entity.name === 'Articulo') return { id: 6, activo: true };
@@ -242,7 +245,7 @@ describe('LineaProduccionService', () => {
         nombre: 'Linea 1',
         idBalanza: 5,
         articuloId: 6,
-      } as any);
+      } as unknown as CreateInput);
 
       expect(mockEm.create.mock.calls[0][1].observacion).toBeNull();
     });
@@ -256,7 +259,7 @@ describe('LineaProduccionService', () => {
       await expect(
         service.update(1, {
           nombre: 'Linea Duplicada',
-        } as any)
+        } as unknown as UpdateInput)
       ).rejects.toThrow(ValidationError);
     });
 
@@ -266,7 +269,7 @@ describe('LineaProduccionService', () => {
         activo: true,
         etapas: { length: 0 },
       };
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return { id: 1, rutaPasadaActiva: { id: 1 } };
         return mockRoute;
       });
@@ -275,14 +278,14 @@ describe('LineaProduccionService', () => {
       await expect(
         service.update(1, {
           rutaPasadaActiva: 2,
-        } as any)
+        } as unknown as UpdateInput)
       ).rejects.toThrow('No se puede asignar una ruta sin etapas a una línea de producción');
 
       expect(mockEm.findOne).toHaveBeenCalledTimes(2);
     });
 
     it('throws ValidationError when there are active pasadas on the line during route change', async () => {
-      mockEm.findOne.mockImplementation(async (entity: any) => {
+      mockEm.findOne.mockImplementation(async (entity: { name?: string }) => {
         if (entity === LineaProduccion || entity.name === 'LineaProduccion') return { id: 1, rutaPasadaActiva: { id: 1 } };
         return null;
       });
@@ -292,34 +295,34 @@ describe('LineaProduccionService', () => {
       await expect(
         service.update(1, {
           rutaPasadaActiva: 2,
-        } as any)
+        } as unknown as UpdateInput)
       ).rejects.toThrow('No se puede cambiar la ruta mientras haya pasadas en curso en esta línea');
 
       expect(mockEm.count).toHaveBeenCalledOnce();
     });
 
     it('sets a new observacion value', async () => {
-      const entity: any = { id: 1, observacion: null };
-      mockEm.findOne.mockImplementation(async (target: any) => {
+      const entity: Partial<LineaProduccion> = { id: 1, observacion: null };
+      mockEm.findOne.mockImplementation(async (target: { name?: string }) => {
         if (target === LineaProduccion || target.name === 'LineaProduccion') return entity;
         return null;
       });
       mockEm.flush.mockResolvedValue(undefined);
 
-      const result = await service.update(1, { observacion: 'nota actualizada' } as any);
+      const result = await service.update(1, { observacion: 'nota actualizada' } as unknown as UpdateInput);
 
       expect(result!.observacion).toBe('nota actualizada');
     });
 
     it('clears observacion when null is passed', async () => {
-      const entity: any = { id: 1, observacion: 'nota vieja' };
-      mockEm.findOne.mockImplementation(async (target: any) => {
+      const entity: Partial<LineaProduccion> = { id: 1, observacion: 'nota vieja' };
+      mockEm.findOne.mockImplementation(async (target: { name?: string }) => {
         if (target === LineaProduccion || target.name === 'LineaProduccion') return entity;
         return null;
       });
       mockEm.flush.mockResolvedValue(undefined);
 
-      const result = await service.update(1, { observacion: null } as any);
+      const result = await service.update(1, { observacion: null } as unknown as UpdateInput);
 
       expect(result!.observacion).toBeNull();
     });

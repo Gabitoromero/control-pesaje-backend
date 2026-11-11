@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
+import type { Express } from 'express';
 import { MikroORM } from '@mikro-orm/postgresql';
-import type { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import config from '../mikro-orm.config.js';
 import { initApp } from './app.js';
 import {
@@ -15,14 +15,14 @@ import {
 
 describe('API Health Check', () => {
   let orm: MikroORM;
-  let app: any;
+  let app: Express;
 
   beforeAll(async () => {
     // We use a simplified config for tests if needed, or just the default one.
     // For this basic test, we just need to ensure the app initializes.
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test', // Use a test DB
+      dbName: 'control_pesaje_tests', // Use a test DB
       entities: [
         Usuario,
         LineaProduccion,
@@ -61,7 +61,7 @@ describe('CORS', () => {
     process.env.ALLOWED_ORIGIN = 'http://trusted.example.com';
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test',
+      dbName: 'control_pesaje_tests',
       entities: [Usuario, LineaProduccion, Articulo, Etapa, RutaPasadaEtapa],
       entitiesTs: [],
       allowGlobalContext: true,

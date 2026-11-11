@@ -3,7 +3,7 @@ import type { UsuarioRol } from '../types.js';
 // ─── Primitive types ──────────────────────────────────────────────────────────
 
 export type EstadoValidacion = 'ok' | 'fuera_de_rango' | 'descartado';
-export type EstadoPasada = 'en_curso' | 'completa' | 'abortada';
+export type EstadoPasada = 'en_curso' | 'completa' | 'abortada' | 'parada';
 
 /** Source unit of measure a physical scale transmits for weight readings. */
 export type UnidadPeso = 'g' | 'kg';

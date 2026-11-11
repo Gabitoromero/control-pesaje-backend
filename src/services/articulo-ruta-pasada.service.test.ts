@@ -24,6 +24,8 @@ vi.mock('@mikro-orm/core', () => ({
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+type CreateInput = Parameters<ArticuloRutaPasadaService['create']>[0];
+
 describe('ArticuloRutaPasadaService', () => {
   let service: ArticuloRutaPasadaService;
 
@@ -85,7 +87,7 @@ describe('ArticuloRutaPasadaService', () => {
       const created = { id: 1, ...payload };
       mockEm.create.mockReturnValue(created);
 
-      const result = await service.create(payload as any);
+      const result = await service.create(payload as unknown as CreateInput);
 
       expect(mockEm.create).toHaveBeenCalledWith(ArticuloRutaPasada, payload);
       expect(mockEm.flush).toHaveBeenCalledOnce();

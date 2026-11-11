@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { authenticateJWT, requireRoles } from './auth.middleware.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 
 const JWT_SECRET = 'test-secret';
 
@@ -50,7 +50,7 @@ describe('authenticateJWT', () => {
     const res = makeRes();
     authenticateJWT(req, res, next);
     expect(next).toHaveBeenCalled();
-    expect((req as any).user).toMatchObject(payload);
+    expect(req.user).toMatchObject(payload);
   });
 
   it('attaches puedeTomarMuestrasLibres as boolean to req.user', () => {
@@ -60,8 +60,8 @@ describe('authenticateJWT', () => {
     const res = makeRes();
     authenticateJWT(req, res, next);
     expect(next).toHaveBeenCalled();
-    expect((req as any).user.puedeTomarMuestrasLibres).toBe(true);
-    expect(typeof (req as any).user.puedeTomarMuestrasLibres).toBe('boolean');
+    expect(req.user!.puedeTomarMuestrasLibres).toBe(true);
+    expect(typeof req.user!.puedeTomarMuestrasLibres).toBe('boolean');
   });
 });
 
@@ -71,7 +71,7 @@ describe('requireRoles', () => {
   });
 
   it('returns 403 when user role is not in allowed roles', () => {
-    const req = { user: { id: 1, nombreUsuario: 'op', rol: UsuarioRol.OPERARIO } } as any;
+    const req = { user: { id: 1, nombreUsuario: 'op', rol: UsuarioRol.OPERARIO } } as unknown as Request;
     const res = makeRes();
     requireRoles([UsuarioRol.ADMINISTRADOR])(req, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
@@ -79,14 +79,14 @@ describe('requireRoles', () => {
   });
 
   it('calls next when user role is allowed', () => {
-    const req = { user: { id: 1, nombreUsuario: 'admin', rol: UsuarioRol.ADMINISTRADOR } } as any;
+    const req = { user: { id: 1, nombreUsuario: 'admin', rol: UsuarioRol.ADMINISTRADOR } } as unknown as Request;
     const res = makeRes();
     requireRoles([UsuarioRol.ADMINISTRADOR, UsuarioRol.JEFE])(req, res, next);
     expect(next).toHaveBeenCalled();
   });
 
   it('returns 401 when req.user is not set', () => {
-    const req = {} as any;
+    const req = {} as Request;
     const res = makeRes();
     requireRoles([UsuarioRol.ADMINISTRADOR])(req, res, next);
     expect(res.status).toHaveBeenCalledWith(401);

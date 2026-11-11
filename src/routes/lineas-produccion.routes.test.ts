@@ -13,7 +13,7 @@ import type { Express } from 'express';
 import { MikroORM } from '@mikro-orm/postgresql';
 import jwt from 'jsonwebtoken';
 import { initApp } from '../app.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 import * as socketIndex from '../socket/index.js';
 import * as devicePairingHandler from '../socket/device-pairing.handler.js';
 

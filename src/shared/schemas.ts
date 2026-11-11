@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { UsuarioRol } from './types.js';
+import { UsuarioRol, SectorUsuario } from './types.js';
 
 // ─── Usuario ─────────────────────────────────────────────────────────────────
 
@@ -17,6 +17,12 @@ export const UsuarioCreateSchema = z.object({
     UsuarioRol.ADMINISTRADOR,
   ]),
   datosAdicionales: z.object({
+    sector: z.enum([
+      SectorUsuario.OFICIALES,
+      SectorUsuario.SUPERVISORES,
+      SectorUsuario.CONTROL_CALIDAD,
+      SectorUsuario.MEJORA_CONTINUA,
+    ]).nullable(),
     preferenciasInterfaz: z.object({
       tema: z.enum(['claro', 'oscuro']),
       idioma: z.enum(['es', 'en']),
@@ -165,6 +171,12 @@ export const PasadaIniciarSchema = z.object({
   observacion: z.string().min(1).optional(),
   // Start the verification route (standard weights) instead of the line's active route.
   verificacion: z.boolean().optional(),
+});
+
+export const PasadaLineaParadaSchema = z.object({
+  lineaProduccionId: z.number().int().positive(),
+  observacion: z.string().trim().min(1, 'La observación es obligatoria'),
+  idBalanza: z.number().int().positive().optional(),
 });
 
 export const PasadaUpdateSchema = z.object({

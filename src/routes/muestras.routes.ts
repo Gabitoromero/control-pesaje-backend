@@ -3,8 +3,8 @@ import { validateBody } from '../middlewares/validation.middleware.js';
 import { authenticateJWT, requireRoles } from '../middlewares/auth.middleware.js';
 import { MuestraRegistrarSchema, MuestraUpdateSchema } from '../shared/schemas.js';
 import { MuestraService } from '../services/muestra.service.js';
-import { createCrudHandlers } from '../controllers/base.controller.js';
 import { createMuestraHandlers } from '../controllers/muestra.controller.js';
+import { getHistorial } from '../controllers/historial.controller.js';
 import { UsuarioRol } from '../shared/types.js';
 
 const router: Router = Router();
@@ -21,6 +21,9 @@ const operatorRoles = [UsuarioRol.ADMINISTRADOR, UsuarioRol.JEFE, UsuarioRol.OPE
 router.use(authenticateJWT);
 
 router.get('/', list);
+// Must be declared before '/:id' so "historial" is not parsed as an id.
+// Planta roles only (operario, jefe, administrador); visualizacion has no access.
+router.get('/historial', requireRoles(operatorRoles), getHistorial);
 router.get('/:id', getOne);
 router.post('/', requireRoles(operatorRoles), validateBody(MuestraRegistrarSchema), registrar);
 router.put('/:id', requireRoles(operatorRoles), validateBody(MuestraUpdateSchema), update);

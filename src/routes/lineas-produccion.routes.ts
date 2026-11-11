@@ -9,7 +9,7 @@ import {
 import { LineaProduccionService } from '../services/linea-produccion.service.js';
 import { createCrudHandlers } from '../controllers/base.controller.js';
 import { createLineaProduccionHandlers } from '../controllers/linea-produccion.controller.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 
 const router: Router = Router();
 const service = new LineaProduccionService();

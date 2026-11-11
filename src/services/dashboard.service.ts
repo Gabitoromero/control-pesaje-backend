@@ -3,6 +3,7 @@ import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { Muestra, MuestraEstadoValidacion } from '../models/Muestra.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
+import type { SectorUsuario } from '../shared/types.js';
 
 // ── Response DTOs ────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ export interface TimeSeriesPunto {
   time: Date;
   pasadaId: number | null;
   estadoValidacion: MuestraEstadoValidacion;
+  sector: SectorUsuario | null;
 }
 
 export interface EtapaDto {
@@ -139,7 +141,7 @@ export const dashboardService = {
     const pasadasFinalizadas = await em.count(Pasada, {
       lineaProduccion: lineaId,
       rutaPasada: rutaPasadaId,
-      estado: PasadaEstado.COMPLETA,
+      estado: { $in: [PasadaEstado.COMPLETA, PasadaEstado.PARADA] },
       horaInicio: { $gte: timeZero },
       activo: true,
     });
@@ -175,7 +177,7 @@ export const dashboardService = {
           rutaPasada: rutaPasadaId,
           timestamp: { $gte: timeZero },
         },
-        { populate: ['etapa', 'pasada'] }
+        { populate: ['etapa', 'pasada', 'usuario'] }
       );
     }
 
@@ -220,7 +222,8 @@ export const dashboardService = {
           peso: Number(sm.pesoNeto), 
           time: sm.timestamp,
           pasadaId: sm.pasada?.id ?? null,
-          estadoValidacion: sm.estadoValidacion
+          estadoValidacion: sm.estadoValidacion,
+          sector: sm.usuario?.datosAdicionales?.sector ?? null,
         })),
       };
     });

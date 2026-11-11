@@ -4,7 +4,7 @@ import { authenticateJWT, requireRoles } from '../middlewares/auth.middleware.js
 import { ArticuloCreateSchema, ArticuloUpdateSchema } from '../utils/schemas.js';
 import { ArticuloService } from '../services/articulo.service.js';
 import { createCrudHandlers } from '../controllers/base.controller.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 
 const router: Router = Router();
 const service = new ArticuloService();

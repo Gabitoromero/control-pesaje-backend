@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 
 export interface JWTPayload {
   id: number;

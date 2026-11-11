@@ -1287,7 +1287,8 @@
           "enumItems": [
             "en_curso",
             "completa",
-            "abortada"
+            "abortada",
+            "parada"
           ],
           "mappedType": "enum",
           "nativeEnumName": "pasada_estado_enum"
@@ -2104,7 +2105,8 @@
       "items": [
         "en_curso",
         "completa",
-        "abortada"
+        "abortada",
+        "parada"
       ]
     },
     "usuario_rol_enum": {

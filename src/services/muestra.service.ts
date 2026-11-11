@@ -37,7 +37,6 @@ export class MuestraService {
     // 1. Resolve rutaPasadaId from active pasada or from the line's active route
     let rutaPasadaId: number;
     let pasada: Pasada | null = null;
-    let allRutas: RutaPasadaEtapa[] = [];
 
     if (pasadaId) {
       pasada = await em.findOne(Pasada, pasadaId, { populate: ['rutaPasada', 'usuario'] });
@@ -47,7 +46,7 @@ export class MuestraService {
       if (pasada.usuario.id !== usuarioId) {
         throw new Error(`User ${usuarioId} cannot register samples on pasada ${pasadaId}: not the owner`);
       }
-      if (pasada.estado === PasadaEstado.COMPLETA || pasada.estado === PasadaEstado.ABORTADA) {
+      if (pasada.estado !== PasadaEstado.EN_CURSO) {
         throw new Error(`Cannot register sample: Pasada is already completed or aborted`);
       }
       rutaPasadaId = pasada.rutaPasada.id;
@@ -91,7 +90,7 @@ export class MuestraService {
 
     // 3. Enforce sequential stage order if in a Pasada
     if (pasada) {
-      allRutas = await em.find(
+      const allRutas = await em.find(
         RutaPasadaEtapa,
         { rutaPasada: rutaPasadaId },
         { orderBy: { orden: 'ASC' } }
@@ -154,7 +153,7 @@ export class MuestraService {
     const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada', 'rutaPasada', 'etapa'] });
     if (!muestra) return null;
 
-    if (muestra.pasada && (muestra.pasada.estado === PasadaEstado.COMPLETA || muestra.pasada.estado === PasadaEstado.ABORTADA)) {
+    if (muestra.pasada && muestra.pasada.estado !== PasadaEstado.EN_CURSO) {
       throw new Error('Cannot update sample of a completed or aborted pasada');
     }
 
@@ -185,7 +184,7 @@ export class MuestraService {
     const muestra = await em.findOne(Muestra, { id }, { populate: ['pasada', 'lineaProduccion'] });
     if (!muestra) return false;
 
-    if (muestra.pasada && (muestra.pasada.estado === PasadaEstado.COMPLETA || muestra.pasada.estado === PasadaEstado.ABORTADA)) {
+    if (muestra.pasada && muestra.pasada.estado !== PasadaEstado.EN_CURSO) {
       throw new Error('Cannot delete sample of a completed or aborted pasada');
     }
 

@@ -15,7 +15,7 @@ import type { Express } from 'express';
 import { MikroORM } from '@mikro-orm/postgresql';
 import jwt from 'jsonwebtoken';
 import { initApp } from '../app.js';
-import { UsuarioRol } from '../models/Usuario.js';
+import { UsuarioRol } from '../shared/types.js';
 
 // ─── JWT helpers ─────────────────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ const mockEm = {
   count: vi.fn(),
   persist: vi.fn().mockReturnThis(),
   remove: vi.fn().mockReturnThis(),
-  transactional: vi.fn(async (cb: (em: any) => any) => cb(mockEm)),
+  transactional: vi.fn(async (cb: (em: unknown) => unknown) => cb(mockEm)),
 };
 
 vi.mock('@mikro-orm/core', async (importOriginal) => {
@@ -46,7 +46,7 @@ vi.mock('@mikro-orm/core', async (importOriginal) => {
     ...original,
     RequestContext: {
       ...original.RequestContext,
-      create: (_em: any, next: () => void) => next(),
+      create: (_em: unknown, next: () => void) => next(),
       getEntityManager: () => mockEm,
     },
   };

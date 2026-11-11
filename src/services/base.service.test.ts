@@ -13,7 +13,7 @@ class TestEntity {
 
 class TestService extends BaseService<TestEntity> {
   constructor() {
-    super(TestEntity as any);
+    super(TestEntity as unknown as ConstructorParameters<typeof BaseService<TestEntity>>[0]);
   }
 }
 

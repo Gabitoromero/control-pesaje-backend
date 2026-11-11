@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { MikroORM, SchemaGenerator, wrap } from '@mikro-orm/postgresql';
-import type { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import config from '../mikro-orm.config.js';
 import {
   Usuario,
@@ -13,11 +12,11 @@ import {
   RutaPasadaEtapa,
   Pasada,
   Muestra,
-  UsuarioRol,
   PasadaEstado,
   MuestraEstadoValidacion,
   Balanza
 } from './models/index.js';
+import { UsuarioRol } from './shared/types.js';
 
 describe('Domain Entities Integration Tests', () => {
   let orm: MikroORM;
@@ -26,7 +25,7 @@ describe('Domain Entities Integration Tests', () => {
     // Initialize the ORM with explicit entities to avoid dynamic discovery errors
     orm = await MikroORM.init({
       ...config,
-      dbName: 'control_pesaje_test',
+      dbName: 'control_pesaje_tests',
       extensions: [SchemaGenerator],
       entities: [
         Usuario,
@@ -97,7 +96,7 @@ describe('Domain Entities Integration Tests', () => {
     expect(retrieved).not.toBeNull();
     expect(retrieved!.legajo).toBe('12345');
     expect(retrieved!.pinHash).toBe('$2b$10$hashedpinhere');
-    expect((retrieved as any).contrasenaHash).toBeUndefined();
+    expect((retrieved as unknown as Record<string, unknown>).contrasenaHash).toBeUndefined();
     expect(retrieved!.datosAdicionales).toEqual({
       preferenciasInterfaz: { tema: 'oscuro', idioma: 'es' },
     });

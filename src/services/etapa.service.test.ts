@@ -21,6 +21,9 @@ vi.mock('@mikro-orm/core', () => ({
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+type CreateInput = Parameters<EtapaService['create']>[0];
+type UpdateInput = Parameters<EtapaService['update']>[1];
+
 describe('EtapaService.softDelete', () => {
   let service: EtapaService;
 
@@ -32,20 +35,20 @@ describe('EtapaService.softDelete', () => {
   describe('create', () => {
     it('throws ValidationError if stage with the same nombre already exists', async () => {
       mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Test', activo: true });
-      await expect(service.create({ nombre: 'Test' } as any)).rejects.toThrow(ValidationError);
+      await expect(service.create({ nombre: 'Test' } as unknown as CreateInput)).rejects.toThrow(ValidationError);
       
       mockEm.findOne.mockResolvedValueOnce({ id: 2, nombre: 'Test', activo: true });
-      await expect(service.create({ nombre: 'Test' } as any)).rejects.toThrow(/Ya existe una etapa con el nombre 'Test'/);
+      await expect(service.create({ nombre: 'Test' } as unknown as CreateInput)).rejects.toThrow(/Ya existe una etapa con el nombre 'Test'/);
     });
   });
 
   describe('update', () => {
     it('throws ValidationError if another stage with the same nombre already exists', async () => {
       mockEm.findOne.mockResolvedValueOnce({ id: 3, nombre: 'Test', activo: true });
-      await expect(service.update(1, { nombre: 'Test' } as any)).rejects.toThrow(ValidationError);
+      await expect(service.update(1, { nombre: 'Test' } as unknown as UpdateInput)).rejects.toThrow(ValidationError);
       
       mockEm.findOne.mockResolvedValueOnce({ id: 3, nombre: 'Test', activo: true });
-      await expect(service.update(1, { nombre: 'Test' } as any)).rejects.toThrow(/Ya existe una etapa con el nombre 'Test'/);
+      await expect(service.update(1, { nombre: 'Test' } as unknown as UpdateInput)).rejects.toThrow(/Ya existe una etapa con el nombre 'Test'/);
     });
   });
 

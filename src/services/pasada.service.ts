@@ -221,7 +221,99 @@ export class PasadaService extends BaseService<Pasada> {
     });
   }
 
-  // Fields that stay editable after the pasada is closed (completa/abortada).
+  /**
+   * Records that the line was stopped. If a pasada is running on the line it becomes `parada`
+   * and is closed; otherwise a new pasada is registered directly as `parada` (no samples).
+   * Unlike iniciarPasada it needs no session; the balanza defaults to the line's own one.
+   */
+  async registrarLineaParada(
+    lineaProduccionId: number,
+    usuarioId: number,
+    observacion: string,
+    idBalanza?: number
+  ): Promise<Pasada> {
+    if (!observacion || observacion.trim() === '') {
+      throw new Error('Se requiere una observación para registrar la línea parada');
+    }
+    const motivo = observacion.trim();
+
+    const em = this.getEm();
+
+    return em.transactional(async (txEm) => {
+      const linea = await txEm.findOne(
+        LineaProduccion,
+        { id: lineaProduccionId },
+        { lockMode: LockMode.PESSIMISTIC_WRITE, populate: ['rutaPasadaActiva', 'articulo', 'balanza'] }
+      );
+      if (!linea) {
+        throw new Error(`La línea de producción ${lineaProduccionId} no existe`);
+      }
+
+      const enCurso = await txEm.findOne(
+        Pasada,
+        { lineaProduccion: lineaProduccionId, estado: PasadaEstado.EN_CURSO, activo: true },
+        { orderBy: { id: 'DESC' } }
+      );
+
+      const ahora = new Date();
+
+      if (enCurso) {
+        enCurso.estado = PasadaEstado.PARADA;
+        enCurso.motivoCierre = motivo;
+        enCurso.horaCierre = ahora;
+        await txEm.flush();
+
+        const session = sesionService.obtenerSesion(lineaProduccionId);
+        if (session?.pasadaId === enCurso.id) {
+          sesionService.actualizarPasada(lineaProduccionId, null);
+        }
+        return enCurso;
+      }
+
+      if (!linea.rutaPasadaActiva) {
+        throw new Error(`No se puede registrar la línea parada: no hay una ruta activa en la línea de producción ${lineaProduccionId}`);
+      }
+      if (!linea.articulo) {
+        throw new Error('No se puede registrar la línea parada: la línea de producción no tiene un artículo configurado');
+      }
+
+      let balanzaId = idBalanza ?? linea.balanza?.id;
+      if (balanzaId === undefined) {
+        throw new Error('No se puede registrar la línea parada: la línea de producción no tiene una balanza configurada');
+      }
+      const balanza = await txEm.findOne(Balanza, { id: balanzaId });
+      if (!balanza) {
+        throw new Error(`La balanza con ID ${balanzaId} no existe`);
+      }
+      balanzaId = balanza.id;
+
+      const articuloId = linea.articulo.id;
+      const lastPasada = await txEm.findOne(
+        Pasada,
+        { lineaProduccion: lineaProduccionId, articulo: articuloId },
+        { filters: false, orderBy: { numero: 'DESC' } }
+      );
+
+      const pasada = new Pasada();
+      pasada.lineaProduccion = txEm.getReference(LineaProduccion, lineaProduccionId);
+      pasada.rutaPasada = txEm.getReference(RutaPasada, linea.rutaPasadaActiva.id);
+      pasada.articulo = txEm.getReference(Articulo, articuloId);
+      pasada.balanza = txEm.getReference(Balanza, balanzaId);
+      pasada.usuario = txEm.getReference(Usuario, usuarioId);
+      pasada.numero = lastPasada ? lastPasada.numero + 1 : 1;
+      pasada.estado = PasadaEstado.PARADA;
+      pasada.horaInicio = ahora;
+      pasada.horaCierre = ahora;
+      pasada.motivoCierre = motivo;
+      pasada.activo = true;
+
+      txEm.persist(pasada);
+      await txEm.flush();
+      return pasada;
+    });
+  }
+
+  // Fields that stay editable after the pasada is closed (completa/abortada/parada).
   private static readonly CAMPOS_EDITABLES_TRAS_CIERRE: readonly string[] = ['observacion'];
 
   override async update(id: number, data: Partial<Pasada>): Promise<Pasada | null> {
@@ -229,7 +321,9 @@ export class PasadaService extends BaseService<Pasada> {
     if (!pasada) return null;
 
     const cerrada =
-      pasada.estado === PasadaEstado.COMPLETA || pasada.estado === PasadaEstado.ABORTADA;
+      pasada.estado === PasadaEstado.COMPLETA ||
+      pasada.estado === PasadaEstado.ABORTADA ||
+      pasada.estado === PasadaEstado.PARADA;
 
     if (cerrada) {
       const keys = Object.keys(data);
@@ -247,7 +341,11 @@ export class PasadaService extends BaseService<Pasada> {
     const pasada = await this.findById(id);
     if (!pasada) return false;
 
-    if (pasada.estado === PasadaEstado.COMPLETA || pasada.estado === PasadaEstado.ABORTADA) {
+    if (
+      pasada.estado === PasadaEstado.COMPLETA ||
+      pasada.estado === PasadaEstado.ABORTADA ||
+      pasada.estado === PasadaEstado.PARADA
+    ) {
       throw new Error('No se puede eliminar una pasada completada o abortada');
     }
 
