@@ -4,6 +4,8 @@ import { Articulo } from '../models/Articulo.js';
 import { Balanza } from '../models/Balanza.js';
 import { Etapa } from '../models/Etapa.js';
 import { RutaPasada } from '../models/RutaPasada.js';
+import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
+import { ArticuloRutaPasada } from '../models/ArticuloRutaPasada.js';
 
 export const HISTORIAL_CAMBIO_DEFAULT_PAGE_SIZE = 20;
 export const HISTORIAL_CAMBIO_MAX_PAGE_SIZE = 100;
@@ -54,6 +56,43 @@ export const resolveReferences = async (
   return result;
 };
 
+/** Nested entities whose changes are ambiguous on their own: which etapa / articulo of the ruta is it? */
+const CONTEXT_FIELDS: Record<string, { field: 'etapa' | 'articulo'; entity: new () => { id: number }; ownerOf: (row: never) => number | undefined }> = {
+  ruta_etapa: { field: 'etapa', entity: RutaPasadaEtapa, ownerOf: ((r: RutaPasadaEtapa) => r.etapa?.id) as never },
+  ruta_articulo: { field: 'articulo', entity: ArticuloRutaPasada, ownerOf: ((r: ArticuloRutaPasada) => r.articulo?.id) as never },
+};
+
+interface ChangeLike { id: number; entidad: string; entidadId: number; antes: Record<string, unknown>; despues: Record<string, unknown> }
+
+/**
+ * Names the etapa/articulo a nested change refers to. A diff only carries the fields that changed, so
+ * editing a tolerance says nothing about which etapa it was: look it up from the (possibly deleted) row.
+ */
+export const resolveContextos = async (em: EntityManager, items: ChangeLike[]) => {
+  const ref = new Map<number, { field: 'etapa' | 'articulo'; id: number }>();
+  const missing = new Map<string, { entity: new () => { id: number }; ownerOf: (row: never) => number | undefined; ids: Set<number> }>();
+  for (const it of items) {
+    const cfg = CONTEXT_FIELDS[it.entidad];
+    if (!cfg) continue;
+    const inline = it.despues[cfg.field] ?? it.antes[cfg.field];
+    if (typeof inline === 'number') ref.set(it.id, { field: cfg.field, id: inline });
+    else {
+      if (!missing.has(it.entidad)) missing.set(it.entidad, { entity: cfg.entity, ownerOf: cfg.ownerOf, ids: new Set() });
+      missing.get(it.entidad)!.ids.add(it.entidadId);
+    }
+  }
+  for (const [entidad, m] of missing) {
+    const rows = (await em.find(m.entity as never, { id: { $in: [...m.ids] } } as never)) as unknown as { id: number }[];
+    const owner = new Map(rows.map((r) => [r.id, m.ownerOf(r as never)]));
+    for (const it of items) {
+      if (it.entidad !== entidad || ref.has(it.id)) continue;
+      const id = owner.get(it.entidadId);
+      if (id !== undefined) ref.set(it.id, { field: CONTEXT_FIELDS[entidad].field, id });
+    }
+  }
+  return ref;
+};
+
 /** Changes of a root record (including its nested entities), newest first. */
 export const listHistorialCambio = async (em: EntityManager, q: HistorialCambioQuery) => {
   const where: FilterQuery<HistorialCambio> = { raizTipo: q.raizTipo, raizId: q.raizId };
@@ -84,7 +123,14 @@ export const listHistorialCambio = async (em: EntityManager, q: HistorialCambioQ
       : null,
   }));
 
-  const referencias = await resolveReferences(em, items);
+  const contextRefs = await resolveContextos(em, items);
+  const synthetic = [...contextRefs.values()].map((c) => ({ antes: {}, despues: { [c.field]: c.id } }));
+  const referencias = await resolveReferences(em, [...items, ...synthetic]);
+  const itemsWithContexto = items.map((it) => {
+    const c = contextRefs.get(it.id);
+    const contexto = c ? referencias[c.field]?.[String(c.id)] : undefined;
+    return contexto ? { ...it, contexto } : it;
+  });
 
-  return { items, referencias, total, page: q.page, pageSize: q.pageSize };
+  return { items: itemsWithContexto, referencias, total, page: q.page, pageSize: q.pageSize };
 };
