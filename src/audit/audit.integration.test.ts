@@ -70,6 +70,15 @@ describe('audit trail (real Postgres)', () => {
     expect(all.every((r) => r.usuario?.id === userId)).toBe(true);
   });
 
+  it('makes an implicit flush atomic with its audit row (failed audit insert leaves no change)', async () => {
+    await runWithAuditUser(999999, async () => {
+      const em = orm.em.fork();
+      em.create(Articulo, { codigo: 'ATOM', nombre: 'Atomic', activo: true });
+      await expect(em.flush()).rejects.toThrow();
+    });
+    expect(await orm.em.fork().count(Articulo, { codigo: 'ATOM' })).toBe(0);
+  });
+
   it('rolls the audit row back together with the change inside a transaction', async () => {
     await runWithAuditUser(userId, async () => {
       const em = orm.em.fork();

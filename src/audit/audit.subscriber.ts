@@ -1,4 +1,4 @@
-import type { EventSubscriber, FlushEventArgs, UnitOfWork } from '@mikro-orm/core';
+import type { EntityManager, EventSubscriber, FlushEventArgs, TransactionEventArgs, UnitOfWork } from '@mikro-orm/core';
 import { getAuditUserId } from './audit-context.js';
 import { AUDITED_ENTITIES, buildAuditRecord, type RawChange } from './audit-diff.js';
 
@@ -41,10 +41,24 @@ export class AuditSubscriber implements EventSubscriber {
     if (changes.length > 0) this.pending.set(args.uow, changes);
   }
 
+  /**
+   * Implicit flushes open their own transaction: write the rows right before it
+   * commits so the change and its audit rows are atomic.
+   */
+  async beforeTransactionCommit(args: TransactionEventArgs): Promise<void> {
+    if (!args.uow || !args.transaction) return;
+    await this.write(args.em, args.uow, args.transaction);
+  }
+
+  /** Flushes inside an outer `em.transactional()` join the caller's transaction here. */
   async afterFlush(args: FlushEventArgs): Promise<void> {
-    const changes = this.pending.get(args.uow);
+    await this.write(args.em, args.uow, args.em.getTransactionContext());
+  }
+
+  private async write(em: EntityManager, uow: UnitOfWork, ctx: unknown): Promise<void> {
+    const changes = this.pending.get(uow);
     if (!changes) return;
-    this.pending.delete(args.uow);
+    this.pending.delete(uow);
 
     const records = changes
       .map((c) =>
@@ -60,24 +74,23 @@ export class AuditSubscriber implements EventSubscriber {
       .filter((r) => r !== undefined);
     if (records.length === 0) return;
 
-    const connection = args.em.getConnection();
-    const ctx = args.em.getTransactionContext();
-    const usuarioId = getAuditUserId() ?? (await this.resolveSystemUserId(args, ctx));
+    const connection = em.getConnection();
+    const usuarioId = getAuditUserId() ?? (await this.resolveSystemUserId(em, ctx));
 
     for (const r of records) {
       await connection.execute(
         `insert into "${HISTORIAL_TABLE}" ("entidad", "entidad_id", "raiz_tipo", "raiz_id", "accion", "usuario_id", "antes", "despues") values (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb)`,
         [r.entidad, r.entidadId, r.raizTipo, r.raizId, r.accion, usuarioId ?? null, JSON.stringify(r.antes), JSON.stringify(r.despues)],
         'run',
-        ctx,
+        ctx as never,
       );
     }
   }
 
   /** Changes without a session (scripts, socket handlers) are attributed to the `esSistema` user, when one exists. */
-  private async resolveSystemUserId(args: FlushEventArgs, ctx: unknown): Promise<number | undefined> {
+  private async resolveSystemUserId(em: EntityManager, ctx: unknown): Promise<number | undefined> {
     if (this.systemUserId !== undefined) return this.systemUserId;
-    const rows = (await args.em
+    const rows = (await em
       .getConnection()
       .execute(`select "id" from "usuario" where "es_sistema" = true order by "id" limit 1`, [], 'all', ctx as never)) as { id: number }[];
     this.systemUserId = rows[0]?.id;
