@@ -172,6 +172,8 @@ export const PasadaIniciarSchema = z.object({
   lineaProduccionId: z.number().int().positive(),
   idBalanza: z.number().int().positive(),
   observacion: z.string().min(1).optional(),
+  // Start the verification route (standard weights) instead of the line's active route.
+  verificacion: z.boolean().optional(),
 });
 
 export const PasadaLineaParadaSchema = z.object({

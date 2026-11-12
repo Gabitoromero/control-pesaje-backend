@@ -8,6 +8,12 @@ import { ArticuloRutaPasada } from '../models/ArticuloRutaPasada.js';
 import { sesionService } from './sesion.service.js';
 import { Balanza } from '../models/Balanza.js';
 import { LockMode } from '@mikro-orm/core';
+import {
+  esArticuloVerificacion,
+  evaluarBalanzaParaProducir,
+  registrarVerificacionCompletada,
+  resolverRutaVerificacion,
+} from './verificacion-balanza.service.js';
 
 export class PasadaService extends BaseService<Pasada> {
   constructor() {
@@ -26,7 +32,9 @@ export class PasadaService extends BaseService<Pasada> {
     lineaProduccionId: number,
     idBalanza: number,
     usuarioId: number,
-    observacion?: string
+    observacion?: string,
+    // Explicit request to start the verification route (standard weights, articulo code 0) from any line.
+    verificacion = false
   ): Promise<Pasada> {
     const em = this.getEm();
 
@@ -42,21 +50,31 @@ export class PasadaService extends BaseService<Pasada> {
     }
 
     // Start database transaction
-    return em.transactional(async (txEm) => {
+    const resultado = await em.transactional(async (txEm) => {
       // Pessimistic write lock on the line to serialize pasada generation on this line
       const linea = await txEm.findOne(
         LineaProduccion,
         { id: lineaProduccionId },
         { lockMode: LockMode.PESSIMISTIC_WRITE, populate: ['rutaPasadaActiva', 'articulo'] }
       );
-      if (!linea?.rutaPasadaActiva) {
+      const verif = verificacion ? await resolverRutaVerificacion(txEm) : null;
+      if (verificacion && !verif) {
+        throw new Error('No se encontró la ruta de verificación (artículo con código 0)');
+      }
+      if (verif && !linea) {
+        throw new Error(`La línea de producción ${lineaProduccionId} no existe`);
+      }
+      if (!verif && !linea?.rutaPasadaActiva) {
         throw new Error(`No se puede iniciar la pasada: no hay una ruta activa en la línea de producción ${lineaProduccionId}`);
       }
-      if (!linea.articulo) {
+      if (!verif && !linea!.articulo) {
         throw new Error(`No se puede iniciar la pasada: la línea de producción no tiene un artículo configurado`);
       }
+      // Effective ruta / articulo: the verification ones when explicitly requested, the line's otherwise.
+      const rutaEfectiva = verif ? verif.rutaPasada : linea!.rutaPasadaActiva!;
+      const articuloEfectivo = verif ? verif.articulo : linea!.articulo;
 
-      const balanza = await txEm.findOne(Balanza, { id: idBalanza });
+      const balanza = await txEm.findOne(Balanza, { id: idBalanza }, { lockMode: LockMode.PESSIMISTIC_WRITE });
       if (!balanza) {
         throw new Error(`La balanza con ID ${idBalanza} no existe`);
       }
@@ -64,16 +82,24 @@ export class PasadaService extends BaseService<Pasada> {
         throw new Error(`La balanza con ID ${idBalanza} no está activa`);
       }
 
-      const articuloId = linea.articulo.id;
+      const articuloId = articuloEfectivo.id;
 
       const isOnRoute = await txEm.count(ArticuloRutaPasada, {
-        rutaPasada: linea.rutaPasadaActiva.id,
+        rutaPasada: rutaEfectiva.id,
         articulo: articuloId,
       });
       if (isOnRoute === 0) {
         throw new Error(
           `El artículo ${articuloId} no pertenece a la ruta activa de la línea de producción ${lineaProduccionId}`
         );
+      }
+
+      // Verification rule: a balanza with a different (or no) last article must be verified first.
+      const bloqueo = await evaluarBalanzaParaProducir(txEm, balanza, articuloEfectivo);
+      if (bloqueo) {
+        // Persist the flag before rejecting; the error is thrown once the transaction is committed.
+        await txEm.flush();
+        return { bloqueo };
       }
 
       // Fetch the last Pasada for this line and article to determine the next sequential number
@@ -87,7 +113,7 @@ export class PasadaService extends BaseService<Pasada> {
 
       // Instantiate using references
       const lineaRef = txEm.getReference(LineaProduccion, lineaProduccionId);
-      const rutaPasadaRef = txEm.getReference(RutaPasada, linea.rutaPasadaActiva.id);
+      const rutaPasadaRef = txEm.getReference(RutaPasada, rutaEfectiva.id);
       const articuloRef = txEm.getReference(Articulo, articuloId);
       const balanzaRef = txEm.getReference(Balanza, idBalanza);
       const usuarioRef = txEm.getReference(Usuario, usuarioId);
@@ -110,8 +136,13 @@ export class PasadaService extends BaseService<Pasada> {
       // Update in-memory session with the new pasadaId
       sesionService.actualizarPasada(lineaProduccionId, pasada.id);
 
-      return pasada;
+      return { pasada };
     });
+
+    if ('bloqueo' in resultado) {
+      throw new Error(resultado.bloqueo);
+    }
+    return resultado.pasada;
   }
 
   async completarPasada(id: number): Promise<Pasada | null> {
@@ -131,6 +162,22 @@ export class PasadaService extends BaseService<Pasada> {
 
       pasada.estado = PasadaEstado.COMPLETA;
       pasada.horaCierre = new Date();
+
+      // Completing a verification pasada (articulo code 0) lowers the balanza flag. Aborted ones never get here.
+      const articuloPasada = await txEm.findOne(Articulo, { id: pasada.articulo.id });
+      if (articuloPasada && esArticuloVerificacion(articuloPasada)) {
+        const lineaPasada = await txEm.findOne(
+          LineaProduccion,
+          { id: pasada.lineaProduccion.id },
+          { populate: ['articulo'] }
+        );
+        await registrarVerificacionCompletada(
+          txEm,
+          pasada.balanza.id,
+          articuloPasada,
+          lineaPasada?.articulo ?? null
+        );
+      }
       await txEm.flush();
 
       // Clear from in-memory session if it matches

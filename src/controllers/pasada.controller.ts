@@ -16,6 +16,7 @@ export interface IniciarPasadaBody {
   lineaProduccionId: number;
   idBalanza: number;
   observacion?: string;
+  verificacion?: boolean;
 }
 
 export interface LineaParadaBody {
@@ -45,9 +46,12 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
     try {
       // userId MUST come from the JWT payload, never from the body (REQ-P1)
       const userId = req.user!.id;
-      const { lineaProduccionId, idBalanza, observacion } = req.body as IniciarPasadaBody;
+      const { lineaProduccionId, idBalanza, observacion, verificacion } = req.body as IniciarPasadaBody;
 
-      const pasada = await service.iniciarPasada(lineaProduccionId, idBalanza, userId, observacion);
+      // `verificacion` is only forwarded when requested, so existing payloads behave exactly as before
+      const pasada = verificacion === true
+        ? await service.iniciarPasada(lineaProduccionId, idBalanza, userId, observacion, true)
+        : await service.iniciarPasada(lineaProduccionId, idBalanza, userId, observacion);
       res.status(201).json({ success: true, data: pasada });
     } catch (err) {
       if (err instanceof Error) {
