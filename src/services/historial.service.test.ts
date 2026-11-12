@@ -179,6 +179,32 @@ describe('historialService (integration)', () => {
     expect(r.items[0].rutaPasada.nombre).toBe('Ruta Estándar');
   });
 
+  it('returns the magnitud of the muestra etapa as configured in its ruta, peso when not configured', async () => {
+    const em = orm.em.fork();
+    const rpe = new RutaPasadaEtapa();
+    rpe.rutaPasada = ruta;
+    rpe.etapa = etapaMezcla;
+    rpe.orden = 1;
+    rpe.pesoIdeal = 100;
+    rpe.pesoMinimo = 90;
+    rpe.pesoMaximo = 110;
+    rpe.cantidadMuestrasRequeridas = 1;
+    rpe.magnitud = 'volumen';
+    em.persist(rpe);
+    addMuestra(em, { usuario: userA, etapa: etapaMezcla, timestamp: new Date('2026-11-01T10:00:00Z') });
+    // Horneado is not part of the ruta configuration: falls back to peso.
+    addMuestra(em, { usuario: userA, etapa: etapaHorno, timestamp: new Date('2026-11-01T09:00:00Z') });
+    await em.flush();
+
+    const r = await historialService.list(orm.em.fork(), userA.id, base);
+
+    expect(r.items.map((i) => [i.etapa.nombre, i.magnitud])).toEqual([
+      ['Mezcla', 'volumen'],
+      ['Horneado', 'peso'],
+    ]);
+    expect(r.kpis.total).toBe(2);
+  });
+
   it('orders newest first', async () => {
     const em = orm.em.fork();
     addMuestra(em, { usuario: userA, etapa: etapaMezcla, observacion: 'vieja', timestamp: new Date('2026-10-01T10:00:00Z') });
