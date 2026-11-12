@@ -23,6 +23,9 @@ Se propuso originalmente como entidad N:M con `Artículo`, pero nunca se impleme
 ### Ruta de pasada (Configuración)
 Plantilla que define la secuencia de etapas y los parámetros de pesaje específicos para cada par `artículo-etapa` (peso ideal, mínimo, máximo y cantidad de muestras requeridas). Se gestiona a través de la entidad `RutaPasadaEtapa`.
 
+### Magnitud
+Lo que mide una etapa dentro de una ruta: `peso` (por defecto) o `volumen`. Se configura en cada `RutaPasadaEtapa`. Es solo un rótulo: una etapa de volumen se pesa igual que cualquier otra y el valor se guarda en kg sin conversión (1 kg = 1 L); en pantalla y en los reportes los kg se muestran como L y los g como mL.
+
 ### Pasada (Ejecución)
 Ejecución física y cronológica de la ruta configurada en la línea de producción. Una pasada vincula un operario con un artículo en una línea específica. El número de pasada es un contador autoincremental por artículo en esa línea que se resetea al cambiar de artículo.
 

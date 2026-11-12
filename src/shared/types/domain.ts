@@ -8,6 +8,9 @@ export type EstadoPasada = 'en_curso' | 'completa' | 'abortada' | 'parada';
 /** Source unit of measure a physical scale transmits for weight readings. */
 export type UnidadPeso = 'g' | 'kg';
 
+/** Magnitude a ruta-etapa measures. Volumen is only a label: values are still weighed and stored in kg (1 kg = 1 L). */
+export type Magnitud = 'peso' | 'volumen';
+
 // ─── Shared detail shapes (used as nested objects in API responses) ───────────
 
 /** Inline etapa reference returned inside RutaPasadaEtapa */
@@ -117,6 +120,8 @@ export interface RutaPasadaEtapa {
   toleranciaPorDefecto?: boolean;
   /** Own tolerance in percent; null when toleranciaPorDefecto is true. */
   toleranciaPct?: number | null;
+  /** Defaults to 'peso' when omitted. */
+  magnitud?: Magnitud;
 }
 
 /** Used when creating or updating a ruta — etapa is sent as an ID */
@@ -130,6 +135,8 @@ export interface RutaPasadaEtapaCreate {
   cantidadMuestrasRequeridas: number;
   toleranciaPorDefecto?: boolean;
   toleranciaPct?: number | null;
+  /** Defaults to 'peso' when omitted. */
+  magnitud?: Magnitud;
 }
 
 export interface Ruta {

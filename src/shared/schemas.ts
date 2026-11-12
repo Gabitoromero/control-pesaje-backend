@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { UsuarioRol, SectorUsuario } from './types.js';
+import { MAGNITUDES } from './constants.js';
 
 // ─── Usuario ─────────────────────────────────────────────────────────────────
 
@@ -150,6 +151,8 @@ export const RutaPasadaEtapaCreateSchema = z.object({
     })
     .nullable()
     .optional(),
+  // Magnitude the etapa measures. Label only: weights stay in kg (1 kg = 1 L). Omitted means 'peso' on a new etapa.
+  magnitud: z.enum(MAGNITUDES).optional(),
 });
 
 export const RutaPasadaEtapaUpdateSchema = RutaPasadaEtapaCreateSchema.partial();

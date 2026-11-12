@@ -3,6 +3,8 @@ import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { Muestra, MuestraEstadoValidacion } from '../models/Muestra.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
+import { MAGNITUD_POR_DEFECTO } from '../shared/constants.js';
+import type { Magnitud } from '../shared/types/domain.js';
 import type { SectorUsuario } from '../shared/types.js';
 
 // ── Response DTOs ────────────────────────────────────────────────────────────
@@ -47,6 +49,8 @@ export interface TimeSeriesPunto {
 
 export interface EtapaDto {
   etapa: { id: number; nombre: string };
+  /** Magnitude the ruta-etapa measures; weights below stay in kg (1 kg = 1 L). */
+  magnitud: Magnitud;
   pesoIdeal: number;
   pesoMinimo: number;
   pesoMaximo: number;
@@ -210,6 +214,7 @@ export const dashboardService = {
 
       return {
         etapa: { id: ce.etapa.id, nombre: ce.etapa.nombre },
+        magnitud: ce.magnitud ?? MAGNITUD_POR_DEFECTO,
         pesoIdeal: Number(ce.pesoIdeal),
         pesoMinimo: Number(ce.pesoMinimo),
         pesoMaximo: Number(ce.pesoMaximo),

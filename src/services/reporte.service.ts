@@ -5,7 +5,10 @@ import { Pasada, PasadaEstado } from '../models/Pasada.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { RutaPasada } from '../models/RutaPasada.js';
 import { ArticuloRutaPasada } from '../models/ArticuloRutaPasada.js';
+import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
 import { PESO_DECIMALS } from '../shared/constants.js';
+import { unidadLabel } from '../shared/peso.js';
+import type { Magnitud } from '../shared/types/domain.js';
 
 const collator = new Intl.Collator('es', { sensitivity: 'base', numeric: true });
 const boolLabel = (b: boolean): 'Sí' | 'No' => (b ? 'Sí' : 'No');
@@ -50,6 +53,25 @@ const assignLineSheetNames = (lineas: ReadonlyArray<{ id: number; nombre: string
   return names;
 };
 
+/** Unit of a reported value: weights are stored in kg, and a volumen etapa reads them as L (1 kg = 1 L, no conversion). */
+const unidadReporte = (magnitud?: Magnitud): string => unidadLabel('kg', magnitud);
+
+type MagnitudLookup = (rutaId: number | undefined, etapaId: number | undefined) => Magnitud | undefined;
+
+/**
+ * Magnitud of each ruta-etapa as configured today. Muestras do not snapshot it, so a report labels past
+ * samples with the current configuration; an etapa no longer in its ruta falls back to peso.
+ */
+async function loadMagnitudes(em: EntityManager, rutaIds: Iterable<number | undefined>): Promise<MagnitudLookup> {
+  const ids = [...new Set([...rutaIds].filter((id): id is number => id !== undefined))];
+  const byKey = new Map<string, Magnitud | undefined>();
+  if (ids.length > 0) {
+    const rutaEtapas = await em.find(RutaPasadaEtapa, { rutaPasada: { $in: ids } });
+    for (const re of rutaEtapas) byKey.set(`${re.rutaPasada.id}:${re.etapa.id}`, re.magnitud);
+  }
+  return (rutaId, etapaId) => byKey.get(`${rutaId}:${etapaId}`);
+}
+
 function addSinDatosSheet(workbook: exceljs.Workbook): void {
   const sheet = workbook.addWorksheet('Sin datos');
   sheet.getCell('A1').value = 'Sin datos para el rango seleccionado';
@@ -76,6 +98,8 @@ export const reporteService = {
       return workbook;
     }
 
+    const magnitudDe = await loadMagnitudes(em, muestras.map((m) => m.rutaPasada.id));
+
     const sheet = workbook.addWorksheet('Muestras');
     sheet.columns = [
       { header: 'Línea de Producción', key: 'linea', width: 20 },
@@ -87,10 +111,11 @@ export const reporteService = {
       { header: 'Artículo', key: 'articulo', width: 20 },
       { header: 'Etapa', key: 'etapa', width: 20 },
       { header: 'Fecha/Hora Muestra', key: 'fechaHora', width: 20 },
-      { header: 'Peso Neto (kg)', key: 'peso', width: 15 },
-      { header: 'Límite Mín (kg)', key: 'limiteMin', width: 15 },
-      { header: 'Peso Ideal (kg)', key: 'pesoIdeal', width: 15 },
-      { header: 'Límite Máx (kg)', key: 'limiteMax', width: 15 },
+      { header: 'Neto', key: 'peso', width: 15 },
+      { header: 'Límite Mín', key: 'limiteMin', width: 15 },
+      { header: 'Ideal', key: 'pesoIdeal', width: 15 },
+      { header: 'Límite Máx', key: 'limiteMax', width: 15 },
+      { header: 'Unidad', key: 'unidad', width: 10 },
       { header: 'Validación', key: 'validacion', width: 15 },
       { header: 'Observación Muestra', key: 'obs', width: 30 },
       { header: 'Operario', key: 'operario', width: 20 },
@@ -112,6 +137,7 @@ export const reporteService = {
         limiteMin: m.pesoMinimo !== undefined ? Number(m.pesoMinimo) : '-',
         pesoIdeal: m.pesoIdeal !== undefined ? Number(m.pesoIdeal) : '-',
         limiteMax: m.pesoMaximo !== undefined ? Number(m.pesoMaximo) : '-',
+        unidad: unidadReporte(magnitudDe(m.rutaPasada.id, m.etapa.id)),
         validacion: m.estadoValidacion === MuestraEstadoValidacion.OK ? 'ok' : 'fuera de rango',
         obs: m.observacion ?? '-',
         operario: m.usuario.nombreApellido,
@@ -183,6 +209,7 @@ export const reporteService = {
     }
 
     const sheetNames = assignLineSheetNames(lineas.map((g) => g.linea));
+    const magnitudDe = await loadMagnitudes(em, pasadas.map((p) => p.rutaPasada.id));
 
     for (const grupo of lineas) {
       const sheet = workbook.addWorksheet(sheetNames.get(grupo.linea.id)!);
@@ -207,7 +234,8 @@ export const reporteService = {
         { header: 'Observación Cierre', key: 'obs', width: 30 },
         { header: 'Etapa', key: 'etapa', width: 20 },
         { header: 'Total Muestras Etapa', key: 'totalEtapa', width: 15 },
-        { header: 'Promedio Peso Neto Etapa (kg)', key: 'promedioEtapa', width: 20 },
+        { header: 'Promedio Neto Etapa', key: 'promedioEtapa', width: 20 },
+        { header: 'Unidad', key: 'unidad', width: 10 },
       ];
       sheet.getRow(1).font = { bold: true };
 
@@ -245,24 +273,25 @@ export const reporteService = {
           obs: p.observacionCierre ?? '-',
         };
 
-        const pesosPorEtapa = new Map<string, number[]>();
+        const pesosPorEtapa = new Map<string, { etapaId: number | undefined; pesos: number[] }>();
         for (const m of pm) {
-          if (!pesosPorEtapa.has(m.etapa.nombre)) pesosPorEtapa.set(m.etapa.nombre, []);
-          pesosPorEtapa.get(m.etapa.nombre)!.push(Number(m.pesoNeto));
+          if (!pesosPorEtapa.has(m.etapa.nombre)) pesosPorEtapa.set(m.etapa.nombre, { etapaId: m.etapa.id, pesos: [] });
+          pesosPorEtapa.get(m.etapa.nombre)!.pesos.push(Number(m.pesoNeto));
         }
 
         if (pesosPorEtapa.size === 0) {
-          sheet.addRow({ ...pasadaFields, etapa: '-', totalEtapa: '-', promedioEtapa: '-' });
+          sheet.addRow({ ...pasadaFields, etapa: '-', totalEtapa: '-', promedioEtapa: '-', unidad: '-' });
           continue;
         }
 
-        for (const [etapa, pesos] of pesosPorEtapa.entries()) {
+        for (const [etapa, { etapaId, pesos }] of pesosPorEtapa.entries()) {
           const avg = pesos.reduce((acc, v) => acc + v, 0) / pesos.length;
           sheet.addRow({
             ...pasadaFields,
             etapa: etapa,
             totalEtapa: pesos.length,
             promedioEtapa: avg.toFixed(PESO_DECIMALS),
+            unidad: unidadReporte(magnitudDe(p.rutaPasada.id, etapaId)),
           });
         }
       }
@@ -301,9 +330,10 @@ export const reporteService = {
       { header: 'Etapa', key: 'etapa_nombre', width: 25 },
       { header: 'Descripción Etapa', key: 'etapa_descripcion', width: 30 },
       { header: 'Etapa Activa', key: 'etapa_activa', width: 12 },
-      { header: 'Peso Ideal (kg)', key: 'peso_ideal', width: 16 },
-      { header: 'Peso Mínimo (kg)', key: 'peso_minimo', width: 16 },
-      { header: 'Peso Máximo (kg)', key: 'peso_maximo', width: 16 },
+      { header: 'Ideal', key: 'peso_ideal', width: 16 },
+      { header: 'Mínimo', key: 'peso_minimo', width: 16 },
+      { header: 'Máximo', key: 'peso_maximo', width: 16 },
+      { header: 'Unidad', key: 'unidad', width: 10 },
       { header: 'Muestras Requeridas', key: 'cantidad_muestras_requeridas', width: 20 },
     ];
     rutasSheet.getRow(1).font = { bold: true };
@@ -330,6 +360,7 @@ export const reporteService = {
           peso_ideal: null,
           peso_minimo: null,
           peso_maximo: null,
+          unidad: null,
           cantidad_muestras_requeridas: null,
         });
         continue;
@@ -347,6 +378,7 @@ export const reporteService = {
           peso_ideal: Number(rpe.pesoIdeal),
           peso_minimo: Number(rpe.pesoMinimo),
           peso_maximo: Number(rpe.pesoMaximo),
+          unidad: unidadReporte(rpe.magnitud),
           cantidad_muestras_requeridas: rpe.cantidadMuestrasRequeridas,
         });
         for (const key of ['peso_ideal', 'peso_minimo', 'peso_maximo']) {

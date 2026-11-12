@@ -1,5 +1,7 @@
 import type { EntityManager } from '@mikro-orm/core';
-import { MuestraEstadoValidacion } from '../models/Muestra.js';
+import type { MuestraEstadoValidacion } from '../models/Muestra.js';
+import { MAGNITUD_POR_DEFECTO } from '../shared/constants.js';
+import type { Magnitud } from '../shared/types/domain.js';
 
 export const HISTORIAL_MAX_PAGE_SIZE = 100;
 export const HISTORIAL_DEFAULT_PAGE_SIZE = 20;
@@ -27,6 +29,7 @@ interface HistorialRow {
   pasada_id: number | string | null;
   etapa_id: number | string;
   etapa_nombre: string;
+  magnitud: Magnitud | null; // null when the etapa is no longer configured in the ruta (left join)
   ruta_id: number | string;
   ruta_nombre: string;
   articulo_id: number | string | null;
@@ -45,6 +48,8 @@ export interface HistorialItemDto {
   observacion: string | null;
   pasadaId: number | null;
   etapa: { id: number; nombre: string };
+  /** Magnitud of the etapa as configured today in its ruta; peso when the etapa is no longer part of it. */
+  magnitud: Magnitud;
   rutaPasada: { id: number; nombre: string };
   articulo: { id: number; codigo: string; nombre: string | null } | null;
 }
@@ -146,9 +151,12 @@ export const historialService = {
       `select m.id, m.timestamp, m.peso_neto, m.peso_ideal, m.peso_minimo, m.peso_maximo,
               m.estado_validacion, m.observacion, m.pasada_id,
               e.id as etapa_id, e.nombre as etapa_nombre,
+              rpe.magnitud as magnitud,
               r.id as ruta_id, r.nombre as ruta_nombre,
               a.id as articulo_id, a.codigo as articulo_codigo, a.nombre as articulo_nombre
-       ${FROM_SQL} ${where}
+       ${FROM_SQL}
+       left join ruta_pasada_etapa rpe on rpe.ruta_pasada_id = m.ruta_pasada_id and rpe.etapa_id = m.etapa_id
+       ${where}
        order by m.timestamp desc, m.id desc
        limit ? offset ?`,
       [...params, filtros.pageSize, offset],
@@ -165,6 +173,7 @@ export const historialService = {
       observacion: row.observacion ?? null,
       pasadaId: row.pasada_id === null ? null : Number(row.pasada_id),
       etapa: { id: Number(row.etapa_id), nombre: row.etapa_nombre },
+      magnitud: row.magnitud ?? MAGNITUD_POR_DEFECTO,
       rutaPasada: { id: Number(row.ruta_id), nombre: row.ruta_nombre },
       articulo:
         row.articulo_id === null

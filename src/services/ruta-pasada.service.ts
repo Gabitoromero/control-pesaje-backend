@@ -4,6 +4,8 @@ import { LineaProduccion } from '../models/LineaProduccion.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
 import { RestrictError, ValidationError } from '../utils/errors.js';
 import { RequiredEntityData } from '@mikro-orm/core';
+import { MAGNITUD_POR_DEFECTO } from '../shared/constants.js';
+import type { Magnitud } from '../shared/types/domain.js';
 
 type RutaPasadaEtapaInput = {
   id?: number;
@@ -15,6 +17,7 @@ type RutaPasadaEtapaInput = {
   cantidadMuestrasRequeridas: number;
   toleranciaPorDefecto?: boolean;
   toleranciaPct?: number | null;
+  magnitud?: Magnitud;
 };
 
 /**
@@ -36,6 +39,10 @@ const normalizeTolerancia = (e: RutaPasadaEtapaInput, isNew: boolean): RutaPasad
   }
   return e;
 };
+
+/** A brand new etapa measures peso unless told otherwise; an existing one keeps its stored magnitud if none is sent. */
+const normalizeMagnitud = (e: RutaPasadaEtapaInput, isNew: boolean): RutaPasadaEtapaInput =>
+  isNew && e.magnitud === undefined ? { ...e, magnitud: MAGNITUD_POR_DEFECTO } : e;
 
 export class RutaPasadaService extends BaseService<RutaPasada> {
   constructor() {
@@ -73,7 +80,7 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
 
     const { etapas: rawEtapas, ...rutaData } = data as RequiredEntityData<RutaPasada> & { etapas?: RutaPasadaEtapaInput[] };
     if (rawEtapas) this.assertUniqueOrden(rawEtapas);
-    const etapasInput = rawEtapas?.map((e) => normalizeTolerancia(e, true));
+    const etapasInput = rawEtapas?.map((e) => normalizeMagnitud(normalizeTolerancia(e, true), true));
 
     return em.transactional(async (tx) => {
       const etapas = etapasInput;
@@ -127,7 +134,7 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
             ? existingById.get(rawEtapaData.id)
             : existingByEtapaId.get(rawEtapaData.etapa);
           // A brand new etapa defaults to the global tolerance; an existing one keeps its stored value if none is sent.
-          const etapaData = normalizeTolerancia(rawEtapaData, !existing);
+          const etapaData = normalizeMagnitud(normalizeTolerancia(rawEtapaData, !existing), !existing);
 
           if (existing) {
             const { id: _, toleranciaPct, ...updateData } = etapaData;

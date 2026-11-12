@@ -16,9 +16,10 @@ const SHEET1_HEADERS = [
   'Etapa',
   'Descripción Etapa',
   'Etapa Activa',
-  'Peso Ideal (kg)',
-  'Peso Mínimo (kg)',
-  'Peso Máximo (kg)',
+  'Ideal',
+  'Mínimo',
+  'Máximo',
+  'Unidad',
   'Muestras Requeridas',
 ];
 
@@ -85,7 +86,7 @@ describe('reporteService.generateReporteRutasPasada', () => {
     }
   });
 
-  it('writes 14 and 8 headers in the expected order', async () => {
+  it('writes 15 and 8 headers in the expected order', async () => {
     const wb = await reporteService.generateReporteRutasPasada(makeEm([]));
     expect(rowValues(wb.getWorksheet('Rutas y etapas')!, 1)).toEqual(SHEET1_HEADERS);
     expect(rowValues(wb.getWorksheet('Articulos')!, 1)).toEqual(SHEET2_HEADERS);
@@ -104,7 +105,7 @@ describe('reporteService.generateReporteRutasPasada', () => {
     const wb = await reporteService.generateReporteRutasPasada(makeEm([ruta]));
     const sheet = wb.getWorksheet('Rutas y etapas')!;
     expect(sheet.rowCount).toBe(2);
-    expect(rowValues(sheet, 2)).toEqual([1, 'Ruta A', 'desc ruta', 'Sí', 77, 1, 5, 'Etapa 5', 'desc etapa', 'Sí', 12.5, 10, 15, 3]);
+    expect(rowValues(sheet, 2)).toEqual([1, 'Ruta A', 'desc ruta', 'Sí', 77, 1, 5, 'Etapa 5', 'desc etapa', 'Sí', 12.5, 10, 15, 'kg', 3]);
   });
 
   it('sorts rutas by nombre with accent-insensitive collation and etapas by orden', async () => {

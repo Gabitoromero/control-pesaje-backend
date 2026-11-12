@@ -142,6 +142,22 @@ describe('Dashboard Integration Tests', () => {
   });
 
   describe('GET /api/dashboard/:lineaId/etapas', () => {
+    it('returns the magnitud of each ruta-etapa, defaulting to peso', async () => {
+      mockEm.findOne.mockResolvedValue({ id: 1, rutaAsignadaAt: new Date(), rutaPasadaActiva: { id: 10 } });
+      mockEm.find.mockResolvedValueOnce([]); // mock muestras
+      mockEm.find.mockResolvedValueOnce([
+        { etapa: { id: 1, nombre: 'Etapa 1' }, pesoMinimo: 90, pesoMaximo: 110, pesoIdeal: 100, magnitud: 'volumen' },
+        { etapa: { id: 2, nombre: 'Etapa 2' }, pesoMinimo: 90, pesoMaximo: 110, pesoIdeal: 100, magnitud: 'peso' },
+        { etapa: { id: 3, nombre: 'Etapa 3' }, pesoMinimo: 90, pesoMaximo: 110, pesoIdeal: 100 },
+      ]); // mock configEtapas
+      const res = await request(app)
+        .get('/api/dashboard/1/etapas')
+        .set('Authorization', `Bearer ${adminToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((e: { magnitud: string }) => e.magnitud)).toEqual(['volumen', 'peso', 'peso']);
+    });
+
     it('returns etapas with aggregated data', async () => {
       mockEm.findOne.mockResolvedValue({ id: 1, rutaAsignadaAt: new Date(), rutaPasadaActiva: { id: 10 } });
       mockEm.find.mockResolvedValueOnce([

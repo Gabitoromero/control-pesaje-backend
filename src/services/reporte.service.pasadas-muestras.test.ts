@@ -76,11 +76,11 @@ const PASADAS_HEADERS = [
   'Línea de Producción', 'Balanza', 'Ruta', 'N° Pasada', 'Observación Pasada', 'Código', 'Artículo', 'Estado Pasada',
   'Inicio', 'Cierre', 'Duración (min)', 'Responsable', 'Total Muestras Pasada', 'Conformes Pasada',
   'Fuera de Rango Pasada', '% Conforme Pasada', 'Motivo de Cierre', 'Observación Cierre',
-  'Etapa', 'Total Muestras Etapa', 'Promedio Peso Neto Etapa (kg)',
+  'Etapa', 'Total Muestras Etapa', 'Promedio Neto Etapa', 'Unidad',
 ];
 const MUESTRAS_HEADERS = [
   'Línea de Producción', 'Balanza', 'Ruta', 'N° Pasada', 'Estado Pasada', 'Código', 'Artículo', 'Etapa',
-  'Fecha/Hora Muestra', 'Peso Neto (kg)', 'Límite Mín (kg)', 'Peso Ideal (kg)', 'Límite Máx (kg)', 'Validación',
+  'Fecha/Hora Muestra', 'Neto', 'Límite Mín', 'Ideal', 'Límite Máx', 'Unidad', 'Validación',
   'Observación Muestra', 'Operario',
 ];
 
@@ -114,8 +114,8 @@ describe('reporteService.generateReportePasadas', () => {
       'Linea 1', 'Balanza 1', 'Ruta 1', 'P-001', 'nota inicio', 'A-001', 'Articulo 1', 'CERRADA',
       '01/01/2023 09:00', '01/01/2023 11:30', 150, 'Juan Perez', 3, 2, 1, '66.7', 'Fin de lote', 'nota cierre',
     ];
-    expect(rowValues(sheet, 2)).toEqual([...pasadaFields, 'Etapa A', 2, '97.5000']);
-    expect(rowValues(sheet, 3)).toEqual([...pasadaFields, 'Etapa B', 1, '50.0000']);
+    expect(rowValues(sheet, 2)).toEqual([...pasadaFields, 'Etapa A', 2, '97.5000', 'kg']);
+    expect(rowValues(sheet, 3)).toEqual([...pasadaFields, 'Etapa B', 1, '50.0000', 'kg']);
     expect(sheet.rowCount).toBe(3);
   });
 
@@ -124,7 +124,7 @@ describe('reporteService.generateReportePasadas', () => {
     expect(rowValues(sheet, 2)).toEqual([
       'Linea 2', '-', 'Ruta 2', 'P-002', '-', '-', '-', 'EN CURSO',
       '02/01/2023 08:05', '-', '-', 'Ana Gomez', 0, 0, 0, '0.0', '-', '-',
-      '-', '-', '-',
+      '-', '-', '-', '-',
     ]);
     expect(sheet.rowCount).toBe(2);
   });
@@ -255,19 +255,19 @@ describe('reporteService.generateReporteMuestras', () => {
     const sheet = (await generate()).getWorksheet('Muestras')!;
     expect(rowValues(sheet, 2)).toEqual([
       'Linea 1', 'Balanza 1', 'Ruta 1', 'P-001', 'CERRADA', 'A-001', 'Articulo 1', 'Etapa A',
-      '01/01/2023 10:00', 100, 90, 100, 110, 'ok', 'ninguna', 'Juan Perez',
+      '01/01/2023 10:00', 100, 90, 100, 110, 'kg', 'ok', 'ninguna', 'Juan Perez',
     ]);
   });
 
   it('keeps validation text, colors and "-" placeholders; muestras without pasada are highlighted', async () => {
     const sheet = (await generate()).getWorksheet('Muestras')!;
-    expect(rowValues(sheet, 3)[13]).toBe('fuera de rango');
-    expect(rowValues(sheet, 3)[14]).toBe('-');
+    expect(rowValues(sheet, 3)[14]).toBe('fuera de rango');
+    expect(rowValues(sheet, 3)[15]).toBe('-');
     expect(sheet.getRow(2).getCell('validacion').fill).toMatchObject({ fgColor: { argb: 'FF92D050' } });
     expect(sheet.getRow(3).getCell('validacion').fill).toMatchObject({ fgColor: { argb: 'FFFF0000' } });
     expect(rowValues(sheet, 5)).toEqual([
       'Linea 1', '-', 'Ruta 1', '-', '-', '-', '-', 'Etapa A',
-      '01/01/2023 12:00', 100, '-', '-', '-', 'ok', 'ninguna', 'Juan Perez',
+      '01/01/2023 12:00', 100, '-', '-', '-', 'kg', 'ok', 'ninguna', 'Juan Perez',
     ]);
     expect(sheet.getRow(5).getCell('linea').fill).toMatchObject({ fgColor: { argb: 'FFFFFF00' } });
   });

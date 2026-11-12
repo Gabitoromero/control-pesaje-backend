@@ -1,7 +1,8 @@
 import { Entity, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
 import { Etapa } from './Etapa.js';
 import { RutaPasada } from './RutaPasada.js';
-import { PESO_DECIMALS } from '../shared/constants.js';
+import { MAGNITUD_POR_DEFECTO, PESO_DECIMALS } from '../shared/constants.js';
+import type { Magnitud } from '../shared/types/domain.js';
 
 @Entity({ tableName: 'ruta_pasada_etapa' })
 @Unique({ properties: ['rutaPasada', 'etapa'] })
@@ -37,4 +38,8 @@ export class RutaPasadaEtapa {
   /** Own symmetric tolerance in percent, only meaningful when toleranciaPorDefecto is false. */
   @Property({ type: 'decimal', columnType: 'decimal(5,2)', nullable: true, serializer: value => (value == null ? null : Number(value)) })
   toleranciaPct?: number | null;
+
+  /** Magnitude the etapa measures. Label only: a volumen etapa is still weighed and stored in kg (1 kg = 1 L). */
+  @Property({ type: 'string', columnType: 'varchar(10)', default: MAGNITUD_POR_DEFECTO, check: `"magnitud" in ('peso', 'volumen')` })
+  magnitud?: Magnitud = MAGNITUD_POR_DEFECTO;
 }
