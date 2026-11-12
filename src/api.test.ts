@@ -41,6 +41,7 @@ const operarioToken = () => makeToken(UsuarioRol.OPERARIO, 3);
 
 const mockEm = {
   find: vi.fn(),
+  findAndCount: vi.fn(),
   findOne: vi.fn(),
   create: vi.fn(),
   assign: vi.fn(),
@@ -89,10 +90,9 @@ beforeEach(() => {
 
 describe('4.1 — soft-delete filter (GET /api/articulos only returns active records)', () => {
   it('returns only items returned by the EM (filter applied at DB level via @Filter)', async () => {
-    // findAll() explicitly filters { activo: true } in BaseService.
-    // Here we assert the list endpoint forwards EM.find() result as-is.
+    // The paginated catalog adapter filters { activo: true } in the database query.
     const active = [{ id: 1, nombre: 'A', activo: true }];
-    mockEm.find.mockResolvedValue(active);
+    mockEm.findAndCount.mockResolvedValue([active, 1]);
 
     const res = await request(app)
       .get('/api/articulos')
@@ -100,19 +100,20 @@ describe('4.1 — soft-delete filter (GET /api/articulos only returns active rec
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toEqual(active);
-    expect(mockEm.find).toHaveBeenCalledOnce();
+    expect(res.body.data).toEqual({ items: active, total: 1, page: 1, pageSize: 20 });
+    expect(mockEm.findAndCount).toHaveBeenCalledOnce();
+    expect(mockEm.find).not.toHaveBeenCalled();
   });
 
-  it('returns empty array when all records are soft-deleted (EM returns [])', async () => {
-    mockEm.find.mockResolvedValue([]);
+  it('returns an empty page when all records are soft-deleted (EM returns [])', async () => {
+    mockEm.findAndCount.mockResolvedValue([[], 0]);
 
     const res = await request(app)
       .get('/api/articulos')
       .set('Authorization', `Bearer ${adminToken()}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual([]);
+    expect(res.body.data).toEqual({ items: [], total: 0, page: 1, pageSize: 20 });
   });
 });
 
@@ -528,6 +529,9 @@ describe('Line Sessions (v1.5)', () => {
 
 // ─── 4.6  GET /inactive routes ────────────────────────────────────────────────
 
+// Catalogs served through the paginated adapter ({ items, total, page, pageSize }).
+const paginatedInactive = new Set(['articulos', 'etapas', 'usuarios']);
+
 const inactiveEntities = [
   { path: '/api/articulos/inactive', name: 'articulos' },
   { path: '/api/etapas/inactive', name: 'etapas' },
@@ -537,9 +541,10 @@ const inactiveEntities = [
 
 describe('4.6 — GET /inactive routes', () => {
   // T-06: valid JWT → 200 with empty data array
-  for (const { path } of inactiveEntities) {
-    it(`T-06: GET ${path} returns 200 { success: true, data: [] } when no inactive records`, async () => {
+  for (const { path, name } of inactiveEntities) {
+    it(`T-06: GET ${path} returns 200 { success: true } with no data when no inactive records`, async () => {
       mockEm.find.mockResolvedValue([]);
+      mockEm.findAndCount.mockResolvedValue([[], 0]);
 
       const res = await request(app)
         .get(path)
@@ -547,7 +552,9 @@ describe('4.6 — GET /inactive routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data).toEqual([]);
+      expect(res.body.data).toEqual(
+        paginatedInactive.has(name) ? { items: [], total: 0, page: 1, pageSize: 20 } : [],
+      );
     });
   }
 
@@ -559,6 +566,7 @@ describe('4.6 — GET /inactive routes', () => {
     it(`T-07: GET ${path} returns 200 with inactive records`, async () => {
       const inactive = [{ id: 1, nombre: `${name}-inactive`, activo: false }];
       mockEm.find.mockResolvedValue(inactive);
+      mockEm.findAndCount.mockResolvedValue([inactive, inactive.length]);
 
       const res = await request(app)
         .get(path)
@@ -566,7 +574,11 @@ describe('4.6 — GET /inactive routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data).toEqual(inactive);
+      expect(res.body.data).toEqual(
+        paginatedInactive.has(name)
+          ? { items: inactive, total: inactive.length, page: 1, pageSize: 20 }
+          : inactive,
+      );
     });
   }
 
@@ -585,19 +597,19 @@ describe('4.6 — GET /inactive routes', () => {
     );
   });
 
-  // T-07 (deeper): assert findAllInactive calls em.find with { activo: false }
-  it('T-07 (deep): GET /api/articulos/inactive calls em.find with { activo: false }', async () => {
+  // T-07 (deeper): assert the inactive list queries the database with { activo: false }
+  it('T-07 (deep): GET /api/articulos/inactive calls em.findAndCount with { activo: false }', async () => {
     const inactive = [{ id: 10, nombre: 'Stale Articulo', activo: false }];
-    mockEm.find.mockResolvedValue(inactive);
+    mockEm.findAndCount.mockResolvedValue([inactive, 1]);
 
     const res = await request(app)
       .get('/api/articulos/inactive')
       .set('Authorization', `Bearer ${adminToken()}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual(inactive);
-    expect(mockEm.find).toHaveBeenCalledOnce();
-    const [, where] = mockEm.find.mock.calls[0];
+    expect(res.body.data.items).toEqual(inactive);
+    expect(mockEm.findAndCount).toHaveBeenCalledOnce();
+    const [, where] = mockEm.findAndCount.mock.calls[0];
     expect(where).toMatchObject({ activo: false });
   });
 
@@ -611,7 +623,7 @@ describe('4.6 — GET /inactive routes', () => {
 
   // T-09 (usuarios): non-admin JWT → 200 (no role guard on /inactive)
   it('T-09: GET /api/usuarios/inactive with operario JWT → 200 (no role guard)', async () => {
-    mockEm.find.mockResolvedValue([]);
+    mockEm.findAndCount.mockResolvedValue([[], 0]);
 
     const res = await request(app)
       .get('/api/usuarios/inactive')

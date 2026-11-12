@@ -39,9 +39,13 @@ const positiveInteger = z
   .pipe(z.number().int().positive());
 
 /** Each catalog supplies its own public field allowlists, not SQL expressions. */
-export function createPaginationQuerySchema(fields: PaginationFields) {
+export function createPaginationQuerySchema(
+  fields: PaginationFields,
+  extra: z.ZodRawShape = {},
+) {
   return z
     .object({
+      ...extra,
       page: positiveInteger.default(1),
       pageSize: positiveInteger
         .pipe(z.number().max(MAX_PAGE_SIZE))
