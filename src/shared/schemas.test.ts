@@ -335,6 +335,20 @@ describe('PasadaIniciarSchema', () => {
     expect(parsed.observacion).toBe('lote nuevo de materia prima');
   });
 
+  it('accepts rutaPasadaId together with verificacion=true', () => {
+    const parsed = PasadaIniciarSchema.parse({ lineaProduccionId: 1, idBalanza: 3, verificacion: true, rutaPasadaId: 457 });
+    expect(parsed.rutaPasadaId).toBe(457);
+  });
+
+  it('rejects rutaPasadaId without verificacion=true (it must not pick the route of a normal pasada)', () => {
+    expect(PasadaIniciarSchema.safeParse({ lineaProduccionId: 1, idBalanza: 3, rutaPasadaId: 457 }).success).toBe(false);
+    expect(PasadaIniciarSchema.safeParse({ lineaProduccionId: 1, idBalanza: 3, verificacion: false, rutaPasadaId: 457 }).success).toBe(false);
+  });
+
+  it('rejects a non-positive rutaPasadaId', () => {
+    expect(PasadaIniciarSchema.safeParse({ lineaProduccionId: 1, idBalanza: 3, verificacion: true, rutaPasadaId: 0 }).success).toBe(false);
+  });
+
   it('accepts omitted observacion', () => {
     const parsed = PasadaIniciarSchema.parse({ lineaProduccionId: 1, idBalanza: 3 });
     expect(parsed.observacion).toBeUndefined();

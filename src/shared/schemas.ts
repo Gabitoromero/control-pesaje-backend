@@ -171,6 +171,12 @@ export const PasadaIniciarSchema = z.object({
   observacion: z.string().min(1).optional(),
   // Start the verification route (standard weights) instead of the line's active route.
   verificacion: z.boolean().optional(),
+  // Which verification route to run (the articulo with code 0 can have several). Only valid together
+  // with `verificacion: true`; without it the lowest-id verification route is used.
+  rutaPasadaId: z.number().int().positive().optional(),
+}).refine((data) => data.rutaPasadaId === undefined || data.verificacion === true, {
+  message: 'rutaPasadaId solo se puede enviar junto con verificacion: true',
+  path: ['rutaPasadaId'],
 });
 
 export const PasadaLineaParadaSchema = z.object({

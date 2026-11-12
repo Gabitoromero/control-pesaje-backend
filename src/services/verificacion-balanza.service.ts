@@ -11,20 +11,38 @@ export const esArticuloVerificacion = (articulo: Pick<Articulo, 'codigo'>): bool
   articulo.codigo === CODIGO_ARTICULO_VERIFICACION;
 
 /**
- * Resolves the verification route at runtime. If several rutas qualify, the lowest id wins.
+ * Resolves the verification route at runtime. With `rutaPasadaId` it returns that route only if it is
+ * an active verification route; without it, the lowest id among the qualifying rutas wins.
  */
 export async function resolverRutaVerificacion(
-  em: EntityManager
+  em: EntityManager,
+  rutaPasadaId?: number
 ): Promise<{ rutaPasada: RutaPasada; articulo: Articulo } | null> {
   const vinculo = await em.findOne(
     ArticuloRutaPasada,
     {
       articulo: { codigo: CODIGO_ARTICULO_VERIFICACION, activo: true },
-      rutaPasada: { activo: true },
+      rutaPasada: { activo: true, ...(rutaPasadaId !== undefined && { id: rutaPasadaId }) },
     },
     { orderBy: { rutaPasada: { id: 'ASC' } }, populate: ['articulo', 'rutaPasada'] }
   );
   return vinculo ? { rutaPasada: vinculo.rutaPasada, articulo: vinculo.articulo } : null;
+}
+
+/** Active rutas linked to the verification articulo (code 0), lowest id first. */
+export async function listarRutasVerificacion(em: EntityManager): Promise<RutaPasada[]> {
+  const vinculos = await em.find(
+    ArticuloRutaPasada,
+    {
+      articulo: { codigo: CODIGO_ARTICULO_VERIFICACION, activo: true },
+      rutaPasada: { activo: true },
+    },
+    { orderBy: { rutaPasada: { id: 'ASC' } }, populate: ['rutaPasada'] }
+  );
+  const vistas = new Set<number>();
+  return vinculos
+    .map((v) => v.rutaPasada)
+    .filter((r) => (vistas.has(r.id) ? false : (vistas.add(r.id), true)));
 }
 
 const mensajeBloqueo = (causa: string): string =>

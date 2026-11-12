@@ -11,7 +11,7 @@ const router: Router = Router();
 const service = new PasadaService();
 
 // Handlers from the custom factory (iniciar, list, getOne, update)
-const { iniciar, lineaParada, list, getOne, update } = createPasadaHandlers(service);
+const { iniciar, lineaParada, rutasVerificacion, list, getOne, update } = createPasadaHandlers(service);
 
 // softDelete comes from the base CRUD factory (REQ-P5: JEFE/ADMIN only)
 const { remove } = createCrudHandlers(service);
@@ -27,6 +27,8 @@ router.use(authenticateJWT);
 
 router.get('/', list);
 router.get('/inactive', createCrudHandlers(service).listInactive);
+// Must be declared before '/:id' or 'rutas-verificacion' would be read as an id
+router.get('/rutas-verificacion', rutasVerificacion);
 router.get('/:id', getOne);
 router.post('/', requireRoles(operatorRoles), validateBody(PasadaIniciarSchema), iniciar);
 router.post('/linea-parada', requireRoles(operatorRoles), validateBody(PasadaLineaParadaSchema), lineaParada);

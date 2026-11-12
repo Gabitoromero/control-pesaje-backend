@@ -13,6 +13,7 @@ import {
   evaluarBalanzaParaProducir,
   registrarVerificacionCompletada,
   resolverRutaVerificacion,
+  listarRutasVerificacion,
 } from './verificacion-balanza.service.js';
 
 export class PasadaService extends BaseService<Pasada> {
@@ -28,13 +29,19 @@ export class PasadaService extends BaseService<Pasada> {
     );
   }
 
+  async listarRutasVerificacion(): Promise<RutaPasada[]> {
+    return listarRutasVerificacion(this.getEm());
+  }
+
   async iniciarPasada(
     lineaProduccionId: number,
     idBalanza: number,
     usuarioId: number,
     observacion?: string,
     // Explicit request to start the verification route (standard weights, articulo code 0) from any line.
-    verificacion = false
+    verificacion = false,
+    // Which verification route to run; only meaningful with `verificacion`.
+    rutaVerificacionId?: number
   ): Promise<Pasada> {
     const em = this.getEm();
 
@@ -57,9 +64,13 @@ export class PasadaService extends BaseService<Pasada> {
         { id: lineaProduccionId },
         { lockMode: LockMode.PESSIMISTIC_WRITE, populate: ['rutaPasadaActiva', 'articulo'] }
       );
-      const verif = verificacion ? await resolverRutaVerificacion(txEm) : null;
+      const verif = verificacion ? await resolverRutaVerificacion(txEm, rutaVerificacionId) : null;
       if (verificacion && !verif) {
-        throw new Error('No se encontró la ruta de verificación (artículo con código 0)');
+        throw new Error(
+          rutaVerificacionId !== undefined
+            ? 'La ruta seleccionada no es una ruta de verificación activa'
+            : 'No se encontró la ruta de verificación (artículo con código 0)'
+        );
       }
       if (verif && !linea) {
         throw new Error(`La línea de producción ${lineaProduccionId} no existe`);

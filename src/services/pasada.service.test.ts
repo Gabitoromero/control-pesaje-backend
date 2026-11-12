@@ -270,6 +270,60 @@ describe('PasadaService Tests', () => {
       expect(verif.lineaProduccion.id).toBe(testLine.id);
     }));
 
+    const otraRutaDeVerificacion = async (nombre: string, activo = true) => {
+      const em = orm.em.fork();
+      const ruta = new RutaPasada();
+      ruta.nombre = nombre;
+      ruta.activo = activo;
+      await em.persist(ruta).flush();
+      const vinculo = new ArticuloRutaPasada();
+      vinculo.articulo = em.getReference(Articulo, articuloVerif.id);
+      vinculo.rutaPasada = ruta;
+      await em.persist(vinculo).flush();
+      return ruta;
+    };
+
+    it('starts the verification pasada on the chosen route when a ruta id is given', () => runInContext(async () => {
+      const otra = await otraRutaDeVerificacion('Verificación 10 GR');
+      await marcarBalanza(true, testArticle);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+
+      const verif = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id, undefined, true, otra.id);
+
+      expect(verif.rutaPasada.id).toBe(otra.id);
+      expect(verif.articulo.id).toBe(articuloVerif.id);
+    }));
+
+    it('rejects a ruta id that is not an active verification route and creates nothing', () => runInContext(async () => {
+      await marcarBalanza(true, testArticle);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+
+      await expect(
+        pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id, undefined, true, testRutaPasada.id)
+      ).rejects.toThrow('La ruta seleccionada no es una ruta de verificación activa');
+      expect(await orm.em.fork().count(Pasada, {})).toBe(0);
+    }));
+
+    it('keeps the lowest-id fallback when no ruta id is given', () => runInContext(async () => {
+      await otraRutaDeVerificacion('Verificación 20 GR');
+      await marcarBalanza(true, testArticle);
+      sesionService.iniciarSesion(testLine.id, testUser.id, UsuarioRol.OPERARIO);
+
+      const verif = await pasadaService.iniciarPasada(testLine.id, testBalanza.id, testUser.id, undefined, true);
+      expect(verif.rutaPasada.id).toBe(rutaVerif.id);
+    }));
+
+    it('lists only the active routes linked to the verification articulo, ordered by id', () => runInContext(async () => {
+      const a = await otraRutaDeVerificacion('Verificación A');
+      await otraRutaDeVerificacion('Verificación inactiva', false);
+
+      const rutas = await pasadaService.listarRutasVerificacion();
+
+      expect(rutas.map((r) => r.id)).toEqual([rutaVerif.id, a.id]);
+      expect(rutas.map((r) => r.nombre)).toEqual(['Verificación con pesas patrón', 'Verificación A']);
+      expect(rutas.map((r) => r.id)).not.toContain(testRutaPasada.id);
+    }));
+
     it('with the flag on the verification route can start from the calibration line', () => runInContext(async () => {
       await marcarBalanza(true, null);
       sesionService.iniciarSesion(lineaCalibracion.id, testUser.id, UsuarioRol.OPERARIO);
