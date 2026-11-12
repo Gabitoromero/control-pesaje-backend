@@ -48,6 +48,7 @@ function makeServiceMock() {
     abortarPasada: vi.fn(),
     softDelete: vi.fn(),
     findAllPopulated: vi.fn(),
+    listarRutasVerificacion: vi.fn(),
   };
 }
 
@@ -126,6 +127,32 @@ describe('createPasadaHandlers', () => {
 
       expect(service.iniciarPasada).toHaveBeenCalledWith(3, 5, 7, undefined, true);
       expect(mock.status).toHaveBeenCalledWith(201);
+    });
+  });
+
+  describe('iniciar with a chosen verification route', () => {
+    it('forwards rutaPasadaId as the 6th service arg', async () => {
+      service.iniciarPasada.mockResolvedValue({ id: 10, estado: 'en_curso' });
+      const req = makeReq({
+        body: { lineaProduccionId: 3, idBalanza: 5, verificacion: true, rutaPasadaId: 457 },
+        user: { id: 7, rol: UsuarioRol.OPERARIO, nombreUsuario: 'op', legajo: '00001', puedeTomarMuestrasLibres: false },
+      });
+      const { mock } = makeRes();
+
+      await handlers.iniciar(req, mock as unknown as Response, vi.fn());
+
+      expect(service.iniciarPasada).toHaveBeenCalledWith(3, 5, 7, undefined, true, 457);
+    });
+  });
+
+  describe('rutasVerificacion', () => {
+    it('returns the verification routes from the service', async () => {
+      service.listarRutasVerificacion.mockResolvedValue([{ id: 457, nombre: 'PP-1 (10GR)' }]);
+      const { mock } = makeRes();
+
+      await handlers.rutasVerificacion(makeReq(), mock as unknown as Response, vi.fn());
+
+      expect(mock.json).toHaveBeenCalledWith({ success: true, data: [{ id: 457, nombre: 'PP-1 (10GR)' }] });
     });
   });
 

@@ -926,6 +926,27 @@ describe('Pasadas HTTP Integration', () => {
     expect(res.body.data).toHaveLength(2);
   });
 
+  // ── GET /api/pasadas/rutas-verificacion ────────────────────────────────────
+
+  it('GET /api/pasadas/rutas-verificacion — lists the verification routes (not read as an :id)', async () => {
+    mockEm.find.mockResolvedValue([
+      { rutaPasada: { id: 457, nombre: 'PP-1 (10GR)' } },
+      { rutaPasada: { id: 464, nombre: 'PP-2 (20GR)' } },
+    ]);
+
+    const res = await request(app)
+      .get('/api/pasadas/rutas-verificacion')
+      .set('Authorization', `Bearer ${operarioToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((r: { id: number }) => r.id)).toEqual([457, 464]);
+  });
+
+  it('GET /api/pasadas/rutas-verificacion — 401 when no token', async () => {
+    const res = await request(app).get('/api/pasadas/rutas-verificacion');
+    expect(res.status).toBe(401);
+  });
+
   // ── GET /api/pasadas/:id ───────────────────────────────────────────────────
 
   it('GET /api/pasadas/:id — 200 when pasada exists', async () => {

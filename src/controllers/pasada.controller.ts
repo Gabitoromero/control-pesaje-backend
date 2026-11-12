@@ -7,6 +7,7 @@ import { UsuarioRol } from '../shared/types.js';
 export interface PasadaHandlers {
   iniciar: RequestHandler;
   lineaParada: RequestHandler;
+  rutasVerificacion: RequestHandler;
   list: RequestHandler;
   getOne: RequestHandler;
   update: RequestHandler;
@@ -17,6 +18,7 @@ export interface IniciarPasadaBody {
   idBalanza: number;
   observacion?: string;
   verificacion?: boolean;
+  rutaPasadaId?: number;
 }
 
 export interface LineaParadaBody {
@@ -46,11 +48,13 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
     try {
       // userId MUST come from the JWT payload, never from the body (REQ-P1)
       const userId = req.user!.id;
-      const { lineaProduccionId, idBalanza, observacion, verificacion } = req.body as IniciarPasadaBody;
+      const { lineaProduccionId, idBalanza, observacion, verificacion, rutaPasadaId } = req.body as IniciarPasadaBody;
 
       // `verificacion` is only forwarded when requested, so existing payloads behave exactly as before
       const pasada = verificacion === true
-        ? await service.iniciarPasada(lineaProduccionId, idBalanza, userId, observacion, true)
+        ? (rutaPasadaId !== undefined
+            ? await service.iniciarPasada(lineaProduccionId, idBalanza, userId, observacion, true, rutaPasadaId)
+            : await service.iniciarPasada(lineaProduccionId, idBalanza, userId, observacion, true))
         : await service.iniciarPasada(lineaProduccionId, idBalanza, userId, observacion);
       res.status(201).json({ success: true, data: pasada });
     } catch (err) {
@@ -74,6 +78,15 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
         res.status(422).json({ success: false, error: { message: err.message } });
         return;
       }
+      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
+    }
+  };
+
+  const rutasVerificacion: RequestHandler = async (_req, res) => {
+    try {
+      const rutas = await service.listarRutasVerificacion();
+      res.json({ success: true, data: rutas });
+    } catch {
       res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
     }
   };
@@ -179,5 +192,5 @@ export function createPasadaHandlers(service: PasadaService): PasadaHandlers {
     }
   };
 
-  return { iniciar, lineaParada, list, getOne, update };
+  return { iniciar, lineaParada, rutasVerificacion, list, getOne, update };
 }
