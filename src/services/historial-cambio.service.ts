@@ -119,7 +119,12 @@ export const listHistorialCambio = async (em: EntityManager, q: HistorialCambioQ
     antes: r.antes,
     despues: r.despues,
     usuario: r.usuario
-      ? { id: r.usuario.id, nombreApellido: r.usuario.nombreApellido, nombreUsuario: r.usuario.nombreUsuario }
+      ? {
+          id: r.usuario.id,
+          nombreApellido: r.usuario.nombreApellido,
+          nombreUsuario: r.usuario.nombreUsuario,
+          sector: r.usuario.datosAdicionales?.sector ?? null,
+        }
       : null,
   }));
 
