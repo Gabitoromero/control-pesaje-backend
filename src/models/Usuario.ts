@@ -20,7 +20,8 @@ export class Usuario {
   @Property({ type: 'string', length: 5 })
   legajo!: string;
 
-  @Property({ type: 'string', length: 255 })
+  // hidden: never part of toJSON/toObject, so no endpoint can leak it by returning the entity.
+  @Property({ type: 'string', length: 255, hidden: true })
   pinHash!: string;
 
   @Property({ type: 'boolean', default: false })
