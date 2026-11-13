@@ -74,7 +74,7 @@ describe('createLineaProduccionHandlers', () => {
     handlers = createLineaProduccionHandlers(service as never);
   });
 
-  describe('list / getOne DTO', () => {
+  describe('getOne DTO', () => {
     const linea = {
       id: 1,
       nombre: 'Linea 1',
@@ -85,30 +85,6 @@ describe('createLineaProduccionHandlers', () => {
       articulo: { id: 6 },
       observacion: 'linea reservada para lote especial',
     };
-
-    it('includes observacion in list output', async () => {
-      service.findAll.mockResolvedValue([linea]);
-
-      const req = makeReq();
-      const { mock } = makeRes();
-
-      await handlers.list(req, mock as unknown as Response, vi.fn());
-
-      const data = (mock.body as { data: Array<{ observacion?: string }> }).data;
-      expect(data[0].observacion).toBe('linea reservada para lote especial');
-    });
-
-    it('includes observacion as null in list output when unset', async () => {
-      service.findAll.mockResolvedValue([{ ...linea, observacion: null }]);
-
-      const req = makeReq();
-      const { mock } = makeRes();
-
-      await handlers.list(req, mock as unknown as Response, vi.fn());
-
-      const data = (mock.body as { data: Array<{ observacion: unknown }> }).data;
-      expect(data[0].observacion).toBeNull();
-    });
 
     it('includes observacion in getOne output', async () => {
       service.findById.mockResolvedValue(linea);
@@ -144,6 +120,26 @@ describe('createLineaProduccionHandlers', () => {
 
       const data = (mock.body as { data: { observacion?: string } }).data;
       expect(data.observacion).toBe('nota de la linea');
+    });
+
+    it('disconnects both the new and the replaced device socket on a swap', async () => {
+      vi.mocked(disconnectDeviceByHardwareId).mockClear();
+      const hardwareId = '123e4567-e89b-12d3-a456-426614174000';
+      const previousHardwareId = '223e4567-e89b-12d3-a456-426614174000';
+      vi.mocked(assignHardwareIdToLinea).mockResolvedValue({
+        linea: { id: 1, nombre: 'Linea 1', activo: true } as never,
+        dispositivo: { hardwareId, nombre: 'Pi-1234', ultimaConexionAt: null } as never,
+        previousHardwareId,
+      });
+
+      const req = makeReq({ params: { id: '1' }, body: { hardwareId } });
+      const { mock } = makeRes();
+
+      await handlers.assignDevice(req, mock as unknown as Response, vi.fn());
+
+      expect(disconnectDeviceByHardwareId).toHaveBeenCalledWith(undefined, hardwareId);
+      expect(disconnectDeviceByHardwareId).toHaveBeenCalledWith(undefined, previousHardwareId);
+      expect((mock.body as { success: boolean }).success).toBe(true);
     });
   });
   describe('unassignDevice', () => {

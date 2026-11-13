@@ -29,7 +29,7 @@ export function toDispositivoDto(dispositivo?: Dispositivo | null): DispositivoD
   };
 }
 
-function toLineaDto(linea: LineaProduccion) {
+export function toLineaDto(linea: LineaProduccion) {
   const sesion = sesionService.obtenerSesion(linea.id);
   const ocupada = sesion && sesion.usuarioId !== null;
   return {
@@ -47,27 +47,7 @@ function toLineaDto(linea: LineaProduccion) {
 
 export function createLineaProduccionHandlers(
   service: LineaProduccionService
-): { list: RequestHandler; listInactive: RequestHandler; getOne: RequestHandler; assignDevice: RequestHandler } {
-  const list: RequestHandler = async (_req, res) => {
-    try {
-      const items = await service.findAll();
-      const data = items.map(toLineaDto);
-      res.json({ success: true, data });
-    } catch {
-      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
-    }
-  };
-
-  const listInactive: RequestHandler = async (_req, res) => {
-    try {
-      const items = await service.findAllInactive();
-      const data = items.map(toLineaDto);
-      res.json({ success: true, data });
-    } catch {
-      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
-    }
-  };
-
+): { getOne: RequestHandler; assignDevice: RequestHandler } {
   const getOne: RequestHandler = async (req, res) => {
     const id = Number(req.params.id);
     try {
@@ -139,6 +119,16 @@ export function createLineaProduccionHandlers(
         console.error('[assignDevice] failed to disconnect device socket', err);
       }
 
+      // On a swap, the replaced device is now unassigned: drop its stale socket
+      // pairing too. Best-effort, same as above.
+      if (result.previousHardwareId) {
+        try {
+          disconnectDeviceByHardwareId(getIo(), result.previousHardwareId);
+        } catch (err) {
+          console.error('[assignDevice] failed to disconnect replaced device socket', err);
+        }
+      }
+
       const { linea, dispositivo } = result;
       const data = {
         id: linea.id,
@@ -164,5 +154,5 @@ export function createLineaProduccionHandlers(
     }
   };
 
-  return { list, listInactive, getOne, assignDevice };
+  return { getOne, assignDevice };
 }

@@ -161,10 +161,18 @@ describe('device-pairing.service', () => {
       );
     });
 
-    it('throws validation error when the target línea is already assigned to another device', async () => {
-      await expect(assignHardwareIdToLinea(em, lineaA.id, 'hw-brand-new')).rejects.toThrow(
-        'Validation Error: La línea ya tiene un dispositivo asignado'
-      );
+    it('swaps the device when the target línea already has a different one, freeing the previous device', async () => {
+      const result = await assignHardwareIdToLinea(em, lineaA.id, 'hw-brand-new');
+      expect(result).not.toBeNull();
+      expect(result!.dispositivo.hardwareId).toBe('hw-brand-new');
+      expect(result!.previousHardwareId).toBe('hw-aaaa');
+
+      em.clear();
+      const reloadedLinea = await em.findOne(LineaProduccion, { id: lineaA.id }, { populate: ['dispositivo'] });
+      expect(reloadedLinea!.dispositivo!.hardwareId).toBe('hw-brand-new');
+      const previous = await em.findOne(Dispositivo, { hardwareId: 'hw-aaaa' }, { populate: ['lineaProduccion'] });
+      expect(previous).not.toBeNull();
+      expect(previous!.lineaProduccion).toBeFalsy();
     });
 
     it('returns null when the target lineaId does not exist', async () => {

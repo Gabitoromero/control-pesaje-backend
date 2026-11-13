@@ -4,11 +4,19 @@ import { authenticateJWT, requireRoles } from '../middlewares/auth.middleware.js
 import { ArticuloCreateSchema, ArticuloUpdateSchema } from '../utils/schemas.js';
 import { ArticuloService } from '../services/articulo.service.js';
 import { createCrudHandlers } from '../controllers/base.controller.js';
+import { createPaginatedListHandlers } from '../controllers/paginated-catalog.controller.js';
+import { Articulo } from '../models/Articulo.js';
 import { UsuarioRol } from '../shared/types.js';
 
 const router: Router = Router();
 const service = new ArticuloService();
-const { list, listInactive, getOne, create, update, remove } = createCrudHandlers(service);
+const { getOne, create, update, remove } = createCrudHandlers(service);
+
+const { list, listInactive } = createPaginatedListHandlers({
+  entityClass: Articulo,
+  searchFields: ['codigo', 'nombre', 'descripcion'],
+  sortFields: ['codigo', 'nombre'],
+});
 
 const writeRoles = [UsuarioRol.ADMINISTRADOR, UsuarioRol.JEFE];
 

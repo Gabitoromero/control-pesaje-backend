@@ -8,13 +8,23 @@ import {
 } from '../utils/schemas.js';
 import { LineaProduccionService } from '../services/linea-produccion.service.js';
 import { createCrudHandlers } from '../controllers/base.controller.js';
-import { createLineaProduccionHandlers } from '../controllers/linea-produccion.controller.js';
+import { createLineaProduccionHandlers, toLineaDto } from '../controllers/linea-produccion.controller.js';
+import { createPaginatedListHandlers } from '../controllers/paginated-catalog.controller.js';
+import { LineaProduccion } from '../models/LineaProduccion.js';
+import { LINEA_POPULATE } from '../services/linea-produccion.service.js';
 import { UsuarioRol } from '../shared/types.js';
 
 const router: Router = Router();
 const service = new LineaProduccionService();
 const { create, update, remove } = createCrudHandlers(service);
-const { list, listInactive, getOne, assignDevice } = createLineaProduccionHandlers(service);
+const { getOne, assignDevice } = createLineaProduccionHandlers(service);
+const { list, listInactive } = createPaginatedListHandlers({
+  entityClass: LineaProduccion,
+  searchFields: ['nombre'],
+  sortFields: ['nombre'],
+  populate: LINEA_POPULATE,
+  mapItem: toLineaDto,
+});
 
 const writeRoles = [UsuarioRol.ADMINISTRADOR, UsuarioRol.JEFE];
 
