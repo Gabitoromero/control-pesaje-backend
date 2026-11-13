@@ -4,12 +4,13 @@ import { MikroORM, SchemaGenerator } from '@mikro-orm/postgresql';
 import config from '../../mikro-orm.config.js';
 import {
   Usuario, LineaProduccion, Articulo, Etapa, RutaPasada, ArticuloRutaPasada, RutaPasadaEtapa,
-  Pasada, Muestra, Balanza, HistorialCambio,
+  Pasada, Muestra, Balanza, HistorialCambio, AtributoEtapaRuta, ValorAtributo,
 } from '../models/index.js';
 import { UsuarioRol } from '../shared/types.js';
 import { clearDatabase } from '../test-utils/db-teardown.js';
 import { AuditSubscriber } from './audit.subscriber.js';
 import { runWithAuditUser } from './audit-context.js';
+import { listHistorialCambio } from '../services/historial-cambio.service.js';
 
 describe('audit trail (real Postgres)', () => {
   let orm: MikroORM;
@@ -20,7 +21,7 @@ describe('audit trail (real Postgres)', () => {
       ...config,
       dbName: 'control_pesaje_tests',
       extensions: [SchemaGenerator],
-      entities: [Usuario, LineaProduccion, Articulo, Etapa, RutaPasada, ArticuloRutaPasada, RutaPasadaEtapa, Pasada, Muestra, Balanza, HistorialCambio],
+      entities: [Usuario, LineaProduccion, Articulo, Etapa, RutaPasada, ArticuloRutaPasada, RutaPasadaEtapa, Pasada, Muestra, Balanza, HistorialCambio, AtributoEtapaRuta, ValorAtributo],
       entitiesTs: [],
       allowGlobalContext: true,
     });
@@ -119,6 +120,36 @@ describe('audit trail (real Postgres)', () => {
       expect(byEntidad).toContain('ruta_articulo:eliminar');
       const tol = log.find((r) => r.entidad === 'ruta_etapa' && r.accion === 'editar')!;
       expect(tol.despues).toEqual({ toleranciaPct: 7 });
+    });
+  });
+  it('audits the cualidades of an etapa under the ruta root: created with the etapa, edited and deactivated', async () => {
+    await runWithAuditUser(userId, async () => {
+      const em = orm.em.fork();
+      const etapa = em.create(Etapa, { nombre: 'Horno', activo: true });
+      const ruta = em.create(RutaPasada, { nombre: 'Ruta C', activo: true });
+      await em.flush();
+      const re = em.create(RutaPasadaEtapa, {
+        rutaPasada: ruta, etapa, orden: 1, pesoIdeal: 10, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 1,
+      } as never);
+      // Same flush as its etapa: the ruta must still be resolved
+      const cualidad = em.create(AtributoEtapaRuta, { rutaPasadaEtapa: re, nombre: 'Temperatura', tipo: 'numerico', minimo: 0, maximo: 99, activo: true } as never);
+      await em.flush();
+      cualidad.maximo = 50 as never;
+      await em.flush();
+      cualidad.activo = false;
+      await em.flush();
+
+      const log = (await rows('ruta', ruta.id)).filter((r) => r.entidad === 'ruta_atributo');
+      expect(log.map((r) => r.accion)).toEqual(['crear', 'editar', 'desactivar']);
+      expect(log[0].despues).toMatchObject({ nombre: 'Temperatura', tipo: 'numerico', minimo: 0, maximo: 99 });
+      expect(log[1]).toMatchObject({ antes: { maximo: 99 }, despues: { maximo: 50 } });
+      expect(log[2]).toMatchObject({ antes: { activo: true }, despues: { activo: false } });
+      expect(log.every((r) => r.entidadId === cualidad.id && r.usuario?.id === userId)).toBe(true);
+
+      const listado = await listHistorialCambio(orm.em.fork(), { raizTipo: 'ruta', raizId: ruta.id, page: 1, pageSize: 20 });
+      const deCualidad = listado.items.filter((i) => i.entidad === 'ruta_atributo');
+      expect(deCualidad).toHaveLength(3);
+      expect(deCualidad.every((i) => (i as { contexto?: string }).contexto === 'Horno · Temperatura')).toBe(true);
     });
   });
 });

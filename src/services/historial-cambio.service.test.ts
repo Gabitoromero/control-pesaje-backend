@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { EntityManager } from '@mikro-orm/core';
-import { resolveContextos, resolveReferences } from './historial-cambio.service.js';
+import { resolveContextoCualidades, resolveContextos, resolveReferences } from './historial-cambio.service.js';
 
 const emWith = (rowsByEntity: Record<string, unknown[]>) =>
   ({ find: vi.fn(async (entity: { name: string }) => rowsByEntity[entity.name] ?? []) }) as unknown as EntityManager;
@@ -44,5 +44,27 @@ describe('resolveContextos', () => {
     expect(ref.get(2)).toEqual({ field: 'etapa', id: 9 });
     expect(ref.has(3)).toBe(false);
     expect(em.find).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('resolveContextoCualidades', () => {
+  it('names the etapa and the cualidad of a ruta_atributo change, even when the diff carries neither', async () => {
+    const em = {
+      find: vi.fn(async () => [{ id: 70, nombre: 'Temperatura', rutaPasadaEtapa: { etapa: { nombre: 'Horno' } } }]),
+    } as unknown as EntityManager;
+    const ctx = await resolveContextoCualidades(em, [
+      { id: 1, entidad: 'ruta_atributo', entidadId: 70, antes: { maximo: 99 }, despues: { maximo: 50 } },
+      { id: 2, entidad: 'articulo', entidadId: 5, antes: {}, despues: { nombre: 'x' } },
+    ]);
+    expect(ctx.get(1)).toBe('Horno · Temperatura');
+    expect(ctx.has(2)).toBe(false);
+    expect(em.find).toHaveBeenCalledTimes(1);
+  });
+
+  it('queries nothing when no change is about a cualidad', async () => {
+    const em = { find: vi.fn() } as unknown as EntityManager;
+    const ctx = await resolveContextoCualidades(em, [{ id: 2, entidad: 'articulo', entidadId: 5, antes: {}, despues: {} }]);
+    expect(ctx.size).toBe(0);
+    expect(em.find).not.toHaveBeenCalled();
   });
 });

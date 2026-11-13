@@ -7,6 +7,11 @@ export interface AuditedEntityConfig {
   raizTipo: AuditRaizTipo;
   /** Returns the id of the root record this change belongs to. */
   raizId: (data: Record<string, unknown>, entityId: number) => number | undefined;
+  /**
+   * The row only knows its parent, not the root: the root id is read from the parent row
+   * (`tabla`.`columna` where id = the row's `campo`) and handed in as `RawChange.raizIdResuelto`.
+   */
+  raizViaPadre?: { campo: string; tabla: string; columna: string };
 }
 
 const idOf = (value: unknown): number | undefined => {
@@ -24,6 +29,12 @@ export const AUDITED_ENTITIES: Record<string, AuditedEntityConfig> = {
   RutaPasada: { entidad: 'ruta', raizTipo: 'ruta', raizId: (_d, id) => id },
   RutaPasadaEtapa: { entidad: 'ruta_etapa', raizTipo: 'ruta', raizId: (d) => idOf(d.rutaPasada) },
   ArticuloRutaPasada: { entidad: 'ruta_articulo', raizTipo: 'ruta', raizId: (d) => idOf(d.rutaPasada) },
+  AtributoEtapaRuta: {
+    entidad: 'ruta_atributo',
+    raizTipo: 'ruta',
+    raizId: () => undefined,
+    raizViaPadre: { campo: 'rutaPasadaEtapa', tabla: 'ruta_pasada_etapa', columna: 'ruta_pasada_id' },
+  },
 };
 
 /** Canonical form so '1.50' (DB decimal) and 1.5 (number) compare equal. */
@@ -79,6 +90,8 @@ export interface RawChange {
   payload: Record<string, unknown>;
   /** Fallback source for the root id when original/payload lack it. */
   current?: Record<string, unknown>;
+  /** Root id read from the parent row, for entities configured with `raizViaPadre`. */
+  raizIdResuelto?: number;
 }
 
 /** Builds the audit row for a change, or undefined when it is not audited or nothing changed. */
@@ -87,7 +100,7 @@ export const buildAuditRecord = (change: RawChange): AuditRecord | undefined => 
   if (!config || change.entityId === undefined) return undefined;
 
   const source = { ...(change.current ?? {}), ...(change.original ?? {}), ...change.payload };
-  const raizId = config.raizId(source, change.entityId);
+  const raizId = config.raizViaPadre ? change.raizIdResuelto : config.raizId(source, change.entityId);
   if (raizId === undefined) return undefined;
 
   const base = { entidad: config.entidad, entidadId: change.entityId, raizTipo: config.raizTipo, raizId };

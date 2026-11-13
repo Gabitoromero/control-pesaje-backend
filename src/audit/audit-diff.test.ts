@@ -64,6 +64,33 @@ describe('buildAuditRecord', () => {
     expect(r).toMatchObject({ entidad: 'ruta_articulo', raizTipo: 'ruta', raizId: 9, accion: 'eliminar', antes: { articulo: 11, rutaPasada: 9 } });
   });
 
+  it('cualidad of an etapa is rooted at the ruta resolved from its etapa', () => {
+    const created = buildAuditRecord({
+      type: 'create',
+      name: 'AtributoEtapaRuta',
+      entityId: 70,
+      original: undefined,
+      payload: { rutaPasadaEtapa: 50, nombre: 'Temperatura', tipo: 'numerico', minimo: '0.00', maximo: 99, activo: true },
+      raizIdResuelto: 9,
+    });
+    expect(created).toMatchObject({
+      entidad: 'ruta_atributo', entidadId: 70, raizTipo: 'ruta', raizId: 9, accion: 'crear',
+      despues: { nombre: 'Temperatura', tipo: 'numerico', minimo: 0, maximo: 99, activo: true },
+    });
+  });
+
+  it('cualidad: editing the range and deactivating are recorded under the ruta', () => {
+    const edited = buildAuditRecord({ type: 'update', name: 'AtributoEtapaRuta', entityId: 70, original: { maximo: '99.00' }, payload: { maximo: 50 }, raizIdResuelto: 9 });
+    expect(edited).toMatchObject({ accion: 'editar', raizId: 9, antes: { maximo: 99 }, despues: { maximo: 50 } });
+
+    const off = buildAuditRecord({ type: 'update', name: 'AtributoEtapaRuta', entityId: 70, original: { activo: true }, payload: { activo: false }, raizIdResuelto: 9 });
+    expect(off).toMatchObject({ entidad: 'ruta_atributo', accion: 'desactivar', raizId: 9 });
+  });
+
+  it('cualidad whose ruta cannot be resolved produces no row', () => {
+    expect(buildAuditRecord({ type: 'create', name: 'AtributoEtapaRuta', entityId: 70, original: undefined, payload: { nombre: 'X' } })).toBeUndefined();
+  });
+
   it('ignores entities that are not audited', () => {
     expect(buildAuditRecord({ type: 'create', name: 'Dispositivo', entityId: 1, original: undefined, payload: {} })).toBeUndefined();
     expect(buildAuditRecord({ type: 'create', name: 'HistorialCambio', entityId: 1, original: undefined, payload: {} })).toBeUndefined();

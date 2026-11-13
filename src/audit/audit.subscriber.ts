@@ -1,6 +1,6 @@
 import type { EntityManager, EventSubscriber, FlushEventArgs, TransactionEventArgs, UnitOfWork } from '@mikro-orm/core';
 import { getAuditUserId } from './audit-context.js';
-import { AUDITED_ENTITIES, buildAuditRecord, type RawChange } from './audit-diff.js';
+import { AUDITED_ENTITIES, buildAuditRecord, normalizeValue, type RawChange } from './audit-diff.js';
 
 interface PendingChange extends Omit<RawChange, 'entityId' | 'current'> {
   entity: Record<string, unknown> & { id?: number };
@@ -60,18 +60,22 @@ export class AuditSubscriber implements EventSubscriber {
     if (!changes) return;
     this.pending.delete(uow);
 
-    const records = changes
-      .map((c) =>
-        buildAuditRecord({
-          type: c.type,
-          name: c.name,
-          entityId: c.entityId ?? (typeof c.entity.id === 'number' ? c.entity.id : undefined),
-          original: c.original,
-          payload: c.payload,
-          current: c.type === 'delete' ? c.entity : undefined,
+    const records = (
+      await Promise.all(
+        changes.map(async (c) => {
+          const source = { ...(c.type === 'delete' ? c.entity : {}), ...(c.original ?? {}), ...c.payload };
+          return buildAuditRecord({
+            type: c.type,
+            name: c.name,
+            entityId: c.entityId ?? (typeof c.entity.id === 'number' ? c.entity.id : undefined),
+            original: c.original,
+            payload: c.payload,
+            current: c.type === 'delete' ? c.entity : undefined,
+            raizIdResuelto: await this.resolveRaiz(em, ctx, c.name, source, c.entity),
+          });
         }),
       )
-      .filter((r) => r !== undefined);
+    ).filter((r) => r !== undefined);
     if (records.length === 0) return;
 
     const connection = em.getConnection();
@@ -85,6 +89,26 @@ export class AuditSubscriber implements EventSubscriber {
         ctx as never,
       );
     }
+  }
+
+  /** Root id of an entity that only knows its parent (see `raizViaPadre`): read from the parent row, in the same transaction. */
+  private async resolveRaiz(
+    em: EntityManager,
+    ctx: unknown,
+    name: string,
+    source: Record<string, unknown>,
+    entity: Record<string, unknown>,
+  ): Promise<number | undefined> {
+    const via = AUDITED_ENTITIES[name]?.raizViaPadre;
+    if (!via) return undefined;
+    // A parent created in the same flush is still an `EntityIdentifier { value }` placeholder in the payload.
+    const raw = source[via.campo] ?? entity[via.campo];
+    const padreId = normalizeValue(raw && typeof raw === 'object' && 'value' in raw ? (raw as { value: unknown }).value : raw);
+    if (typeof padreId !== 'number') return undefined;
+    const rows = (await em
+      .getConnection()
+      .execute(`select "${via.columna}" as "raiz" from "${via.tabla}" where "id" = ?`, [padreId], 'all', ctx as never)) as { raiz: number }[];
+    return rows[0]?.raiz;
   }
 
   /** Changes without a session (scripts, socket handlers) are attributed to the `esSistema` user, when one exists. */

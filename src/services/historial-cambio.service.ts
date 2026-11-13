@@ -6,6 +6,7 @@ import { Etapa } from '../models/Etapa.js';
 import { RutaPasada } from '../models/RutaPasada.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
 import { ArticuloRutaPasada } from '../models/ArticuloRutaPasada.js';
+import { AtributoEtapaRuta } from '../models/AtributoEtapaRuta.js';
 
 export const HISTORIAL_CAMBIO_DEFAULT_PAGE_SIZE = 20;
 export const HISTORIAL_CAMBIO_MAX_PAGE_SIZE = 100;
@@ -93,6 +94,23 @@ export const resolveContextos = async (em: EntityManager, items: ChangeLike[]) =
   return ref;
 };
 
+/**
+ * Names the cualidad ("Etapa · Cualidad") a ruta_atributo change refers to. A diff only carries the fields that
+ * changed, so editing a range says nothing about which cualidad it was: look it up from the row (soft-deleted rows stay).
+ */
+export const resolveContextoCualidades = async (em: EntityManager, items: ChangeLike[]): Promise<Map<number, string>> => {
+  const result = new Map<number, string>();
+  const ids = [...new Set(items.filter((it) => it.entidad === 'ruta_atributo').map((it) => it.entidadId))];
+  if (ids.length === 0) return result;
+  const rows = await em.find(AtributoEtapaRuta, { id: { $in: ids } }, { populate: ['rutaPasadaEtapa.etapa'] });
+  const label = new Map(rows.map((r) => [r.id, `${r.rutaPasadaEtapa.etapa.nombre} · ${r.nombre}`]));
+  for (const it of items) {
+    const text = it.entidad === 'ruta_atributo' ? label.get(it.entidadId) : undefined;
+    if (text) result.set(it.id, text);
+  }
+  return result;
+};
+
 /** Changes of a root record (including its nested entities), newest first. */
 export const listHistorialCambio = async (em: EntityManager, q: HistorialCambioQuery) => {
   const where: FilterQuery<HistorialCambio> = { raizTipo: q.raizTipo, raizId: q.raizId };
@@ -129,11 +147,12 @@ export const listHistorialCambio = async (em: EntityManager, q: HistorialCambioQ
   }));
 
   const contextRefs = await resolveContextos(em, items);
+  const cualidades = await resolveContextoCualidades(em, items);
   const synthetic = [...contextRefs.values()].map((c) => ({ antes: {}, despues: { [c.field]: c.id } }));
   const referencias = await resolveReferences(em, [...items, ...synthetic]);
   const itemsWithContexto = items.map((it) => {
     const c = contextRefs.get(it.id);
-    const contexto = c ? referencias[c.field]?.[String(c.id)] : undefined;
+    const contexto = (c ? referencias[c.field]?.[String(c.id)] : undefined) ?? cualidades.get(it.id);
     return contexto ? { ...it, contexto } : it;
   });
 
