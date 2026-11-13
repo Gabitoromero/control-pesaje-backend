@@ -5,10 +5,14 @@ import { MAGNITUDES } from './constants.js';
 // ─── Usuario ─────────────────────────────────────────────────────────────────
 
 export const UsuarioCreateSchema = z.object({
-  nombreApellido: z.string().min(1),
-  nombreUsuario: z.string().min(3),
-  legajo: z.string().regex(/^[0-9]{5}$/, 'Debe tener exactamente 5 dígitos numéricos'),
-  pin: z.string().regex(/^\d{4,6}$/),
+  nombreApellido: z.string({ error: 'Es obligatorio' }).min(1, 'Es obligatorio'),
+  nombreUsuario: z
+    .string({ error: 'Es obligatorio' })
+    .min(3, 'Debe tener al menos 3 caracteres'),
+  legajo: z.string({ error: 'Es obligatorio' }).regex(/^[0-9]{5}$/, 'Debe tener exactamente 5 dígitos numéricos'),
+  pin: z
+    .string({ error: 'Es obligatorio' })
+    .regex(/^\d{4,6}$/, 'Debe tener entre 4 y 6 dígitos numéricos'),
   puedeTomarMuestrasLibres: z.boolean().optional(),
   activo: z.boolean().optional(),
   rol: z.enum([
@@ -16,14 +20,14 @@ export const UsuarioCreateSchema = z.object({
     UsuarioRol.JEFE,
     UsuarioRol.VISUALIZACION,
     UsuarioRol.ADMINISTRADOR,
-  ]),
+  ], { error: 'Rol inválido' }),
   datosAdicionales: z.object({
     sector: z.enum([
       SectorUsuario.OFICIALES,
       SectorUsuario.SUPERVISORES,
       SectorUsuario.CONTROL_CALIDAD,
       SectorUsuario.MEJORA_CONTINUA,
-    ]).nullable(),
+    ], { error: 'Sector inválido' }).nullable(),
     preferenciasInterfaz: z.object({
       tema: z.enum(['claro', 'oscuro']),
       idioma: z.enum(['es', 'en']),
