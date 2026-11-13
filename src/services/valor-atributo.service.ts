@@ -36,7 +36,8 @@ export class ValorAtributoService {
   /**
    * Loads the cualidades of a stage of a pasada. Allowed only once the stage has all its required samples
    * (and never for a stage that requires none). The range check is non-blocking: an out-of-range value is
-   * stored as 'fuera_de_rango'. A loaded value can never be corrected, so each atributo is loaded once.
+   * stored as 'fuera_de_rango'. Loading an atributo that already has a value overwrites it (same row, range
+   * re-evaluated against the current definition), so the operator can safely re-send what was already stored.
    */
   async registrarValores(usuarioId: number, pasadaId: number, etapaId: number, valores: ValorAtributoInput[]): Promise<ValorAtributo[]> {
     const em = this.getEm();
@@ -70,14 +71,16 @@ export class ValorAtributoService {
       const ids = valores.map((v) => v.atributoId);
       if (new Set(ids).size !== ids.length) throw new Error('Duplicate atributo in the same request');
 
-      const pendientes = await atributosPendientes(tx, pasadaId, rutaEtapa.id);
-      const pendientesPorId = new Map(pendientes.map((a) => [a.id, a]));
+      const atributosEtapa = await tx.find(AtributoEtapaRuta, { rutaPasadaEtapa: rutaEtapa.id, activo: true });
+      const atributosPorId = new Map(atributosEtapa.map((a) => [a.id, a]));
+      const existentes = await tx.find(ValorAtributo, { pasada: pasadaId, atributo: { $in: atributosEtapa.map((a) => a.id) } });
+      const existentePorAtributo = new Map(existentes.map((v) => [v.atributo.id, v]));
 
-      const creados: ValorAtributo[] = [];
+      const guardados: ValorAtributo[] = [];
       for (const { atributoId, valor } of valores) {
-        const atributo = pendientesPorId.get(atributoId);
+        const atributo = atributosPorId.get(atributoId);
         if (!atributo) {
-          throw new Error(`Atributo ${atributoId} is not pending on stage ${etapaId} of this pasada (unknown, inactive or already loaded: loaded values cannot be corrected)`);
+          throw new Error(`Atributo ${atributoId} does not belong to stage ${etapaId} of this pasada (unknown or inactive)`);
         }
         if (atributo.tipo === 'aceptado' && valor !== VALOR_ATRIBUTO_ACEPTADO && valor !== VALOR_ATRIBUTO_NO_ACEPTADO) {
           throw new Error(`Atributo '${atributo.nombre}' is aceptado/no aceptado: the value must be ${VALOR_ATRIBUTO_NO_ACEPTADO} or ${VALOR_ATRIBUTO_ACEPTADO}`);
@@ -85,7 +88,7 @@ export class ValorAtributoService {
 
         const minimo = Number(atributo.minimo);
         const maximo = Number(atributo.maximo);
-        const registro = new ValorAtributo();
+        const registro = existentePorAtributo.get(atributo.id) ?? new ValorAtributo();
         registro.pasada = pasada;
         registro.etapa = tx.getReference(Etapa, etapaId);
         registro.atributo = atributo;
@@ -99,12 +102,12 @@ export class ValorAtributoService {
         registro.maximo = maximo;
         registro.estadoValidacion = valor >= minimo && valor <= maximo ? 'ok' : 'fuera_de_rango';
         tx.persist(registro);
-        creados.push(registro);
+        guardados.push(registro);
       }
       await tx.flush();
 
       sesionService.actualizarActividad(pasada.lineaProduccion.id);
-      return creados;
+      return guardados;
     });
   }
 

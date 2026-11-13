@@ -14,7 +14,7 @@ const operatorRoles = [UsuarioRol.ADMINISTRADOR, UsuarioRol.JEFE, UsuarioRol.OPE
 
 router.use(authenticateJWT);
 
-// There is no PUT/DELETE: a loaded value cannot be corrected.
+// There is no PUT/DELETE: re-sending a loaded value through POST overwrites it.
 router.get('/', requireRoles(operatorRoles), list);
 router.post('/', requireRoles(operatorRoles), validateBody(ValorAtributoRegistrarSchema), registrar);
 

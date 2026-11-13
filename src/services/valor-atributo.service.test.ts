@@ -174,15 +174,36 @@ describe('ValorAtributoService and the cualidades advance rule (integration)', (
       await expect(valores.registrarValores(usuario.id, pasada.id, etapa3.id, [{ atributoId: extra.id, valor: 1 }])).rejects.toThrow(/requires no samples/);
     }));
 
-    it('cannot correct: a second load of the same atributo is rejected and the first value stays', () => inCtx(async () => {
+    it('overwrites: loading an already loaded atributo replaces the value, re-evaluates the range and keeps a single row', () => inCtx(async () => {
+      const pasada = await iniciar();
+      await completarEtapa1(pasada.id);
+      const [first] = await valores.registrarValores(usuario.id, pasada.id, etapa1.id, [{ atributoId: temperatura.id, valor: 10 }]);
+      expect(first.estadoValidacion).toBe('ok');
+
+      const [second] = await valores.registrarValores(usuario.id, pasada.id, etapa1.id, [{ atributoId: temperatura.id, valor: 200 }]);
+
+      expect(second.id).toBe(first.id);
+      expect(Number(second.valor)).toBe(200);
+      expect(second.estadoValidacion).toBe('fuera_de_rango');
+      const stored = await valores.findAll({ pasadaId: pasada.id });
+      expect(stored).toHaveLength(1);
+      expect(Number(stored[0].valor)).toBe(200);
+    }));
+
+    it('an overwrite can mix atributos already loaded with ones still pending', () => inCtx(async () => {
       const pasada = await iniciar();
       await completarEtapa1(pasada.id);
       await valores.registrarValores(usuario.id, pasada.id, etapa1.id, [{ atributoId: temperatura.id, valor: 10 }]);
 
-      await expect(valores.registrarValores(usuario.id, pasada.id, etapa1.id, [{ atributoId: temperatura.id, valor: 20 }])).rejects.toThrow(/cannot be corrected/);
+      const result = await valores.registrarValores(usuario.id, pasada.id, etapa1.id, [
+        { atributoId: temperatura.id, valor: 20 },
+        { atributoId: degustacion.id, valor: 1 },
+      ]);
 
-      const [stored] = await valores.findAll({ pasadaId: pasada.id });
-      expect(Number(stored.valor)).toBe(10);
+      expect(result).toHaveLength(2);
+      const stored = await valores.findAll({ pasadaId: pasada.id });
+      expect(stored).toHaveLength(2);
+      expect(Number(stored.find((v) => v.atributo.id === temperatura.id)!.valor)).toBe(20);
     }));
 
     it('rejects duplicated atributos in one request and atributos of another stage', () => inCtx(async () => {
