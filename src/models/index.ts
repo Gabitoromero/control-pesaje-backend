@@ -11,3 +11,5 @@ export * from './Dispositivo.js';
 export * from './Balanza.js';
 export * from './ConfigSistema.js';
 export * from './HistorialCambio.js';
+export * from './AtributoEtapaRuta.js';
+export * from './ValorAtributo.js';

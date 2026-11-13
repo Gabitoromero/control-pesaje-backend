@@ -11,6 +11,9 @@ export type UnidadPeso = 'g' | 'kg';
 /** Magnitude a ruta-etapa measures. Volumen is only a label: values are still weighed and stored in kg (1 kg = 1 L). */
 export type Magnitud = 'peso' | 'volumen';
 
+/** Kind of manual quality (atributo) a ruta-etapa asks the operator to load. 'aceptado' is stored as 1 (aceptado) / 0 (no aceptado). */
+export type TipoAtributo = 'numerico' | 'aceptado';
+
 // ─── Shared detail shapes (used as nested objects in API responses) ───────────
 
 /** Inline etapa reference returned inside RutaPasadaEtapa */
