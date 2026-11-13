@@ -23,6 +23,10 @@ export interface PaginatedCatalogConfig<
   searchCondition?: (field: string, text: string) => Condition;
   /** Catalog-specific query keys, validated together with the pagination keys. */
   extraQuery?: z.ZodRawShape;
+  /** Relations to load. They load in separate queries, after the root rows are limited. */
+  populate?: readonly string[];
+  /** Projects each row into the response item; rows are returned as they are when omitted. */
+  mapItem?: (item: T) => unknown;
   /** Turns validated catalog-specific keys into a database predicate. */
   extraFilter?: (query: CatalogQuery) => Condition | undefined;
 }
@@ -81,11 +85,26 @@ export function createPaginatedListHandlers<
         const where = (filters.length > 0
           ? { activo, $and: filters }
           : { activo }) as unknown as FilterQuery<T>;
-        const data = await findPage(em, config.entityClass, where, query, {
-          orderBy: { [query.sortBy]: query.sortDirection } as never,
-        });
-        res.json({ success: true, data });
-      } catch {
+        const orderBy = { [query.sortBy]: query.sortDirection } as never;
+        const page = await findPage(
+          em,
+          config.entityClass,
+          where,
+          query,
+          config.populate
+            ? {
+                orderBy,
+                populate: config.populate as never,
+                strategy: "select-in",
+              }
+            : { orderBy },
+        );
+        const items = config.mapItem
+          ? page.items.map(config.mapItem)
+          : page.items;
+        res.json({ success: true, data: { ...page, items } });
+      } catch (err) {
+        console.error("[paginated list error]", err);
         res.status(500).json({
           success: false,
           error: { message: "Error interno del servidor" },

@@ -29,7 +29,7 @@ export function toDispositivoDto(dispositivo?: Dispositivo | null): DispositivoD
   };
 }
 
-function toLineaDto(linea: LineaProduccion) {
+export function toLineaDto(linea: LineaProduccion) {
   const sesion = sesionService.obtenerSesion(linea.id);
   const ocupada = sesion && sesion.usuarioId !== null;
   return {

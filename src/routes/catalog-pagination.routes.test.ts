@@ -13,6 +13,8 @@ import { UsuarioRol } from "../shared/types.js";
 import { Usuario } from "../models/Usuario.js";
 import { Articulo } from "../models/Articulo.js";
 import { Etapa } from "../models/Etapa.js";
+import { RutaPasada } from "../models/RutaPasada.js";
+import { LineaProduccion } from "../models/LineaProduccion.js";
 
 const JWT_SECRET = "test-secret-key-catalog-pagination";
 
@@ -73,6 +75,11 @@ describe.each([
   {
     path: "/api/etapas",
     entity: Etapa,
+    defaultSort: { nombre: "asc", id: "asc" },
+  },
+  {
+    path: "/api/rutas-pasadas",
+    entity: RutaPasada,
     defaultSort: { nombre: "asc", id: "asc" },
   },
   {
@@ -174,6 +181,109 @@ describe.each([
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual({ id: 5, activo: true });
+  });
+});
+
+describe("GET /api/rutas-pasadas relations", () => {
+  it("limits the root routes in the database and loads their stages separately", async () => {
+    await get("/api/rutas-pasadas?pageSize=5");
+
+    const { options } = lastCall();
+    expect(options).toMatchObject({ limit: 5, strategy: "select-in" });
+    expect(options.populate).toEqual(["etapas", "etapas.etapa"]);
+  });
+});
+
+describe("GET /api/lineas-produccion pagination", () => {
+  const linea = {
+    id: 3,
+    nombre: "Linea 3",
+    activo: true,
+    rutaPasadaActiva: undefined,
+    dispositivo: undefined,
+    balanza: { id: 9 },
+    articulo: { id: 4 },
+  };
+
+  it("returns a page of projected lines with availability and a null device", async () => {
+    mockEm.findAndCount.mockResolvedValue([[linea], 31]);
+
+    const res = await get("/api/lineas-produccion");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ total: 31, page: 1, pageSize: 20 });
+    expect(res.body.data.items).toEqual([
+      expect.objectContaining({
+        id: 3,
+        nombre: "Linea 3",
+        estado: "disponible",
+        dispositivo: null,
+        idBalanza: 9,
+        articuloId: 4,
+      }),
+    ]);
+  });
+
+  it("queries lines with relations loaded after the root limit", async () => {
+    await get("/api/lineas-produccion/inactive?page=2");
+
+    const { entity, where, options } = lastCall();
+    expect(entity).toBe(LineaProduccion);
+    expect(where).toMatchObject({ activo: false });
+    expect(options).toMatchObject({
+      limit: 20,
+      offset: 20,
+      strategy: "select-in",
+    });
+    expect(options.populate).toEqual(
+      expect.arrayContaining([
+        "rutaPasadaActiva.etapas.etapa",
+        "dispositivo",
+        "balanza",
+        "articulo",
+      ]),
+    );
+    expect(options.orderBy).toEqual({ nombre: "asc", id: "asc" });
+  });
+
+  it("rejects an invalid query", async () => {
+    const res = await get("/api/lineas-produccion?pageSize=500");
+
+    expect(res.status).toBe(400);
+    expect(mockEm.findAndCount).not.toHaveBeenCalled();
+  });
+
+  it("keeps detail by id returning the line DTO", async () => {
+    mockEm.findOne.mockResolvedValue(linea);
+
+    const res = await get("/api/lineas-produccion/3");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      id: 3,
+      estado: "disponible",
+      dispositivo: null,
+    });
+  });
+});
+
+describe("failure handling", () => {
+  it("logs the cause and answers a generic 500 when the query fails", async () => {
+    const failure = new Error("connection lost");
+    mockEm.findAndCount.mockRejectedValue(failure);
+    const logged = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const res = await get("/api/articulos");
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({
+      success: false,
+      error: { message: "Error interno del servidor" },
+    });
+    expect(logged).toHaveBeenCalledWith("[paginated list error]", failure);
+    logged.mockRestore();
   });
 });
 

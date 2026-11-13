@@ -32,6 +32,7 @@ const operarioToken = () => makeToken(UsuarioRol.OPERARIO);
 
 const mockEm = {
   find: vi.fn(),
+  findAndCount: vi.fn(),
   findOne: vi.fn(),
   create: vi.fn(),
   assign: vi.fn(),
@@ -79,26 +80,29 @@ const VALID_UUID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 
 describe('GET /api/lineas-produccion — consistent dispositivo projection', () => {
   it('GET / returns dispositivo: null when the línea has no assigned device', async () => {
-    mockEm.find.mockResolvedValue([{ id: 1, nombre: 'Linea 1', activo: true, rutaPasadaActiva: undefined, dispositivo: undefined }]);
+    mockEm.findAndCount.mockResolvedValue([[{ id: 1, nombre: 'Linea 1', activo: true, rutaPasadaActiva: undefined, dispositivo: undefined }], 1]);
 
     const res = await request(app)
       .get('/api/lineas-produccion')
       .set('Authorization', `Bearer ${adminToken()}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data[0].dispositivo).toBeNull();
+    expect(res.body.data.items[0].dispositivo).toBeNull();
   });
 
   it('GET / returns populated dispositivo shape when a device is assigned', async () => {
     const ultimaConexionAt = new Date('2026-01-01T00:00:00Z');
-    mockEm.find.mockResolvedValue([
-      {
-        id: 1,
-        nombre: 'Linea 1',
-        activo: true,
-        rutaPasadaActiva: undefined,
-        dispositivo: { hardwareId: VALID_UUID, nombre: 'Pi-3fa8', ultimaConexionAt },
-      },
+    mockEm.findAndCount.mockResolvedValue([
+      [
+        {
+          id: 1,
+          nombre: 'Linea 1',
+          activo: true,
+          rutaPasadaActiva: undefined,
+          dispositivo: { hardwareId: VALID_UUID, nombre: 'Pi-3fa8', ultimaConexionAt },
+        },
+      ],
+      1,
     ]);
 
     const res = await request(app)
@@ -106,7 +110,7 @@ describe('GET /api/lineas-produccion — consistent dispositivo projection', () 
       .set('Authorization', `Bearer ${adminToken()}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data[0].dispositivo).toEqual({
+    expect(res.body.data.items[0].dispositivo).toEqual({
       hardwareId: VALID_UUID,
       nombre: 'Pi-3fa8',
       ultimaConexionAt: ultimaConexionAt.toISOString(),
@@ -114,14 +118,14 @@ describe('GET /api/lineas-produccion — consistent dispositivo projection', () 
   });
 
   it('GET /inactive returns the same dispositivo shape/logic as GET /', async () => {
-    mockEm.find.mockResolvedValue([{ id: 5, nombre: 'Linea Inactiva', activo: false, rutaPasadaActiva: undefined, dispositivo: undefined }]);
+    mockEm.findAndCount.mockResolvedValue([[{ id: 5, nombre: 'Linea Inactiva', activo: false, rutaPasadaActiva: undefined, dispositivo: undefined }], 1]);
 
     const res = await request(app)
       .get('/api/lineas-produccion/inactive')
       .set('Authorization', `Bearer ${adminToken()}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data[0].dispositivo).toBeNull();
+    expect(res.body.data.items[0].dispositivo).toBeNull();
   });
 
   it('GET /:id returns the same dispositivo shape/logic as GET /', async () => {

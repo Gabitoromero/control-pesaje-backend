@@ -7,7 +7,7 @@ import { RequiredEntityData } from '@mikro-orm/core';
 import { Balanza } from '../models/Balanza.js';
 import { Articulo } from '../models/Articulo.js';
 
-const LINEA_POPULATE = [
+export const LINEA_POPULATE = [
   'rutaPasadaActiva',
   'rutaPasadaActiva.etapas',
   'rutaPasadaActiva.etapas.etapa',

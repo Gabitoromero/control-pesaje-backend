@@ -530,7 +530,7 @@ describe('Line Sessions (v1.5)', () => {
 // ─── 4.6  GET /inactive routes ────────────────────────────────────────────────
 
 // Catalogs served through the paginated adapter ({ items, total, page, pageSize }).
-const paginatedInactive = new Set(['articulos', 'etapas', 'usuarios']);
+const paginatedInactive = new Set(['articulos', 'etapas', 'usuarios', 'lineas-produccion']);
 
 const inactiveEntities = [
   { path: '/api/articulos/inactive', name: 'articulos' },
@@ -584,7 +584,7 @@ describe('4.6 — GET /inactive routes', () => {
 
   it('T-07-lineas: GET /api/lineas-produccion/inactive returns 200 with a projected DTO for inactive records', async () => {
     const inactive = [{ id: 1, nombre: 'lineas-produccion-inactive', activo: false, rutaPasadaActiva: undefined, dispositivo: undefined }];
-    mockEm.find.mockResolvedValue(inactive);
+    mockEm.findAndCount.mockResolvedValue([inactive, inactive.length]);
 
     const res = await request(app)
       .get('/api/lineas-produccion/inactive')
@@ -592,7 +592,7 @@ describe('4.6 — GET /inactive routes', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data[0]).toEqual(
+    expect(res.body.data.items[0]).toEqual(
       expect.objectContaining({ id: 1, nombre: 'lineas-produccion-inactive', activo: false, dispositivo: null })
     );
   });
@@ -649,7 +649,7 @@ describe('4.6 — GET /inactive routes', () => {
   // sdd/device-detection-ux-fixes design decision #2.
   it('T-lineas-estado: GET /api/lineas-produccion/inactive response objects include estado and dispositivo', async () => {
     const inactive = [{ id: 5, nombre: 'Linea Inactiva', activo: false, rutaPasadaActiva: undefined, dispositivo: undefined }];
-    mockEm.find.mockResolvedValue(inactive);
+    mockEm.findAndCount.mockResolvedValue([inactive, inactive.length]);
 
     const res = await request(app)
       .get('/api/lineas-produccion/inactive')
@@ -657,9 +657,9 @@ describe('4.6 — GET /inactive routes', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0]).toHaveProperty('estado');
-    expect(res.body.data[0].dispositivo).toBeNull();
+    expect(res.body.data.items).toHaveLength(1);
+    expect(res.body.data.items[0]).toHaveProperty('estado');
+    expect(res.body.data.items[0].dispositivo).toBeNull();
   });
 });
 
@@ -770,7 +770,7 @@ describe('Phase 4 - RutaPasada populate depth + RutaPasadaEtapa filter', () => {
   };
 
   it('4.1a - GET /api/rutas-pasadas returns etapas with nested etapa.nombre', async () => {
-    mockEm.find.mockResolvedValue([rutaMock]);
+    mockEm.findAndCount.mockResolvedValue([[rutaMock], 1]);
 
     const res = await request(app)
       .get('/api/rutas-pasadas')
@@ -778,7 +778,7 @@ describe('Phase 4 - RutaPasada populate depth + RutaPasadaEtapa filter', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data[0].etapas[0].etapa.nombre).toBe('Amasado');
+    expect(res.body.data.items[0].etapas[0].etapa.nombre).toBe('Amasado');
   });
 
   it('4.1b - GET /api/rutas-pasadas/:id returns etapas with nested etapa.id and etapa.nombre', async () => {

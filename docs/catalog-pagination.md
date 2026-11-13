@@ -1,6 +1,6 @@
 # Catalog pagination: coordinated API and UI migration
 
-Backend and frontend will deploy together. The common pagination utility is implemented but **not connected to HTTP endpoints yet**: existing list responses still contain arrays. This document defines the migration target, not a claim that the full package is available.
+Backend and frontend will deploy together. The common pagination utility is connected to the users, articles and stages list endpoints (`GET /` and `GET /inactive`), which now return pages. Routes and lines still return arrays, and the frontend still expects arrays everywhere, so this branch must not be deployed until every in-scope consumer is migrated. This document defines the migration target, not a claim that the full package is available.
 
 ## Target contract
 
@@ -63,10 +63,10 @@ Unqualified administrative page names above live under `src/features/dashboard/p
 
 ## Rollout and verification
 
-1. Land the common utility with focused validation and ORM-call tests; it changes no existing HTTP behavior.
+1. Land the common utility with focused validation and ORM-call tests; it changes no existing HTTP behavior until a catalog adopts it.
 2. Implement catalog adapters and migrate clients, tables, selectors and tablet behavior together on the feature branches. Add public-interface regression tests with each behavior.
 3. Verify contract, inactive state, search beyond the first page, root counts, relationships, selected labels, mutations and live availability. Independently verify the consumed-contract change before completion.
 4. In an isolated database, check emitted limits/offsets and count predicates, then measure a bounded volume/memory scenario. Unit mocks alone are not evidence of actual SQL or RAM improvement.
 5. Deploy both repositories together only after all in-scope consumers use pages. No publishing or deployment is authorized by this document.
 
-For the initial utility, rollback consists only of removing its two new source/test files and this document. Existing endpoint behavior remains unchanged. Progress and unresolved proof live in `codigo/odd/tasks/paginacion-get.md` outside both repositories.
+Rollback of the utility alone means removing its two source/test files and this document, which is only possible while no route uses it. Once a catalog is connected, rollback means reverting that catalog's route, the shared adapter (`src/controllers/paginated-catalog.controller.ts`) and its tests together; the frontend must be reverted with it. Progress and unresolved proof live in `codigo/odd/tasks/paginacion-get.md` outside both repositories.
