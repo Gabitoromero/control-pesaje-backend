@@ -10,6 +10,7 @@ import rutasPasadasEtapasRoutes from './rutas-pasadas-etapas.routes.js';
 import rutasPasadasArticulosRoutes from './rutas-pasadas-articulos.routes.js';
 import pasadasRoutes from './pasadas.routes.js';
 import muestrasRoutes from './muestras.routes.js';
+import valoresAtributoRoutes from './valores-atributo.routes.js';
 import dispositivosRoutes from './dispositivos.routes.js';
 
 import dashboardRoutes from './dashboard.routes.js';
@@ -30,6 +31,7 @@ router.use('/rutas-pasadas-etapas', rutasPasadasEtapasRoutes);
 router.use('/rutas-pasadas-articulos', rutasPasadasArticulosRoutes);
 router.use('/pasadas', pasadasRoutes);
 router.use('/muestras', muestrasRoutes);
+router.use('/valores-atributo', valoresAtributoRoutes);
 router.use('/dispositivos', dispositivosRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reportes', reportesRoutes);

@@ -10,6 +10,7 @@ import { Balanza } from '../models/Balanza.js';
 import { Articulo } from '../models/Articulo.js';
 import { sesionService } from './sesion.service.js';
 import { evaluarBalanzaParaProducir } from './verificacion-balanza.service.js';
+import { atributosPendientes } from './valor-atributo.service.js';
 
 export class MuestraService {
   private getEm() {
@@ -105,6 +106,15 @@ export class MuestraService {
           });
           if (count < r.cantidadMuestrasRequeridas) {
             throw new Error(`Preceding stage '${r.etapa.id}' is not complete (progress: ${count}/${r.cantidadMuestrasRequeridas})`);
+          }
+          // Cualidades are asked once the samples of the stage are done and before moving on. A stage that
+          // requires no samples never asks for them.
+          if (r.cantidadMuestrasRequeridas > 0) {
+            const pendientes = await atributosPendientes(em, pasadaId!, r.id);
+            if (pendientes.length > 0) {
+              const nombres = pendientes.map((a) => a.nombre).join(', ');
+              throw new Error(`Preceding stage '${r.etapa.id}' has cualidades pending: ${nombres}`);
+            }
           }
         }
       }

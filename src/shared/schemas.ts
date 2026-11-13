@@ -222,6 +222,22 @@ export const MuestraRegistrarSchema = z.object({
   observacion: z.string().min(1).optional(),
 });
 
+// Manual qualities loaded by the operator once the samples of a stage are done. Out-of-range values are accepted
+// (the range check is non-blocking); the per-tipo rules ('aceptado' is 0 or 1) live in ValorAtributoService.
+export const ValorAtributoRegistrarSchema = z.object({
+  pasadaId: z.number().int().positive(),
+  etapaId: z.number().int().positive(),
+  valores: z
+    .array(
+      z.object({
+        atributoId: z.number().int().positive(),
+        valor: z.number().finite().min(-99999999).max(99999999),
+      }),
+    )
+    .min(1)
+    .max(MAX_ATRIBUTOS_POR_ETAPA),
+});
+
 export const MuestraUpdateSchema = z.object({
   pesoNeto: z.number().positive().optional(),
   observacion: z.string().min(1).nullable().optional(),
