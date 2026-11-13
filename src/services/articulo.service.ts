@@ -7,6 +7,7 @@ export { RestrictError } from '../utils/errors.js';
 
 import { RequiredEntityData } from '@mikro-orm/core';
 import { ValidationError } from '../utils/errors.js';
+import { CODIGO_ARTICULO_VERIFICACION } from './verificacion-balanza.service.js';
 
 export class ArticuloService extends BaseService<Articulo> {
   constructor() {
@@ -30,6 +31,18 @@ export class ArticuloService extends BaseService<Articulo> {
     if (data.codigo !== undefined || data.nombre !== undefined) {
       const current = await em.findOne(Articulo, { id });
       if (current) {
+        // The verification route is found through the articulo with this code, so
+        // its code must stay fixed (see verificacion-balanza.service).
+        if (
+          current.codigo === CODIGO_ARTICULO_VERIFICACION &&
+          data.codigo !== undefined &&
+          data.codigo !== current.codigo
+        ) {
+          throw new ValidationError(
+            `No se puede modificar el código del artículo de verificación (código ${CODIGO_ARTICULO_VERIFICACION})`,
+          );
+        }
+
         const codigoToCheck = data.codigo !== undefined ? data.codigo : current.codigo;
         const nombreToCheck = data.nombre !== undefined ? data.nombre : current.nombre;
         

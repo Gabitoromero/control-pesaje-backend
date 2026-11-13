@@ -63,6 +63,37 @@ describe('ArticuloService.update validations', () => {
       } as unknown as UpdateInput)
     ).rejects.toThrow(/Ya existe un artículo/);
   });
+
+  it('rejects changing the codigo of the verification articulo (codigo "0")', async () => {
+    mockEm.findOne.mockResolvedValueOnce({ id: 9, codigo: '0', nombre: 'Verificacion' });
+
+    await expect(
+      service.update(9, { codigo: '5' } as unknown as UpdateInput)
+    ).rejects.toThrow(/código 0/i);
+    expect(mockEm.flush).not.toHaveBeenCalled();
+  });
+
+  it('allows saving the verification articulo when the codigo is unchanged', async () => {
+    mockEm.findOne
+      .mockResolvedValueOnce({ id: 9, codigo: '0', nombre: 'Verificacion' }) // current
+      .mockResolvedValueOnce(null) // duplicate lookup
+      .mockResolvedValue({ id: 9, codigo: '0', nombre: 'Verificacion' });
+
+    await expect(
+      service.update(9, { codigo: '0', descripcion: 'Pesas patron' } as unknown as UpdateInput)
+    ).resolves.not.toThrow();
+  });
+
+  it('allows changing the codigo of a regular articulo', async () => {
+    mockEm.findOne
+      .mockResolvedValueOnce({ id: 1, codigo: 'Old', nombre: 'M1' }) // current
+      .mockResolvedValueOnce(null) // duplicate lookup
+      .mockResolvedValue({ id: 1, codigo: 'Old', nombre: 'M1' });
+
+    await expect(
+      service.update(1, { codigo: 'New' } as unknown as UpdateInput)
+    ).resolves.not.toThrow();
+  });
 });
 
 describe('ArticuloService.softDelete', () => {
