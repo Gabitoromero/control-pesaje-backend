@@ -10,3 +10,4 @@ export * from './Muestra.js';
 export * from './Dispositivo.js';
 export * from './Balanza.js';
 export * from './ConfigSistema.js';
+export * from './HistorialCambio.js';

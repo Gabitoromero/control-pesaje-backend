@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import { UsuarioRol } from '../shared/types.js';
+import { runWithAuditUser } from '../audit/audit-context.js';
 
 export interface JWTPayload {
   id: number;
@@ -36,13 +37,17 @@ export const authenticateJWT: RequestHandler = (req, res, next) => {
     return;
   }
 
+  let payload: JWTPayload;
   try {
-    const payload = jwt.verify(token, secret) as JWTPayload;
-    req.user = payload;
-    next();
+    payload = jwt.verify(token, secret) as JWTPayload;
   } catch {
     res.status(401).json({ success: false, error: { message: 'Invalid or expired token' } });
+    return;
   }
+
+  req.user = payload;
+  // Bind the user to the async context so the audit subscriber can attribute changes.
+  runWithAuditUser(payload.id, next);
 };
 
 export const requireRoles = (roles: UsuarioRol[]): RequestHandler => {
