@@ -47,27 +47,7 @@ export function toLineaDto(linea: LineaProduccion) {
 
 export function createLineaProduccionHandlers(
   service: LineaProduccionService
-): { list: RequestHandler; listInactive: RequestHandler; getOne: RequestHandler; assignDevice: RequestHandler } {
-  const list: RequestHandler = async (_req, res) => {
-    try {
-      const items = await service.findAll();
-      const data = items.map(toLineaDto);
-      res.json({ success: true, data });
-    } catch {
-      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
-    }
-  };
-
-  const listInactive: RequestHandler = async (_req, res) => {
-    try {
-      const items = await service.findAllInactive();
-      const data = items.map(toLineaDto);
-      res.json({ success: true, data });
-    } catch {
-      res.status(500).json({ success: false, error: { message: 'Error interno del servidor' } });
-    }
-  };
-
+): { getOne: RequestHandler; assignDevice: RequestHandler } {
   const getOne: RequestHandler = async (req, res) => {
     const id = Number(req.params.id);
     try {
@@ -164,5 +144,5 @@ export function createLineaProduccionHandlers(
     }
   };
 
-  return { list, listInactive, getOne, assignDevice };
+  return { getOne, assignDevice };
 }

@@ -1,6 +1,6 @@
 # Catalog pagination: coordinated API and UI migration
 
-Backend and frontend will deploy together. The common pagination utility is connected to the users, articles and stages list endpoints (`GET /` and `GET /inactive`), which now return pages. Routes and lines still return arrays, and the frontend still expects arrays everywhere, so this branch must not be deployed until every in-scope consumer is migrated. This document defines the migration target, not a claim that the full package is available.
+Backend and frontend deploy together. The common pagination utility is connected to the users, articles, stages, routes and production-line list endpoints (`GET /` and `GET /inactive`), which return pages. The frontend consumers listed below were migrated on the matching `feat/paginacion-get` frontend branch; the two repositories must be deployed together, and real-database proof (SQL, volume, memory) is still pending (see Rollout and verification).
 
 ## Target contract
 
@@ -49,8 +49,8 @@ Unqualified administrative page names above live under `src/features/dashboard/p
 
 - Keep `BaseService.findAll`, `findAllInactive` and default `createCrudHandlers` behavior unchanged for out-of-scope callers. The new utility lives in `src/utils/pagination.ts` and is opt-in.
 - Retain route-stage relations from `src/services/ruta-pasada.service.ts` and production-line relations from `src/services/linea-produccion.service.ts`. Limit distinct roots before loading to-many collections; verify totals with real relation fixtures.
-- Preserve the line projection in `src/controllers/linea-produccion.controller.ts`, including `dispositivo: null` when unassigned and availability computed from current sessions.
-- Route/article association reads are catalog consumers too. Replace full-array membership/exclusion checks with bounded filtered catalog queries or explicit by-ID membership checks; never download all pages to reconstruct a catalog.
+- Lines are projected with `toLineaDto` (`mapItem` of the shared adapter) in `src/controllers/linea-produccion.controller.ts`, including `dispositivo: null` when unassigned and availability computed from current sessions.
+- Route/article association reads are catalog consumers too. Replace full-array membership/exclusion checks with bounded filtered catalog queries or explicit by-ID membership checks; never download all pages to reconstruct a catalog. The route form offers one bounded page of articles and leaves the already assigned ones out of it; selected labels are read by ID.
 - Preserve current permission middleware and mutation guards. No preventive schema migrations or indexes are part of this unit.
 
 ### Frontend boundaries
@@ -70,3 +70,9 @@ Unqualified administrative page names above live under `src/features/dashboard/p
 5. Deploy both repositories together only after all in-scope consumers use pages. No publishing or deployment is authorized by this document.
 
 Rollback of the utility alone means removing its two source/test files and this document, which is only possible while no route uses it. Once a catalog is connected, rollback means reverting that catalog's route, the shared adapter (`src/controllers/paginated-catalog.controller.ts`) and its tests together; the frontend must be reverted with it. Progress and unresolved proof live in `codigo/odd/tasks/paginacion-get.md` outside both repositories.
+
+## Known limitations
+
+- Natural numeric order ("Linea 2" before "Linea 10") is not applied: the API orders by plain `nombre`/`codigo`, so the tablet line selection, remote selectors and history filters follow that order. This is an open product decision.
+- `findAll` / `findAllInactive` of the route and line services are no longer used by the list routes; they were kept because other callers could not be ruled out.
+- Unit tests mock the ORM; the generated SQL (sector JSON filter, `ILIKE`, collation), root counts with real relations and memory/volume improvements are not yet proven against an isolated database.
