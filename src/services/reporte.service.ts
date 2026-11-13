@@ -6,7 +6,8 @@ import { LineaProduccion } from '../models/LineaProduccion.js';
 import { RutaPasada } from '../models/RutaPasada.js';
 import { ArticuloRutaPasada } from '../models/ArticuloRutaPasada.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
-import { PESO_DECIMALS } from '../shared/constants.js';
+import { ValorAtributo } from '../models/ValorAtributo.js';
+import { MAX_ATRIBUTOS_POR_ETAPA, PESO_DECIMALS, VALOR_ATRIBUTO_ACEPTADO } from '../shared/constants.js';
 import { unidadLabel } from '../shared/peso.js';
 import type { Magnitud } from '../shared/types/domain.js';
 
@@ -70,6 +71,35 @@ async function loadMagnitudes(em: EntityManager, rutaIds: Iterable<number | unde
     for (const re of rutaEtapas) byKey.set(`${re.rutaPasada.id}:${re.etapa.id}`, re.magnitud);
   }
   return (rutaId, etapaId) => byKey.get(`${rutaId}:${etapaId}`);
+}
+
+const FILL_ROJO = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF0000' } } as const;
+const SIN_CUALIDAD = '-';
+const TEXTO_ACEPTADO = 'Aceptado';
+const TEXTO_NO_ACEPTADO = 'No aceptado';
+
+/** Column keys of the cualidad slots (nombre, valor, entre valores), one group per slot. */
+const cualidadKeys = (slot: number) => ({
+  nombre: `cualidad${slot}`,
+  valor: `valorCualidad${slot}`,
+  rango: `rangoCualidad${slot}`,
+});
+
+/**
+ * Cell contents of one loaded cualidad. An 'aceptado' value is stored as 1/0 but the reader sees the text, and
+ * its "Entre valores" reads 'Aceptado'. Everything comes from the snapshot taken when the value was loaded.
+ */
+function cualidadCells(v: ValorAtributo): { nombre: string; valor: number | string; rango: string; fueraDeRango: boolean } {
+  const fueraDeRango = v.estadoValidacion === 'fuera_de_rango';
+  if (v.tipo === 'aceptado') {
+    return {
+      nombre: v.nombre,
+      valor: Number(v.valor) === VALOR_ATRIBUTO_ACEPTADO ? TEXTO_ACEPTADO : TEXTO_NO_ACEPTADO,
+      rango: TEXTO_ACEPTADO,
+      fueraDeRango,
+    };
+  }
+  return { nombre: v.nombre, valor: Number(v.valor), rango: `${Number(v.minimo)}-${Number(v.maximo)}`, fueraDeRango };
 }
 
 function addSinDatosSheet(workbook: exceljs.Workbook): void {
@@ -181,6 +211,18 @@ export const reporteService = {
       }
     );
 
+    const valores = pasadas.length
+      ? await em.find(ValorAtributo, { pasada: { $in: pasadas.map((p) => p.id) }, activo: true }, { orderBy: { id: 'asc' } })
+      : [];
+    // pasadaId:etapaId -> values in load order (one cualidad slot each)
+    const valoresPorEtapa = new Map<string, ValorAtributo[]>();
+    for (const v of valores) {
+      const clave = `${v.pasada.id}:${v.etapa.id}`;
+      const lista = valoresPorEtapa.get(clave) ?? [];
+      lista.push(v);
+      valoresPorEtapa.set(clave, lista);
+    }
+
     const muestrasPorPasada = new Map<number, Muestra[]>();
     for (const m of muestras) {
       if (!m.pasada) continue;
@@ -236,6 +278,16 @@ export const reporteService = {
         { header: 'Total Muestras Etapa', key: 'totalEtapa', width: 15 },
         { header: 'Promedio Neto Etapa', key: 'promedioEtapa', width: 20 },
         { header: 'Unidad', key: 'unidad', width: 10 },
+        // Manual cualidades of the etapa, appended so the existing columns keep their position.
+        ...Array.from({ length: MAX_ATRIBUTOS_POR_ETAPA }, (_, i) => {
+          const slot = i + 1;
+          const keys = cualidadKeys(slot);
+          return [
+            { header: `Cualidad ${slot}`, key: keys.nombre, width: 20 },
+            { header: `Valor Cualidad ${slot}`, key: keys.valor, width: 15 },
+            { header: `Entre valores Cualidad ${slot}`, key: keys.rango, width: 20 },
+          ];
+        }).flat(),
       ];
       sheet.getRow(1).font = { bold: true };
 
@@ -280,19 +332,41 @@ export const reporteService = {
         }
 
         if (pesosPorEtapa.size === 0) {
-          sheet.addRow({ ...pasadaFields, etapa: '-', totalEtapa: '-', promedioEtapa: '-', unidad: '-' });
+          const sinCualidades: Record<string, string> = {};
+          for (let i = 1; i <= MAX_ATRIBUTOS_POR_ETAPA; i++) {
+            const keys = cualidadKeys(i);
+            Object.assign(sinCualidades, { [keys.nombre]: SIN_CUALIDAD, [keys.valor]: SIN_CUALIDAD, [keys.rango]: SIN_CUALIDAD });
+          }
+          sheet.addRow({ ...pasadaFields, etapa: '-', totalEtapa: '-', promedioEtapa: '-', unidad: '-', ...sinCualidades });
           continue;
         }
 
         for (const [etapa, { etapaId, pesos }] of pesosPorEtapa.entries()) {
           const avg = pesos.reduce((acc, v) => acc + v, 0) / pesos.length;
-          sheet.addRow({
+          const cualidades = valoresPorEtapa.get(`${p.id}:${etapaId}`) ?? [];
+          const cualidadFields: Record<string, number | string> = {};
+          const rojas: string[] = [];
+          for (let i = 0; i < MAX_ATRIBUTOS_POR_ETAPA; i++) {
+            const keys = cualidadKeys(i + 1);
+            const v = cualidades[i];
+            if (!v) {
+              Object.assign(cualidadFields, { [keys.nombre]: SIN_CUALIDAD, [keys.valor]: SIN_CUALIDAD, [keys.rango]: SIN_CUALIDAD });
+              continue;
+            }
+            const cells = cualidadCells(v);
+            Object.assign(cualidadFields, { [keys.nombre]: cells.nombre, [keys.valor]: cells.valor, [keys.rango]: cells.rango });
+            if (cells.fueraDeRango) rojas.push(keys.valor);
+          }
+          const row = sheet.addRow({
             ...pasadaFields,
             etapa: etapa,
             totalEtapa: pesos.length,
             promedioEtapa: avg.toFixed(PESO_DECIMALS),
             unidad: unidadReporte(magnitudDe(p.rutaPasada.id, etapaId)),
+            ...cualidadFields,
           });
+          // A value outside the acceptance range (or 'No aceptado') is shown in red
+          for (const key of rojas) row.getCell(key).fill = FILL_ROJO;
         }
       }
     }

@@ -19,6 +19,7 @@ import {
 import { ValorAtributoService } from './valor-atributo.service.js';
 import { MuestraService } from './muestra.service.js';
 import { PasadaService } from './pasada.service.js';
+import { reporteService } from './reporte.service.js';
 import { sesionService } from './sesion.service.js';
 import { clearDatabase } from '../test-utils/db-teardown.js';
 import { UsuarioRol } from '../shared/types.js';
@@ -241,6 +242,30 @@ describe('ValorAtributoService and the cualidades advance rule (integration)', (
       const pasada = await iniciar();
       await muestra(pasada.id, etapa1);
       await expect(muestra(pasada.id, etapa2)).rejects.toThrow(`Preceding stage '${etapa1.id}' is not complete`);
+    }));
+  });
+
+  describe('pasadas report', () => {
+    it('reads the loaded cualidades from the real database: values, texts and red when out of range', () => inCtx(async () => {
+      const pasada = await iniciar();
+      await completarEtapa1(pasada.id);
+      await valores.registrarValores(usuario.id, pasada.id, etapa1.id, [
+        { atributoId: temperatura.id, valor: 120 },
+        { atributoId: degustacion.id, valor: 0 },
+      ]);
+
+      const wb = await reporteService.generateReportePasadas(orm.em.fork(), new Date(0), new Date(Date.now() + 60_000));
+
+      const ws = wb.getWorksheet('L1')!;
+      const header = (ws.getRow(1).values as unknown[]).slice(1) as string[];
+      const cell = (row: number, h: string) => ws.getRow(row).getCell(header.indexOf(h) + 1);
+      expect(cell(2, 'Cualidad 1').value).toBe('Temperatura');
+      expect(cell(2, 'Valor Cualidad 1').value).toBe(120);
+      expect(cell(2, 'Entre valores Cualidad 1').value).toBe('0-99');
+      expect(cell(2, 'Valor Cualidad 2').value).toBe('No aceptado');
+      expect(cell(2, 'Entre valores Cualidad 2').value).toBe('Aceptado');
+      expect((cell(2, 'Valor Cualidad 1').fill as { fgColor?: { argb?: string } }).fgColor?.argb).toBe('FFFF0000');
+      expect((cell(2, 'Valor Cualidad 2').fill as { fgColor?: { argb?: string } }).fgColor?.argb).toBe('FFFF0000');
     }));
   });
 });

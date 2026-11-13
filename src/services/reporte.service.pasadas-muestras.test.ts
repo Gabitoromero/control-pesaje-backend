@@ -77,7 +77,10 @@ const PASADAS_HEADERS = [
   'Inicio', 'Cierre', 'Duración (min)', 'Responsable', 'Total Muestras Pasada', 'Conformes Pasada',
   'Fuera de Rango Pasada', '% Conforme Pasada', 'Motivo de Cierre', 'Observación Cierre',
   'Etapa', 'Total Muestras Etapa', 'Promedio Neto Etapa', 'Unidad',
+  'Cualidad 1', 'Valor Cualidad 1', 'Entre valores Cualidad 1',
+  'Cualidad 2', 'Valor Cualidad 2', 'Entre valores Cualidad 2',
 ];
+const SIN_CUALIDADES = ['-', '-', '-', '-', '-', '-'];
 const MUESTRAS_HEADERS = [
   'Línea de Producción', 'Balanza', 'Ruta', 'N° Pasada', 'Estado Pasada', 'Código', 'Artículo', 'Etapa',
   'Fecha/Hora Muestra', 'Neto', 'Límite Mín', 'Ideal', 'Límite Máx', 'Unidad', 'Validación',
@@ -114,8 +117,8 @@ describe('reporteService.generateReportePasadas', () => {
       'Linea 1', 'Balanza 1', 'Ruta 1', 'P-001', 'nota inicio', 'A-001', 'Articulo 1', 'CERRADA',
       '01/01/2023 09:00', '01/01/2023 11:30', 150, 'Juan Perez', 3, 2, 1, '66.7', 'Fin de lote', 'nota cierre',
     ];
-    expect(rowValues(sheet, 2)).toEqual([...pasadaFields, 'Etapa A', 2, '97.5000', 'kg']);
-    expect(rowValues(sheet, 3)).toEqual([...pasadaFields, 'Etapa B', 1, '50.0000', 'kg']);
+    expect(rowValues(sheet, 2)).toEqual([...pasadaFields, 'Etapa A', 2, '97.5000', 'kg', ...SIN_CUALIDADES]);
+    expect(rowValues(sheet, 3)).toEqual([...pasadaFields, 'Etapa B', 1, '50.0000', 'kg', ...SIN_CUALIDADES]);
     expect(sheet.rowCount).toBe(3);
   });
 
@@ -124,7 +127,7 @@ describe('reporteService.generateReportePasadas', () => {
     expect(rowValues(sheet, 2)).toEqual([
       'Linea 2', '-', 'Ruta 2', 'P-002', '-', '-', '-', 'EN CURSO',
       '02/01/2023 08:05', '-', '-', 'Ana Gomez', 0, 0, 0, '0.0', '-', '-',
-      '-', '-', '-', '-',
+      '-', '-', '-', '-', ...SIN_CUALIDADES,
     ]);
     expect(sheet.rowCount).toBe(2);
   });
@@ -186,10 +189,10 @@ describe('reporteService.generateReportePasadas', () => {
     expect(new Set(names.map((n) => n.toLowerCase())).size).toBe(3);
   });
 
-  it('queries muestras and pasadas once each, filtering pasadas by activo', async () => {
+  it('queries muestras, pasadas and cualidad values once each, filtering pasadas by activo', async () => {
     const em = makeEm(muestras, [pasada1]);
     await reporteService.generateReportePasadas(em, new Date(), new Date());
-    expect(em.find).toHaveBeenCalledTimes(2);
+    expect(em.find).toHaveBeenCalledTimes(3);
     const pasadaCall = em.find.mock.calls.find((c: unknown[]) => (c[0] as { name: string }).name === 'Pasada');
     expect(pasadaCall![1]).toMatchObject({ activo: true });
   });

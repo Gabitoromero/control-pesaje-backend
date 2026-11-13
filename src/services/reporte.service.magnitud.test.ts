@@ -93,7 +93,7 @@ describe('reportes — unidad por magnitud de la etapa', () => {
   it('Pasadas: the etapa average carries its own Unidad', async () => {
     const sheet = (await reporteService.generateReportePasadas(makeEm(), new Date(), new Date())).getWorksheet('Linea 1')!;
 
-    expect(headers(sheet).slice(-2)).toEqual(['Promedio Neto Etapa', 'Unidad']);
+    expect(headers(sheet).slice(20, 22)).toEqual(['Promedio Neto Etapa', 'Unidad']);
     expect(column(sheet, 'Etapa')).toEqual(['Envasado', 'Moldeado', 'Retirada']);
     expect(column(sheet, 'Promedio Neto Etapa')).toEqual(['0.0850', '0.0610', '0.0700']);
     expect(column(sheet, 'Unidad')).toEqual(['kg', 'L', 'kg']);
