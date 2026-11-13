@@ -107,6 +107,24 @@ export interface ArticuloRutaPasadaItem {
 
 // ─── Ruta de pasada ───────────────────────────────────────────────────────────
 
+/** Manual quality of a ruta-etapa as the backend returns it. minimo/maximo is the acceptance range ('aceptado' is always 1..1). */
+export interface AtributoEtapa {
+  id: number;
+  nombre: string;
+  tipo: TipoAtributo;
+  minimo: number;
+  maximo: number;
+}
+
+/** Used when creating or updating a ruta. For 'aceptado' the range is ignored (fixed to 1..1); 'numerico' requires minimo <= maximo. */
+export interface AtributoEtapaInput {
+  id?: number;
+  nombre: string;
+  tipo: TipoAtributo;
+  minimo?: number;
+  maximo?: number;
+}
+
 /**
  * Shape the backend returns for each stage inside a ruta.
  * The backend populates `etapa` as a nested object with `{ id, nombre }`.
@@ -125,6 +143,8 @@ export interface RutaPasadaEtapa {
   toleranciaPct?: number | null;
   /** Defaults to 'peso' when omitted. */
   magnitud?: Magnitud;
+  /** Active manual qualities of the etapa. */
+  atributos?: AtributoEtapa[];
 }
 
 /** Used when creating or updating a ruta — etapa is sent as an ID */
@@ -140,6 +160,8 @@ export interface RutaPasadaEtapaCreate {
   toleranciaPct?: number | null;
   /** Defaults to 'peso' when omitted. */
   magnitud?: Magnitud;
+  /** Omitted on update keeps the stored atributos; an array replaces them (missing ones are deactivated). */
+  atributos?: AtributoEtapaInput[];
 }
 
 export interface Ruta {

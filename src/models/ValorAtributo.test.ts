@@ -105,9 +105,11 @@ describe('Atributo de etapa-ruta y valor de atributo', () => {
     const bad = Object.assign(new AtributoEtapaRuta(), { rutaPasadaEtapa: rutaEtapa, nombre: 'X', tipo: 'texto' as never, minimo: 0, maximo: 1 });
     await expect(em.fork().persist(bad).flush()).rejects.toThrow();
 
-    const atributo = Object.assign(new AtributoEtapaRuta(), { rutaPasadaEtapa: rutaEtapa, nombre: 'Y', tipo: 'numerico', minimo: 0, maximo: 1 });
-    await em.persist(atributo).flush();
-    const badValor = Object.assign(new ValorAtributo(), { pasada, etapa, atributo, usuario, valor: 1, nombre: 'Y', tipo: 'numerico', minimo: 0, maximo: 1, estadoValidacion: 'raro' as never });
-    await expect(em.fork().persist(badValor).flush()).rejects.toThrow();
+    // Fresh graph: the invalid atributo above is still attached to the first rutaEtapa collection.
+    const { em: em2, usuario: usuario2, etapa: etapa2, rutaEtapa: rutaEtapa2, pasada: pasada2 } = await seed();
+    const atributo = Object.assign(new AtributoEtapaRuta(), { rutaPasadaEtapa: rutaEtapa2, nombre: 'Y', tipo: 'numerico', minimo: 0, maximo: 1 });
+    await em2.persist(atributo).flush();
+    const badValor = Object.assign(new ValorAtributo(), { pasada: pasada2, etapa: etapa2, atributo, usuario: usuario2, valor: 1, nombre: 'Y', tipo: 'numerico', minimo: 0, maximo: 1, estadoValidacion: 'raro' as never });
+    await expect(em2.fork().persist(badValor).flush()).rejects.toThrow();
   });
 });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { UsuarioRol, SectorUsuario } from './types.js';
-import { MAGNITUDES } from './constants.js';
+import { MAGNITUDES, MAX_ATRIBUTOS_POR_ETAPA, TIPOS_ATRIBUTO } from './constants.js';
 
 // ─── Usuario ─────────────────────────────────────────────────────────────────
 
@@ -126,6 +126,18 @@ export const RutaPasadaCreateSchema = z.object({
 
 export const RutaPasadaUpdateSchema = RutaPasadaCreateSchema.partial();
 
+// ─── AtributoEtapaRuta ────────────────────────────────────────────────────────
+
+// Manual quality defined inside a ruta-etapa. The cross-field rules (numerico needs a range with
+// minimo <= maximo; aceptado is fixed to 1..1; names unique per etapa) live in RutaPasadaService.
+export const AtributoEtapaRutaInputSchema = z.object({
+  id: z.number().int().positive().optional(),
+  nombre: z.string().trim().min(1).max(100),
+  tipo: z.enum(TIPOS_ATRIBUTO),
+  minimo: z.number().finite().min(-99999999).max(99999999).optional(),
+  maximo: z.number().finite().min(-99999999).max(99999999).optional(),
+});
+
 // ─── RutaPasadaEtapa ──────────────────────────────────────────────────────────
 
 export const RutaPasadaEtapaCreateSchema = z.object({
@@ -153,6 +165,8 @@ export const RutaPasadaEtapaCreateSchema = z.object({
     .optional(),
   // Magnitude the etapa measures. Label only: weights stay in kg (1 kg = 1 L). Omitted means 'peso' on a new etapa.
   magnitud: z.enum(MAGNITUDES).optional(),
+  // Manual qualities of the etapa. Omitted on update keeps the stored ones; an array replaces them (missing ones are deactivated).
+  atributos: z.array(AtributoEtapaRutaInputSchema).max(MAX_ATRIBUTOS_POR_ETAPA).optional(),
 });
 
 export const RutaPasadaEtapaUpdateSchema = RutaPasadaEtapaCreateSchema.partial();

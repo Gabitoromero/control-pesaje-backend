@@ -1,4 +1,6 @@
-import { Entity, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
+import { Entity, ManyToOne, OneToMany, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy';
+import { Collection } from '@mikro-orm/core';
+import { AtributoEtapaRuta } from './AtributoEtapaRuta.js';
 import { Etapa } from './Etapa.js';
 import { RutaPasada } from './RutaPasada.js';
 import { MAGNITUD_POR_DEFECTO, PESO_DECIMALS } from '../shared/constants.js';
@@ -42,4 +44,8 @@ export class RutaPasadaEtapa {
   /** Magnitude the etapa measures. Label only: a volumen etapa is still weighed and stored in kg (1 kg = 1 L). */
   @Property({ type: 'string', columnType: 'varchar(10)', default: MAGNITUD_POR_DEFECTO, check: `"magnitud" in ('peso', 'volumen')` })
   magnitud?: Magnitud = MAGNITUD_POR_DEFECTO;
+
+  /** Manual qualities the operator loads when the samples of this etapa finish. Soft-deleted ones (activo = false) are not loaded by the ruta endpoints. */
+  @OneToMany(() => AtributoEtapaRuta, (a) => a.rutaPasadaEtapa, { orderBy: { id: 'asc' } })
+  atributos = new Collection<AtributoEtapaRuta>(this);
 }
