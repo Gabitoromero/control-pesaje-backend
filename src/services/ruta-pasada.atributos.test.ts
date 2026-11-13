@@ -136,10 +136,11 @@ describe('RutaPasadaService — atributos', () => {
       expect(mockEm.create).not.toHaveBeenCalledWith(AtributoEtapaRuta, expect.anything());
     });
 
-    it('syncs by id: edits the sent one, creates the new one, deactivates the missing one', async () => {
+    it('syncs by id: edits the sent one, creates the new one, deletes the missing one that has no values', async () => {
       const keep = atributo(100);
       const gone = atributo(101);
       mockEm.findOne.mockResolvedValue(buildRuta([{ id: 10, etapa: { id: 2 }, atributos: [keep, gone] }]));
+      mockEm.count.mockResolvedValue(0);
 
       await service.update(1, {
         etapas: [{ ...baseEtapa, id: 10, atributos: [{ id: 100, nombre: 'Renombrada', tipo: 'numerico', minimo: 1, maximo: 20 }, degustacion] }],
@@ -147,18 +148,20 @@ describe('RutaPasadaService — atributos', () => {
 
       expect(mockEm.assign).toHaveBeenCalledWith(keep, expect.objectContaining({ nombre: 'Renombrada', minimo: 1, maximo: 20 }), expect.objectContaining({ convertCustomTypes: true }));
       expect(mockEm.create).toHaveBeenCalledWith(AtributoEtapaRuta, expect.objectContaining({ nombre: 'Degustación', minimo: 1, maximo: 1 }));
-      expect(gone.activo).toBe(false);
+      expect(mockEm.remove).toHaveBeenCalledWith(gone);
+      expect(mockEm.remove).not.toHaveBeenCalledWith(keep);
       expect(keep.activo).toBe(true);
-      expect(mockEm.remove).not.toHaveBeenCalled();
     });
 
-    it('an empty array deactivates every atributo of the etapa', async () => {
-      const a = atributo(100);
-      mockEm.findOne.mockResolvedValue(buildRuta([{ id: 10, etapa: { id: 2 }, atributos: [a] }]));
+    it('only deactivates the missing one when it already has loaded values', async () => {
+      const gone = atributo(101);
+      mockEm.findOne.mockResolvedValue(buildRuta([{ id: 10, etapa: { id: 2 }, atributos: [gone] }]));
+      mockEm.count.mockResolvedValue(2);
 
       await service.update(1, { etapas: [{ ...baseEtapa, id: 10, atributos: [] }] } as unknown as UpdateInput);
 
-      expect(a.activo).toBe(false);
+      expect(gone.activo).toBe(false);
+      expect(mockEm.remove).not.toHaveBeenCalled();
     });
 
     it('rejects an atributo id that does not belong to the etapa', async () => {
@@ -169,12 +172,24 @@ describe('RutaPasadaService — atributos', () => {
       ).rejects.toBeInstanceOf(ValidationError);
     });
 
-    it('refuses to remove an etapa that has atributos, active or deactivated, and never deletes them', async () => {
-      const inactive = atributo(100, { activo: false });
-      mockEm.findOne.mockResolvedValue(buildRuta([{ id: 10, etapa: { id: 2 }, atributos: [inactive] }]));
+    it('refuses to remove an etapa that has a cualidad with loaded values, and removes nothing', async () => {
+      const conValores = atributo(100, { activo: false });
+      mockEm.findOne.mockResolvedValue(buildRuta([{ id: 10, etapa: { id: 2 }, atributos: [conValores] }]));
+      mockEm.count.mockResolvedValue(1);
 
       await expect(service.update(1, { etapas: [] } as unknown as UpdateInput)).rejects.toBeInstanceOf(ValidationError);
       expect(mockEm.remove).not.toHaveBeenCalled();
+    });
+
+    it('removes an etapa whose cualidades have no loaded values, cualidades included', async () => {
+      const a = atributo(100);
+      mockEm.findOne.mockResolvedValue(buildRuta([{ id: 10, etapa: { id: 2 }, atributos: [a] }]));
+      mockEm.count.mockResolvedValue(0);
+
+      await service.update(1, { etapas: [] } as unknown as UpdateInput);
+
+      expect(mockEm.remove).toHaveBeenCalledWith(a);
+      expect(mockEm.remove).toHaveBeenCalledWith(expect.objectContaining({ id: 10 }));
     });
 
     it('removes an etapa that has no atributos (previous behavior)', async () => {

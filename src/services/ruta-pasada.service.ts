@@ -5,6 +5,7 @@ import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
 import { RestrictError, ValidationError } from '../utils/errors.js';
 import { RequiredEntityData, type EntityManager, type ObjectQuery } from '@mikro-orm/core';
 import { AtributoEtapaRuta } from '../models/AtributoEtapaRuta.js';
+import { ValorAtributo } from '../models/ValorAtributo.js';
 import { MAGNITUD_POR_DEFECTO, MAX_ATRIBUTOS_POR_ETAPA, VALOR_ATRIBUTO_ACEPTADO } from '../shared/constants.js';
 import type { AtributoEtapaInput, Magnitud } from '../shared/types/domain.js';
 
@@ -24,7 +25,7 @@ type RutaPasadaEtapaInput = {
 
 type AtributoNormalizado = { id?: number; nombre: string; tipo: AtributoEtapaInput['tipo']; minimo: number; maximo: number };
 
-/** Active atributos only: soft-deleted ones are history and never travel in the ruta responses. */
+/** Active atributos only: deactivated ones (kept because they have loaded values) never travel in the ruta responses. */
 const POPULATE_ETAPAS = ['etapas', 'etapas.etapa', 'etapas.atributos'] as const;
 /**
  * An etapa without atributos must still come back: the filter keeps the etapas that have no atributo at all
@@ -202,14 +203,18 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
         }
 
         // Hard delete pivots not present in the payload (soft-delete only applies to parent cascade).
-        // An etapa with atributos (even deactivated ones) cannot be removed: atributos are never physically deleted
-        // and loaded values must keep pointing at them.
+        // An etapa with a cualidad that already has loaded values cannot be removed: those values keep pointing at it.
+        // Its other cualidades (no values yet) leave together with the etapa.
         for (const remaining of existingById.values()) {
-          if (remaining.atributos && (await remaining.atributos.init()).getItems().length > 0) {
-            throw new ValidationError('No se puede quitar una etapa que tiene cualidades definidas');
+          const atributos = remaining.atributos ? (await remaining.atributos.init()).getItems() : [];
+          for (const atributo of atributos) {
+            if (await this.tieneValores(tx, atributo)) {
+              throw new ValidationError('No se puede quitar una etapa que tiene cualidades con valores cargados');
+            }
           }
         }
         for (const remaining of existingById.values()) {
+          for (const atributo of remaining.atributos ? remaining.atributos.getItems() : []) tx.remove(atributo);
           tx.remove(remaining);
         }
       }
@@ -225,7 +230,8 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
 
   /**
    * Replaces the active atributos of an etapa with the payload: matches by id, creates the ones without id and
-   * deactivates (never deletes) the missing ones, so values already loaded keep their atributo.
+   * removes the missing ones. A missing atributo with loaded values is only deactivated (the values keep their
+   * atributo); one without values is deleted for good, like the etapa/ruta and articulo/ruta links.
    */
   private async syncAtributos(tx: EntityManager, pivot: RutaPasadaEtapa, atributos: AtributoNormalizado[]): Promise<void> {
     const actuales = (await pivot.atributos.init()).getItems().filter((a) => a.activo);
@@ -241,7 +247,14 @@ export class RutaPasadaService extends BaseService<RutaPasada> {
       tx.assign(existing, data, { convertCustomTypes: true });
       porId.delete(atributoId);
     }
-    for (const sobrante of porId.values()) sobrante.activo = false;
+    for (const sobrante of porId.values()) {
+      if (await this.tieneValores(tx, sobrante)) sobrante.activo = false;
+      else tx.remove(sobrante);
+    }
+  }
+
+  private async tieneValores(tx: EntityManager, atributo: AtributoEtapaRuta): Promise<boolean> {
+    return (await tx.count(ValorAtributo, { atributo: atributo.id })) > 0;
   }
 
   override async softDelete(id: number): Promise<boolean> {

@@ -61,6 +61,12 @@ describe('resolveContextoCualidades', () => {
     expect(em.find).toHaveBeenCalledTimes(1);
   });
 
+  it('names a deleted cualidad from its stored snapshot when the row no longer exists', async () => {
+    const em = { find: vi.fn(async () => []) } as unknown as EntityManager;
+    const ctx = await resolveContextoCualidades(em, [{ id: 1, entidad: 'ruta_atributo', entidadId: 70, antes: { nombre: 'Humedad' }, despues: {} }]);
+    expect(ctx.get(1)).toBe('Humedad');
+  });
+
   it('queries nothing when no change is about a cualidad', async () => {
     const em = { find: vi.fn() } as unknown as EntityManager;
     const ctx = await resolveContextoCualidades(em, [{ id: 2, entidad: 'articulo', entidadId: 5, antes: {}, despues: {} }]);

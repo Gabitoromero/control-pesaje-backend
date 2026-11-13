@@ -152,4 +152,27 @@ describe('audit trail (real Postgres)', () => {
       expect(deCualidad.every((i) => (i as { contexto?: string }).contexto === 'Horno · Temperatura')).toBe(true);
     });
   });
+  it('audits the physical delete of a cualidad under the ruta, keeping what it was and naming it in the listing', async () => {
+    await runWithAuditUser(userId, async () => {
+      const em = orm.em.fork();
+      const etapa = em.create(Etapa, { nombre: 'Horno', activo: true });
+      const ruta = em.create(RutaPasada, { nombre: 'Ruta D', activo: true });
+      await em.flush();
+      const re = em.create(RutaPasadaEtapa, {
+        rutaPasada: ruta, etapa, orden: 1, pesoIdeal: 10, pesoMinimo: 9, pesoMaximo: 11, cantidadMuestrasRequeridas: 1,
+      } as never);
+      const cualidad = em.create(AtributoEtapaRuta, { rutaPasadaEtapa: re, nombre: 'Humedad', tipo: 'numerico', minimo: 0, maximo: 10, activo: true } as never);
+      await em.flush();
+      em.remove(cualidad);
+      await em.flush();
+
+      const eliminadas = (await rows('ruta', ruta.id)).filter((r) => r.entidad === 'ruta_atributo' && r.accion === 'eliminar');
+      expect(eliminadas).toHaveLength(1);
+      expect(eliminadas[0].antes).toMatchObject({ nombre: 'Humedad', tipo: 'numerico', minimo: 0, maximo: 10 });
+
+      const listado = await listHistorialCambio(orm.em.fork(), { raizTipo: 'ruta', raizId: ruta.id, page: 1, pageSize: 20 });
+      const item = listado.items.find((i) => i.entidad === 'ruta_atributo' && i.accion === 'eliminar') as { contexto?: string } | undefined;
+      expect(item?.contexto).toBe('Humedad');
+    });
+  });
 });

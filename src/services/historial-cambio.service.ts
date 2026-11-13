@@ -96,7 +96,8 @@ export const resolveContextos = async (em: EntityManager, items: ChangeLike[]) =
 
 /**
  * Names the cualidad ("Etapa · Cualidad") a ruta_atributo change refers to. A diff only carries the fields that
- * changed, so editing a range says nothing about which cualidad it was: look it up from the row (soft-deleted rows stay).
+ * changed, so editing a range says nothing about which cualidad it was: look it up from the row. A deleted one
+ * falls back to its name in the stored snapshot (no etapa name then).
  */
 export const resolveContextoCualidades = async (em: EntityManager, items: ChangeLike[]): Promise<Map<number, string>> => {
   const result = new Map<number, string>();
@@ -105,7 +106,10 @@ export const resolveContextoCualidades = async (em: EntityManager, items: Change
   const rows = await em.find(AtributoEtapaRuta, { id: { $in: ids } }, { populate: ['rutaPasadaEtapa.etapa'] });
   const label = new Map(rows.map((r) => [r.id, `${r.rutaPasadaEtapa.etapa.nombre} · ${r.nombre}`]));
   for (const it of items) {
-    const text = it.entidad === 'ruta_atributo' ? label.get(it.entidadId) : undefined;
+    if (it.entidad !== 'ruta_atributo') continue;
+    // A deleted cualidad has no row left to look up: its stored snapshot still names it.
+    const nombre = typeof it.antes.nombre === 'string' ? it.antes.nombre : undefined;
+    const text = label.get(it.entidadId) ?? nombre;
     if (text) result.set(it.id, text);
   }
   return result;
