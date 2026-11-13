@@ -35,14 +35,17 @@ export async function assignHardwareIdToLinea(
   em: EntityManager,
   lineaId: number,
   hardwareId: string
-): Promise<{ linea: LineaProduccion; dispositivo: Dispositivo } | null> {
+): Promise<{ linea: LineaProduccion; dispositivo: Dispositivo; previousHardwareId?: string } | null> {
   return em.transactional(async (tem) => {
     const target = await tem.findOne(LineaProduccion, { id: lineaId }, { populate: ['dispositivo'] });
     if (!target) return null;
 
-    if (target.dispositivo && target.dispositivo.hardwareId !== hardwareId) {
-      throw new Error('Validation Error: La línea ya tiene un dispositivo asignado');
-    }
+    // Swapping: the línea already holds a different device. The new assignment
+    // replaces it atomically (the old device is left unassigned).
+    const previousHardwareId =
+      target.dispositivo && target.dispositivo.hardwareId !== hardwareId
+        ? target.dispositivo.hardwareId
+        : undefined;
 
     let dispositivo = await tem.findOne(Dispositivo, { hardwareId }, { populate: ['lineaProduccion'] });
     if (!dispositivo) {
@@ -57,7 +60,7 @@ export async function assignHardwareIdToLinea(
     target.dispositivo = dispositivo;
     await tem.flush();
 
-    return { linea: target, dispositivo };
+    return { linea: target, dispositivo, previousHardwareId };
   });
 }
 

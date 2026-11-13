@@ -121,6 +121,26 @@ describe('createLineaProduccionHandlers', () => {
       const data = (mock.body as { data: { observacion?: string } }).data;
       expect(data.observacion).toBe('nota de la linea');
     });
+
+    it('disconnects both the new and the replaced device socket on a swap', async () => {
+      vi.mocked(disconnectDeviceByHardwareId).mockClear();
+      const hardwareId = '123e4567-e89b-12d3-a456-426614174000';
+      const previousHardwareId = '223e4567-e89b-12d3-a456-426614174000';
+      vi.mocked(assignHardwareIdToLinea).mockResolvedValue({
+        linea: { id: 1, nombre: 'Linea 1', activo: true } as never,
+        dispositivo: { hardwareId, nombre: 'Pi-1234', ultimaConexionAt: null } as never,
+        previousHardwareId,
+      });
+
+      const req = makeReq({ params: { id: '1' }, body: { hardwareId } });
+      const { mock } = makeRes();
+
+      await handlers.assignDevice(req, mock as unknown as Response, vi.fn());
+
+      expect(disconnectDeviceByHardwareId).toHaveBeenCalledWith(undefined, hardwareId);
+      expect(disconnectDeviceByHardwareId).toHaveBeenCalledWith(undefined, previousHardwareId);
+      expect((mock.body as { success: boolean }).success).toBe(true);
+    });
   });
   describe('unassignDevice', () => {
     const hardwareId = '123e4567-e89b-12d3-a456-426614174000';

@@ -119,6 +119,16 @@ export function createLineaProduccionHandlers(
         console.error('[assignDevice] failed to disconnect device socket', err);
       }
 
+      // On a swap, the replaced device is now unassigned: drop its stale socket
+      // pairing too. Best-effort, same as above.
+      if (result.previousHardwareId) {
+        try {
+          disconnectDeviceByHardwareId(getIo(), result.previousHardwareId);
+        } catch (err) {
+          console.error('[assignDevice] failed to disconnect replaced device socket', err);
+        }
+      }
+
       const { linea, dispositivo } = result;
       const data = {
         id: linea.id,
