@@ -110,4 +110,26 @@ describe('RutaPasadaService atributos (integration)', () => {
     await inCtx(() => service.update(sinAtributos.id, { etapas: [] } as never));
     expect(await orm.em.fork().count(RutaPasadaEtapa, { rutaPasada: sinAtributos.id })).toBe(0);
   });
+  it('GET returns every etapa of a ruta, including etapas without atributos', async () => {
+    const em = orm.em.fork();
+    const extra = [Object.assign(new Etapa(), { nombre: 'Enfriado' }), Object.assign(new Etapa(), { nombre: 'Envasado' })];
+    await em.persist(extra).flush();
+    const created = await inCtx(() =>
+      service.create({
+        nombre: rutaNombre(),
+        etapas: [
+          { ...etapaBase(), orden: 1 },
+          { ...etapaBase(), etapa: extra[0].id, orden: 2, atributos: [{ nombre: 'Sabor', tipo: 'aceptado' }] },
+          { ...etapaBase(), etapa: extra[1].id, orden: 3 },
+        ],
+      } as never),
+    );
+
+    const byId = json(await inCtx(() => service.findById(created.id) as Promise<RutaPasada>));
+    expect(byId.etapas).toHaveLength(3);
+    expect(byId.etapas.map((e) => e.atributos.length).sort()).toEqual([0, 0, 1]);
+
+    const all = (await inCtx(() => service.findAll())).find((r) => r.id === created.id);
+    expect(json(all as RutaPasada).etapas).toHaveLength(3);
+  });
 });

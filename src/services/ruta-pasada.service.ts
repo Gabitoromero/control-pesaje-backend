@@ -3,7 +3,7 @@ import { RutaPasada } from '../models/RutaPasada.js';
 import { LineaProduccion } from '../models/LineaProduccion.js';
 import { RutaPasadaEtapa } from '../models/RutaPasadaEtapa.js';
 import { RestrictError, ValidationError } from '../utils/errors.js';
-import { RequiredEntityData, type EntityManager } from '@mikro-orm/core';
+import { RequiredEntityData, type EntityManager, type ObjectQuery } from '@mikro-orm/core';
 import { AtributoEtapaRuta } from '../models/AtributoEtapaRuta.js';
 import { MAGNITUD_POR_DEFECTO, MAX_ATRIBUTOS_POR_ETAPA, VALOR_ATRIBUTO_ACEPTADO } from '../shared/constants.js';
 import type { AtributoEtapaInput, Magnitud } from '../shared/types/domain.js';
@@ -26,7 +26,11 @@ type AtributoNormalizado = { id?: number; nombre: string; tipo: AtributoEtapaInp
 
 /** Active atributos only: soft-deleted ones are history and never travel in the ruta responses. */
 const POPULATE_ETAPAS = ['etapas', 'etapas.etapa', 'etapas.atributos'] as const;
-const ONLY_ACTIVE_ATRIBUTOS = { etapas: { atributos: { activo: true } } } as const;
+/**
+ * An etapa without atributos must still come back: the filter keeps the etapas that have no atributo at all
+ * (`id: null`) next to the ones whose atributos are active. A plain `{ activo: true }` drops those etapas.
+ */
+const ONLY_ACTIVE_ATRIBUTOS = { etapas: { atributos: { $or: [{ id: null }, { activo: true }] } } } as unknown as ObjectQuery<RutaPasada>;
 
 /**
  * Enforces the tolerance rule on an incoming etapa: "por defecto" uses the global value and
