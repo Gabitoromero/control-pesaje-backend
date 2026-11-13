@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: pesaje_ci
+          POSTGRES_PASSWORD: pesaje_ci
+          POSTGRES_DB: control_pesaje_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pesaje_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USER: pesaje_ci
+      DB_PASSWORD: pesaje_ci
+      DB_NAME: control_pesaje_test
+      JWT_SECRET: ci-only-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version comes from "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build # tsc = typecheck
+      - run: pnpm vitest run # "pnpm test" is watch mode: never use it in CI
